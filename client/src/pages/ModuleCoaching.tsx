@@ -91,14 +91,16 @@ export default function ModuleCoaching() {
   useEffect(() => {
     if (chatHistory && !chatInitialized) {
       if (chatHistory.length > 0) {
-        const historyMessages: ChatMessage[] = chatHistory.map((msg) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        }));
+        // Filter out the auto-start "Let's get started" user messages — they're invisible triggers
+        const historyMessages: ChatMessage[] = chatHistory
+          .filter((msg) => !(msg.role === "user" && msg.content.trim().toLowerCase() === "let's get started"))
+          .map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          }));
         setMessages(historyMessages);
       } else if (activeStepId && !chatMutation.isPending) {
-        // No history — auto-start the conversation
-        setMessages([{ role: "user", content: "Let's get started" }]);
+        // No history — silently auto-start the conversation (don't show the trigger message)
         chatMutation.mutate({ stepId: activeStepId, message: "Let's get started" });
       }
       setChatInitialized(true);
