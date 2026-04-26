@@ -44,39 +44,39 @@
 
 :root {
   --radius: 0.625rem;
-  /* Dark theme as default */
-  --background: oklch(0.145 0.014 270);
-  --foreground: oklch(0.93 0.005 270);
-  --card: oklch(0.19 0.016 270);
-  --card-foreground: oklch(0.93 0.005 270);
-  --popover: oklch(0.19 0.016 270);
-  --popover-foreground: oklch(0.93 0.005 270);
-  --primary: oklch(0.72 0.14 180);
-  --primary-foreground: oklch(0.15 0.02 180);
-  --secondary: oklch(0.24 0.016 270);
-  --secondary-foreground: oklch(0.82 0.005 270);
-  --muted: oklch(0.25 0.014 270);
-  --muted-foreground: oklch(0.65 0.015 270);
-  --accent: oklch(0.25 0.014 270);
-  --accent-foreground: oklch(0.93 0.005 270);
+  /* Dark theme — Koca Chiropractic: dark green + gold */
+  --background: oklch(0.145 0.012 155);
+  --foreground: oklch(0.93 0.005 90);
+  --card: oklch(0.19 0.014 155);
+  --card-foreground: oklch(0.93 0.005 90);
+  --popover: oklch(0.19 0.014 155);
+  --popover-foreground: oklch(0.93 0.005 90);
+  --primary: oklch(0.45 0.12 155);
+  --primary-foreground: oklch(0.95 0.01 90);
+  --secondary: oklch(0.24 0.014 155);
+  --secondary-foreground: oklch(0.82 0.005 90);
+  --muted: oklch(0.25 0.012 155);
+  --muted-foreground: oklch(0.65 0.015 90);
+  --accent: oklch(0.72 0.14 80);
+  --accent-foreground: oklch(0.15 0.02 80);
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.28 0.014 270);
-  --input: oklch(0.28 0.014 270);
-  --ring: oklch(0.72 0.14 180);
-  --chart-1: oklch(0.72 0.14 180);
-  --chart-2: oklch(0.65 0.16 200);
-  --chart-3: oklch(0.58 0.12 220);
-  --chart-4: oklch(0.75 0.1 160);
-  --chart-5: oklch(0.68 0.08 240);
-  --sidebar: oklch(0.17 0.016 270);
-  --sidebar-foreground: oklch(0.93 0.005 270);
-  --sidebar-primary: oklch(0.72 0.14 180);
-  --sidebar-primary-foreground: oklch(0.15 0.02 180);
-  --sidebar-accent: oklch(0.24 0.016 270);
-  --sidebar-accent-foreground: oklch(0.93 0.005 270);
-  --sidebar-border: oklch(0.28 0.014 270);
-  --sidebar-ring: oklch(0.72 0.14 180);
+  --border: oklch(0.28 0.014 155);
+  --input: oklch(0.28 0.014 155);
+  --ring: oklch(0.72 0.14 80);
+  --chart-1: oklch(0.45 0.12 155);
+  --chart-2: oklch(0.72 0.14 80);
+  --chart-3: oklch(0.55 0.10 155);
+  --chart-4: oklch(0.65 0.12 80);
+  --chart-5: oklch(0.50 0.08 130);
+  --sidebar: oklch(0.17 0.013 155);
+  --sidebar-foreground: oklch(0.93 0.005 90);
+  --sidebar-primary: oklch(0.45 0.12 155);
+  --sidebar-primary-foreground: oklch(0.95 0.01 90);
+  --sidebar-accent: oklch(0.24 0.014 155);
+  --sidebar-accent-foreground: oklch(0.93 0.005 90);
+  --sidebar-border: oklch(0.28 0.014 155);
+  --sidebar-ring: oklch(0.72 0.14 80);
 }
 
 @layer base {
