@@ -58,6 +58,31 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
+  // Temporary DB diagnostic endpoint
+  app.get("/api/db-check", async (_req, res) => {
+    try {
+      const { Pool } = await import("pg");
+      const dbUrl = process.env.DATABASE_URL || "";
+      const pool = new Pool({
+        connectionString: dbUrl,
+        ssl: { rejectUnauthorized: false },
+      });
+      const result = await pool.query("SELECT count(*) FROM users");
+      await pool.end();
+      res.json({
+        ok: true,
+        dbUrlPrefix: dbUrl.substring(0, 30) + "...",
+        usersCount: result.rows[0].count,
+      });
+    } catch (e: any) {
+      res.json({
+        ok: false,
+        error: e.message,
+        dbUrlPrefix: (process.env.DATABASE_URL || "").substring(0, 30) + "...",
+      });
+    }
+  });
+
   // --- API routes: Clerk middleware + tRPC ---
   // Clerk middleware is ONLY applied to /api/* routes.
   // This is correct for a React SPA architecture where:
