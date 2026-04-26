@@ -7,7 +7,13 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Clerk publishable key — this is a PUBLIC key (safe to include in client code).
+// In local dev, VITE_CLERK_PUBLISHABLE_KEY from .env takes precedence.
+// In production Docker builds, the hardcoded fallback is used since Docker ARG
+// can mangle the trailing $ in the key value.
+const CLERK_PUBLISHABLE_KEY =
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+  "pk_test_cmVzdGVkLW1vbGUtMjguY2xlcmsuYWNjb3VudHMuZGV2JA";
 
 if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
