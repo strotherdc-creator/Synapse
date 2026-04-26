@@ -1,0 +1,163 @@
+import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+
+// ─── Enums ──────────────────────────────────────────────────────────
+
+export const roleEnum = pgEnum("role", ["user", "admin"]);
+export const statusEnum = pgEnum("status", ["draft", "published"]);
+export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
+
+// ─── Users ──────────────────────────────────────────────────────────
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
+  name: text("name"),
+  email: varchar("email", { length: 320 }),
+  role: roleEnum("role").default("user").notNull(),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastSignedIn: timestamp("last_signed_in").defaultNow().notNull(),
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+
+// ─── Modules ────────────────────────────────────────────────────────
+
+export const modules = pgTable("modules", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  status: statusEnum("status").default("draft").notNull(),
+  iconEmoji: varchar("icon_emoji", { length: 16 }).default("📘"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Module = typeof modules.$inferSelect;
+export type InsertModule = typeof modules.$inferInsert;
+
+// ─── Lessons ────────────────────────────────────────────────────────
+
+export const lessons = pgTable("lessons", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  content: text("content"),
+  summary: text("summary"),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  status: statusEnum("status").default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Lesson = typeof lessons.$inferSelect;
+export type InsertLesson = typeof lessons.$inferInsert;
+
+// ─── User Progress ──────────────────────────────────────────────────
+
+export const userProgress = pgTable("user_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  lessonId: integer("lesson_id").notNull(),
+  moduleId: integer("module_id").notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserProgress = typeof userProgress.$inferSelect;
+export type InsertUserProgress = typeof userProgress.$inferInsert;
+
+// ─── User Answers ───────────────────────────────────────────────────
+
+export const userAnswers = pgTable("user_answers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  lessonId: integer("lesson_id").notNull(),
+  moduleId: integer("module_id").notNull(),
+  questionKey: varchar("question_key", { length: 255 }).notNull(),
+  answer: text("answer").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserAnswer = typeof userAnswers.$inferSelect;
+export type InsertUserAnswer = typeof userAnswers.$inferInsert;
+
+// ─── Chat Messages ──────────────────────────────────────────────────
+
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  lessonId: integer("lesson_id"),
+  role: chatRoleEnum("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;
+
+// ─── Daily Tasks ────────────────────────────────────────────────────
+
+export const dailyTasks = pgTable("daily_tasks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  taskKey: varchar("task_key", { length: 100 }).notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type DailyTask = typeof dailyTasks.$inferSelect;
+export type InsertDailyTask = typeof dailyTasks.$inferInsert;
+
+// ─── Streaks ────────────────────────────────────────────────────────
+
+export const streaks = pgTable("streaks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+  lastCompletedDate: varchar("last_completed_date", { length: 10 }), // YYYY-MM-DD
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Streak = typeof streaks.$inferSelect;
+export type InsertStreak = typeof streaks.$inferInsert;
+
+// ─── Content History ────────────────────────────────────────────────
+
+export const contentHistory = pgTable("content_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  contentType: varchar("content_type", { length: 50 }).notNull(),
+  prompt: text("prompt").notNull(),
+  generatedContent: text("generated_content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ContentHistoryItem = typeof contentHistory.$inferSelect;
+export type InsertContentHistory = typeof contentHistory.$inferInsert;
+
+// ─── Coupons ────────────────────────────────────────────────────────
+
+export const coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  discountPercent: integer("discount_percent").notNull(), // 100 = free trial
+  maxUses: integer("max_uses"),
+  currentUses: integer("current_uses").default(0).notNull(),
+  active: boolean("active").default(true).notNull(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = typeof coupons.$inferInsert;
