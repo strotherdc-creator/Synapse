@@ -489,6 +489,161 @@ const couponsRouter = router({
     }),
 });
 
+// ─── Coaching Router ────────────────────────────────────────────────
+
+const coachingRouter = router({
+  // Get all steps for a module
+  getSteps: protectedProcedure
+    .input(z.object({ moduleId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const steps = await db.getModuleSteps(input.moduleId);
+      const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
+      return steps.map((step) => {
+        const stepProgress = progress.find((p) => p.stepId === step.id);
+        return {
+          ...step,
+          completed: stepProgress?.completed ?? false,
+          finalAnswer: stepProgress?.finalAnswer ?? null,
+        };
+      });
+    }),
+
+  // Get chat history for a specific step
+  getStepChat: protectedProcedure
+    .input(z.object({ stepId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      return db.getStepChatHistory(ctx.user.id, input.stepId);
+    }),
+
+  // Send a message in a step coaching conversation
+  chat: protectedProcedure
+    .input(
+      z.object({
+        stepId: z.number(),
+        message: z.string().min(1).max(4000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the step details
+      const step = await db.getStepById(input.stepId);
+      if (!step) throw new Error("Step not found");
+
+      // Get all previous answers across all modules for context carry-forward
+      const allStepProgress = await db.getAllUserStepProgress(ctx.user.id);
+      let previousAnswersContext = "";
+      if (allStepProgress.length > 0) {
+        // Get step details for each completed answer to build context
+        const completedSteps = allStepProgress.filter((p) => p.completed && p.finalAnswer);
+        if (completedSteps.length > 0) {
+          const stepDetails = await Promise.all(
+            completedSteps.map(async (p) => {
+              const s = await db.getStepById(p.stepId);
+              return { step: s, answer: p.finalAnswer };
+            })
+          );
+          previousAnswersContext =
+            "\n\n=== LEARNER'S PREVIOUS ANSWERS (use these to personalize coaching) ===\n" +
+            stepDetails
+              .filter((d) => d.step)
+              .map((d) => `- ${d.step!.title} (${d.step!.answerKey}): ${d.answer}`)
+              .join("\n") +
+            "\n=== END PREVIOUS ANSWERS ===";
+        }
+      }
+
+      // Build the system prompt from the step's AI prompt + previous answers
+      const systemPrompt = step.aiPrompt + previousAnswersContext;
+
+      // Get chat history for this step
+      const history = await db.getStepChatHistory(ctx.user.id, input.stepId, 30);
+
+      // Build messages array
+      const messages: ChatMessage[] = [
+        { role: "system", content: systemPrompt },
+        ...history.map((msg) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        })),
+        { role: "user", content: input.message },
+      ];
+
+      // Save user message
+      await db.saveStepChatMessage({
+        userId: ctx.user.id,
+        stepId: input.stepId,
+        role: "user",
+        content: input.message,
+      });
+
+      // Call LLM
+      const response = await invokeLLM(messages);
+
+      // Save assistant message
+      await db.saveStepChatMessage({
+        userId: ctx.user.id,
+        stepId: input.stepId,
+        role: "assistant",
+        content: response.content,
+      });
+
+      return { content: response.content, provider: response.provider };
+    }),
+
+  // Complete a step with a final answer
+  completeStep: protectedProcedure
+    .input(
+      z.object({
+        stepId: z.number(),
+        moduleId: z.number(),
+        finalAnswer: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await db.completeStep(
+        ctx.user.id,
+        input.moduleId,
+        input.stepId,
+        input.finalAnswer
+      );
+
+      // Also save to the legacy user_answers table for backward compatibility
+      const step = await db.getStepById(input.stepId);
+      if (step) {
+        await db.saveUserAnswer({
+          userId: ctx.user.id,
+          lessonId: 0, // No lesson association in coaching mode
+          moduleId: input.moduleId,
+          questionKey: step.answerKey,
+          answer: input.finalAnswer,
+        });
+      }
+
+      return { success: true };
+    }),
+
+  // Clear chat history for a step (restart the conversation)
+  clearStepChat: protectedProcedure
+    .input(z.object({ stepId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await db.clearStepChatHistory(ctx.user.id, input.stepId);
+      return { success: true };
+    }),
+
+  // Get module coaching progress summary
+  getModuleProgress: protectedProcedure
+    .input(z.object({ moduleId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const steps = await db.getModuleSteps(input.moduleId);
+      const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
+      const completedSteps = progress.filter((p) => p.completed).length;
+      return {
+        totalSteps: steps.length,
+        completedSteps,
+        isComplete: completedSteps >= steps.length && steps.length > 0,
+      };
+    }),
+});
+
 // ─── App Router ──────────────────────────────────────────────────────
 
 export const appRouter = router({
@@ -503,6 +658,7 @@ export const appRouter = router({
   content: contentRouter,
   routine: routineRouter,
   coupons: couponsRouter,
+  coaching: coachingRouter,
 });
 
 export type AppRouter = typeof appRouter;

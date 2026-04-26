@@ -40,6 +40,57 @@ export const modules = pgTable("modules", {
 export type Module = typeof modules.$inferSelect;
 export type InsertModule = typeof modules.$inferInsert;
 
+// ─── Module Steps ──────────────────────────────────────────────────
+// Each module has structured coaching steps that the AI guides the user through
+
+export const moduleSteps = pgTable("module_steps", {
+  id: serial("id").primaryKey(),
+  moduleId: integer("module_id").notNull(),
+  stepNumber: integer("step_number").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"), // Brief description shown to user
+  aiPrompt: text("ai_prompt").notNull(), // The AI system prompt for this step
+  answerKey: varchar("answer_key", { length: 255 }).notNull(), // Key to store the final answer under
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ModuleStep = typeof moduleSteps.$inferSelect;
+export type InsertModuleStep = typeof moduleSteps.$inferInsert;
+
+// ─── User Step Progress ────────────────────────────────────────────
+// Tracks which steps a user has completed and their final refined answer
+
+export const userStepProgress = pgTable("user_step_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  moduleId: integer("module_id").notNull(),
+  stepId: integer("step_id").notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  finalAnswer: text("final_answer"), // The refined, confirmed answer for this step
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserStepProgress = typeof userStepProgress.$inferSelect;
+export type InsertUserStepProgress = typeof userStepProgress.$inferInsert;
+
+// ─── Step Chat Messages ────────────────────────────────────────────
+// Chat history for each step's coaching conversation
+
+export const stepChatMessages = pgTable("step_chat_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  stepId: integer("step_id").notNull(),
+  role: chatRoleEnum("role").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type StepChatMessage = typeof stepChatMessages.$inferSelect;
+export type InsertStepChatMessage = typeof stepChatMessages.$inferInsert;
+
 // ─── Lessons ────────────────────────────────────────────────────────
 
 export const lessons = pgTable("lessons", {

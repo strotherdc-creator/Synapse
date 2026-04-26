@@ -12,6 +12,9 @@ import {
   streaks,
   contentHistory, InsertContentHistory,
   coupons, InsertCoupon,
+  moduleSteps,
+  userStepProgress,
+  stepChatMessages,
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 
@@ -378,4 +381,93 @@ export async function incrementCouponUse(id: number) {
   await db.update(coupons).set({
     currentUses: sql`${coupons.currentUses} + 1`,
   }).where(eq(coupons.id, id));
+}
+
+// ─── Module Steps ──────────────────────────────────────────────────
+
+export async function getModuleSteps(moduleId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(moduleSteps).where(eq(moduleSteps.moduleId, moduleId)).orderBy(asc(moduleSteps.stepNumber));
+}
+
+export async function getStepById(stepId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(moduleSteps).where(eq(moduleSteps.id, stepId)).limit(1);
+  return result[0];
+}
+
+export async function createModuleStep(data: Omit<import("../shared/schema").InsertModuleStep, "id">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(moduleSteps).values(data).returning({ id: moduleSteps.id });
+  return { id: result[0].id };
+}
+
+// ─── User Step Progress ────────────────────────────────────────────
+
+export async function getUserStepProgress(userId: number, moduleId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userStepProgress).where(
+    and(eq(userStepProgress.userId, userId), eq(userStepProgress.moduleId, moduleId))
+  );
+}
+
+export async function getAllUserStepProgress(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userStepProgress).where(eq(userStepProgress.userId, userId));
+}
+
+export async function completeStep(userId: number, moduleId: number, stepId: number, finalAnswer: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db.select().from(userStepProgress).where(
+    and(eq(userStepProgress.userId, userId), eq(userStepProgress.stepId, stepId))
+  ).limit(1);
+
+  if (existing.length > 0) {
+    await db.update(userStepProgress).set({
+      completed: true,
+      finalAnswer,
+      completedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(userStepProgress.id, existing[0].id));
+  } else {
+    await db.insert(userStepProgress).values({
+      userId,
+      moduleId,
+      stepId,
+      completed: true,
+      finalAnswer,
+      completedAt: new Date(),
+    });
+  }
+}
+
+// ─── Step Chat Messages ────────────────────────────────────────────
+
+export async function getStepChatHistory(userId: number, stepId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(stepChatMessages).where(
+    and(eq(stepChatMessages.userId, userId), eq(stepChatMessages.stepId, stepId))
+  ).orderBy(asc(stepChatMessages.createdAt)).limit(limit);
+}
+
+export async function saveStepChatMessage(data: Omit<import("../shared/schema").InsertStepChatMessage, "id">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(stepChatMessages).values(data);
+}
+
+export async function clearStepChatHistory(userId: number, stepId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(stepChatMessages).where(
+    and(eq(stepChatMessages.userId, userId), eq(stepChatMessages.stepId, stepId))
+  );
 }

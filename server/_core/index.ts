@@ -9,6 +9,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { ENV } from "./env";
+import { seedCoachingSteps } from "../seed-coaching";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -127,6 +128,9 @@ async function startServer() {
     console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured (/api only)" : "NOT configured"}`);
     console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
     console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
+
+    // Seed coaching steps (idempotent — only runs if tables are empty)
+    seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
   });
 }
 

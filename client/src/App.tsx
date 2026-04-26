@@ -15,6 +15,7 @@ import ContentStudio from "./pages/ContentStudio";
 import DailyRoutine from "./pages/DailyRoutine";
 import Profile from "./pages/Profile";
 import AdminModules from "./pages/AdminModules";
+import ModuleCoaching from "./pages/ModuleCoaching";
 import Landing from "./pages/Landing";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 
@@ -26,6 +27,7 @@ function AuthenticatedRouter() {
         <Route path="/curriculum" component={Curriculum} />
         <Route path="/curriculum/:moduleId" component={ModuleDetail} />
         <Route path="/curriculum/:moduleId/lesson/:lessonId" component={LessonView} />
+        <Route path="/curriculum/:moduleId/coaching" component={ModuleCoaching} />
         <Route path="/chat" component={Chat} />
         <Route path="/content" component={ContentStudio} />
         <Route path="/routine" component={DailyRoutine} />
