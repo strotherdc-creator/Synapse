@@ -87,27 +87,72 @@ async function startServer() {
   }
 
   // --- Diagnostic endpoint (REMOVE AFTER DEBUGGING) ---
-  app.get("/api/auth-debug", (req: any, res: any) => {
+  app.get("/api/auth-debug", async (req: any, res: any) => {
+    const result: Record<string, any> = {
+      step1_headers: {
+        hasAuthHeader: !!req.headers.authorization,
+        authHeaderLen: req.headers.authorization?.length || 0,
+      },
+      step2_envKeys: {
+        clerkSecretKeySet: !!ENV.clerkSecretKey,
+        clerkSecretKeyPrefix: ENV.clerkSecretKey ? ENV.clerkSecretKey.substring(0, 12) + "..." : "EMPTY",
+        clerkSecretKeyLen: ENV.clerkSecretKey?.length || 0,
+        publishableKeyUsed: publishableKey ? publishableKey.substring(0, 25) + "..." : "EMPTY",
+        publishableKeyLen: publishableKey?.length || 0,
+        envClerkPublishable: (process.env.CLERK_PUBLISHABLE_KEY || "").substring(0, 25) || "NOT SET",
+        envViteClerkPublishable: (process.env.VITE_CLERK_PUBLISHABLE_KEY || "").substring(0, 25) || "NOT SET",
+      },
+      step3_reqAuth: "not checked",
+      step4_getAuth: "not checked",
+      step5_jwtDecode: "not checked",
+    };
+
+    // Step 3: Check if clerkMiddleware decorated the request
+    result.step3_reqAuth = {
+      hasAuthProp: "auth" in req,
+      authType: typeof req.auth,
+    };
+
+    // Step 4: Try getAuth
     try {
-      const { getAuth: ga } = require("@clerk/express");
-      const auth = ga(req);
-      res.json({
-        clerkMiddlewareActive: true,
+      const auth = getAuth(req);
+      result.step4_getAuth = {
         userId: auth?.userId ?? null,
         sessionId: auth?.sessionId ?? null,
-        hasAuthHeader: !!req.headers.authorization,
-        authHeaderPrefix: req.headers.authorization?.substring(0, 30) || null,
-        hasCookies: !!req.headers.cookie,
-        cookieNames: req.headers.cookie
-          ? req.headers.cookie.split(";").map((c: string) => c.trim().split("=")[0])
-          : [],
-        clerkSecretKeySet: !!ENV.clerkSecretKey,
-        clerkSecretKeyPrefix: ENV.clerkSecretKey ? ENV.clerkSecretKey.substring(0, 10) + "..." : null,
-        publishableKeyUsed: publishableKey ? publishableKey.substring(0, 20) + "..." : null,
-      });
+      };
     } catch (err: any) {
-      res.json({ error: err.message });
+      result.step4_getAuth = { error: err.message };
     }
+
+    // Step 5: Manually decode JWT payload (no verification) to see claims
+    try {
+      const authHeader = req.headers.authorization || "";
+      const token = authHeader.replace("Bearer ", "");
+      if (token) {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+          result.step5_jwtDecode = {
+            sub: payload.sub,
+            iss: payload.iss,
+            azp: payload.azp,
+            exp: payload.exp,
+            iat: payload.iat,
+            nbf: payload.nbf,
+            now: Math.floor(Date.now() / 1000),
+            expired: payload.exp < Math.floor(Date.now() / 1000),
+          };
+        } else {
+          result.step5_jwtDecode = { error: `Token has ${parts.length} parts, expected 3` };
+        }
+      } else {
+        result.step5_jwtDecode = { error: "No token in Authorization header" };
+      }
+    } catch (err: any) {
+      result.step5_jwtDecode = { error: err.message };
+    }
+
+    res.json(result);
   });
 
   // tRPC API
