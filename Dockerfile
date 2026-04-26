@@ -11,13 +11,8 @@ RUN pnpm install --frozen-lockfile || pnpm install
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Vite inlines VITE_* env vars at build time, so we need them as build args.
-# Railway passes all service env vars as Docker build args automatically.
-ARG VITE_CLERK_PUBLISHABLE_KEY
-ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
-
-# Build client (Vite) and server (esbuild)
+# Vite reads .env.production automatically during 'vite build'
+# No Docker ARG needed — the key is in .env.production in the repo
 RUN pnpm build
 
 # Production
@@ -27,5 +22,5 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
 
-# Railway assigns PORT dynamically — don't hardcode EXPOSE
+# Railway assigns PORT dynamically
 CMD ["node", "dist/index.js"]
