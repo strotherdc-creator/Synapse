@@ -11,6 +11,12 @@ RUN pnpm install --frozen-lockfile || pnpm install
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Vite inlines VITE_* env vars at build time, so we need them as build args.
+# Railway passes all service env vars as Docker build args automatically.
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 # Build client (Vite) and server (esbuild)
 RUN pnpm build
 
