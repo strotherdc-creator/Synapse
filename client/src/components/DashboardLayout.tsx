@@ -263,7 +263,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>{children}</main>
       </SidebarInset>
     </>
   );

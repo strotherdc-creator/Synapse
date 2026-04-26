@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
@@ -14,7 +13,7 @@ import {
   ChevronRight,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import ReactMarkdown from "react-markdown";
 
@@ -62,10 +61,33 @@ export default function ModuleCoaching() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInitialized, setChatInitialized] = useState(false);
   const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const outerRef = useRef<HTMLDivElement>(null);
 
   const utils = trpc.useUtils();
+
+  // ── Keyboard-aware height ──
+  // On mobile, when the virtual keyboard opens, the visual viewport shrinks.
+  // We track this and set a CSS variable so the layout stays within the visible area.
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const update = () => {
+      setViewportHeight(vv.height);
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // Initialize chat messages from history
   useEffect(() => {
@@ -85,21 +107,24 @@ export default function ModuleCoaching() {
     setMessages([]);
   }, [activeStepId]);
 
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
-    const viewport = scrollRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
-    ) as HTMLDivElement;
-    if (viewport) {
+  // Auto-scroll chat to bottom
+  const scrollToBottom = useCallback(() => {
+    const el = chatContainerRef.current;
+    if (el) {
       requestAnimationFrame(() => {
-        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
+
+  // Also scroll when keyboard opens/closes
+  useEffect(() => {
+    scrollToBottom();
+  }, [viewportHeight, scrollToBottom]);
 
   // Chat mutation
   const chatMutation = trpc.coaching.chat.useMutation({
@@ -158,7 +183,6 @@ export default function ModuleCoaching() {
 
   const handleConfirmAnswer = () => {
     if (!activeStepId || !activeStep) return;
-    // Use the last assistant message as the final answer summary
     const lastAssistant = [...messages]
       .reverse()
       .find((m) => m.role === "assistant");
@@ -207,40 +231,56 @@ export default function ModuleCoaching() {
     );
   }
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-3rem)] md:h-[calc(100vh-3rem)]">
-      {/* Header */}
-      <div className="shrink-0 pb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setLocation("/curriculum")}
-          className="text-muted-foreground hover:text-foreground -ml-2 mb-3"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Curriculum
-        </Button>
+  // Use visualViewport height when available (handles mobile keyboard),
+  // otherwise fall back to 100dvh via CSS.
+  // Mobile: header=56px + padding=16px (p-2 top+bottom) = 72px
+  // Desktop: sidebar layout, padding=32px (p-4 top+bottom) = 32px
+  const headerOffset = 72; // mobile header + padding
+  const heightStyle: React.CSSProperties = viewportHeight
+    ? { height: `${viewportHeight - headerOffset}px` }
+    : { height: `calc(100dvh - ${headerOffset}px)` };
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              {mod?.title || "Module"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Step {activeStepIndex + 1} of {totalSteps} &middot;{" "}
-              {completedSteps} completed
-            </p>
-          </div>
+  return (
+    <div
+      ref={outerRef}
+      className="flex flex-col overflow-hidden"
+      style={{
+        ...heightStyle,
+        // Prevent body scroll when keyboard is open
+        position: "relative",
+      }}
+    >
+      {/* ── Compact Header ── */}
+      <div className="shrink-0 pb-2">
+        <div className="flex items-center justify-between mb-1">
+          <button
+            onClick={() => setLocation("/curriculum")}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm py-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Curriculum</span>
+          </button>
           {allComplete && (
-            <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--gold)" }}>
-              <CheckCircle2 className="h-5 w-5" />
-              Module Complete
+            <div
+              className="flex items-center gap-1.5 text-sm font-medium"
+              style={{ color: "var(--gold)" }}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Complete
             </div>
           )}
         </div>
 
+        <h1 className="text-lg font-bold tracking-tight text-foreground leading-tight">
+          {mod?.title || "Module"}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Step {activeStepIndex + 1} of {totalSteps} &middot; {completedSteps}{" "}
+          completed
+        </p>
+
         {/* Step progress pills */}
-        <div className="flex gap-1.5 mt-3">
+        <div className="flex gap-1.5 mt-2">
           {steps.map((step, idx) => (
             <button
               key={step.id}
@@ -258,243 +298,193 @@ export default function ModuleCoaching() {
         </div>
       </div>
 
-      {/* Main content area — step sidebar + chat */}
-      <div className="flex-1 flex gap-4 min-h-0">
-        {/* Step list sidebar (desktop only) */}
-        <div className="hidden lg:flex flex-col w-64 shrink-0">
-          <Card className="bg-card border-border flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
-              <div className="p-3 space-y-1">
-                {steps.map((step, idx) => {
-                  const isActive = step.id === activeStepId;
-                  return (
-                    <button
-                      key={step.id}
-                      onClick={() => setActiveStepId(step.id)}
-                      className={`w-full text-left p-3 rounded-lg transition-all ${
-                        isActive
-                          ? "bg-primary/10 border border-primary/30"
-                          : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="shrink-0 mt-0.5">
-                          {step.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
-                          ) : isActive ? (
-                            <div className="h-4 w-4 rounded-full border-2 border-primary" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground/40" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p
-                            className={`text-sm font-medium leading-tight ${
-                              isActive
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                            }`}
-                          >
-                            {step.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground/70 mt-1 line-clamp-2">
-                            {step.description}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </Card>
-        </div>
-
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Step title bar */}
-          <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-card border border-border rounded-t-lg">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: "var(--gold)", opacity: 0.15 }}
+      {/* ── Step Title + Description (sticky, always visible) ── */}
+      <div className="shrink-0 rounded-t-lg bg-card border border-border px-4 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div
+              className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+              style={{ backgroundColor: "oklch(0.78 0.14 80 / 0.15)" }}
+            >
+              <Sparkles className="h-4.5 w-4.5" style={{ color: "var(--gold)" }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-foreground leading-snug" style={{ fontSize: "17px" }}>
+                {activeStep?.title || "Step"}
+              </p>
+              <p
+                className="text-muted-foreground mt-1 leading-relaxed"
+                style={{ fontSize: "14px" }}
               >
-                <Sparkles className="h-4 w-4" style={{ color: "var(--gold)" }} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {activeStep?.title || "Step"}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {activeStep?.description}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (activeStepId) clearChatMutation.mutate({ stepId: activeStepId });
-                  }}
-                  disabled={clearChatMutation.isPending}
-                  className="text-muted-foreground hover:text-foreground h-8 px-2"
-                  title="Restart this conversation"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              {activeStep?.completed && (
-                <span className="text-xs text-primary font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Done
-                </span>
-              )}
+                {activeStep?.description}
+              </p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (activeStepId)
+                    clearChatMutation.mutate({ stepId: activeStepId });
+                }}
+                disabled={clearChatMutation.isPending}
+                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                title="Restart this conversation"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+            {activeStep?.completed && (
+              <span className="text-xs text-primary font-medium flex items-center gap-1">
+                <CheckCircle2 className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
 
-          {/* Messages */}
-          <div className="flex-1 border-x border-border bg-card/50 overflow-hidden">
-            <div ref={scrollRef} className="h-full">
-              {messages.length === 0 && !chatMutation.isPending ? (
-                <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-                  <Sparkles className="h-10 w-10 text-muted-foreground/20" />
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Ready to start? Send a message to begin this step.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSend("Let's get started")}
-                      className="text-sm"
-                    >
-                      Let's get started
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <ScrollArea className="h-full">
-                  <div className="flex flex-col space-y-4 p-4">
-                    {messages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`flex gap-3 ${
-                          message.role === "user"
-                            ? "justify-end items-start"
-                            : "justify-start items-start"
-                        }`}
-                      >
-                        {message.role === "assistant" && (
-                          <div
-                            className="h-8 w-8 shrink-0 mt-1 rounded-full flex items-center justify-center"
-                            style={{
-                              backgroundColor: "oklch(0.45 0.12 155 / 0.15)",
-                            }}
-                          >
-                            <Sparkles className="h-4 w-4 text-primary" />
-                          </div>
-                        )}
-
-                        <div
-                          className={`max-w-[80%] rounded-lg px-4 py-2.5 ${
-                            message.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-foreground"
-                          }`}
-                        >
-                          {message.role === "assistant" ? (
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
-                              <ReactMarkdown>{message.content}</ReactMarkdown>
-                            </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap text-sm">
-                              {message.content}
-                            </p>
-                          )}
-                        </div>
-
-                        {message.role === "user" && (
-                          <div className="h-8 w-8 shrink-0 mt-1 rounded-full bg-secondary flex items-center justify-center">
-                            <User className="h-4 w-4 text-secondary-foreground" />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {chatMutation.isPending && (
-                      <div className="flex items-start gap-3">
-                        <div
-                          className="h-8 w-8 shrink-0 mt-1 rounded-full flex items-center justify-center"
-                          style={{
-                            backgroundColor: "oklch(0.45 0.12 155 / 0.15)",
-                          }}
-                        >
-                          <Sparkles className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="rounded-lg bg-muted px-4 py-2.5">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              )}
+      {/* ── Chat Messages (scrollable middle section) ── */}
+      <div
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto border-x border-border bg-card/50"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        {messages.length === 0 && !chatMutation.isPending ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+            <Sparkles className="h-10 w-10 text-muted-foreground/20" />
+            <div>
+              <p className="text-muted-foreground mb-4" style={{ fontSize: "15px" }}>
+                Ready to start? Tap below to begin this step.
+              </p>
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => handleSend("Let's get started")}
+                className="text-base px-6 py-2.5"
+              >
+                Let's get started
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col gap-4 p-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-2.5 ${
+                  message.role === "user"
+                    ? "justify-end items-start"
+                    : "justify-start items-start"
+                }`}
+              >
+                {message.role === "assistant" && (
+                  <div
+                    className="h-8 w-8 shrink-0 mt-1 rounded-full flex items-center justify-center"
+                    style={{
+                      backgroundColor: "oklch(0.45 0.12 155 / 0.15)",
+                    }}
+                  >
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </div>
+                )}
 
-          {/* Input + confirm area */}
-          <div className="shrink-0 border border-border rounded-b-lg bg-card">
-            {/* Confirm answer button — shows when there are messages and step isn't complete */}
-            {messages.length >= 2 && !activeStep?.completed && (
-              <div className="px-4 pt-3 pb-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleConfirmAnswer}
-                  disabled={completeMutation.isPending || chatMutation.isPending}
-                  className="w-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
                 >
-                  {completeMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  {message.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_p]:mb-2 last:[&_p]:mb-0 [&_li]:leading-relaxed" style={{ fontSize: "15px" }}>
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
                   ) : (
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <p className="whitespace-pre-wrap leading-relaxed" style={{ fontSize: "15px" }}>
+                      {message.content}
+                    </p>
                   )}
-                  Confirm my answer &amp; move to next step
-                </Button>
+                </div>
+
+                {message.role === "user" && (
+                  <div className="h-8 w-8 shrink-0 mt-1 rounded-full bg-secondary flex items-center justify-center">
+                    <User className="h-4 w-4 text-secondary-foreground" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {chatMutation.isPending && (
+              <div className="flex items-start gap-2.5">
+                <div
+                  className="h-8 w-8 shrink-0 mt-1 rounded-full flex items-center justify-center"
+                  style={{
+                    backgroundColor: "oklch(0.45 0.12 155 / 0.15)",
+                  }}
+                >
+                  <Sparkles className="h-4 w-4 text-primary" />
+                </div>
+                <div className="rounded-2xl bg-muted px-4 py-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
               </div>
             )}
-
-            <form
-              onSubmit={handleSubmit}
-              className="flex gap-2 p-3 items-end"
-            >
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your response..."
-                className="flex-1 max-h-32 resize-none min-h-9"
-                rows={1}
-              />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={!input.trim() || chatMutation.isPending}
-                className="shrink-0 h-[38px] w-[38px]"
-              >
-                {chatMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </form>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* ── Input + Confirm (pinned to bottom) ── */}
+      <div className="shrink-0 border border-border rounded-b-lg bg-card">
+        {/* Confirm answer button */}
+        {messages.length >= 2 && !activeStep?.completed && (
+          <div className="px-3 pt-2.5 pb-0.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleConfirmAnswer}
+              disabled={completeMutation.isPending || chatMutation.isPending}
+              className="w-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary text-sm py-2"
+            >
+              {completeMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
+              Confirm my answer &amp; move to next step
+            </Button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              // When input is focused on mobile, scroll chat to bottom after keyboard opens
+              setTimeout(scrollToBottom, 300);
+            }}
+            placeholder="Type your response..."
+            className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
+            rows={1}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!input.trim() || chatMutation.isPending}
+            className="shrink-0 h-[44px] w-[44px]"
+          >
+            {chatMutation.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
+          </Button>
+        </form>
       </div>
     </div>
   );
