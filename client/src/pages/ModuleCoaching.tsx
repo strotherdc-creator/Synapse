@@ -5,12 +5,10 @@ import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
   CheckCircle2,
-  Circle,
   Send,
   Loader2,
   Sparkles,
   User,
-  ChevronRight,
   RotateCcw,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -89,17 +87,23 @@ export default function ModuleCoaching() {
     };
   }, []);
 
-  // Initialize chat messages from history
+  // Initialize chat messages from history, or auto-start if no history
   useEffect(() => {
     if (chatHistory && !chatInitialized) {
-      const historyMessages: ChatMessage[] = chatHistory.map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }));
-      setMessages(historyMessages);
+      if (chatHistory.length > 0) {
+        const historyMessages: ChatMessage[] = chatHistory.map((msg) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        }));
+        setMessages(historyMessages);
+      } else if (activeStepId && !chatMutation.isPending) {
+        // No history — auto-start the conversation
+        setMessages([{ role: "user", content: "Let's get started" }]);
+        chatMutation.mutate({ stepId: activeStepId, message: "Let's get started" });
+      }
       setChatInitialized(true);
     }
-  }, [chatHistory, chatInitialized]);
+  }, [chatHistory, chatInitialized, activeStepId]);
 
   // Reset chat when step changes
   useEffect(() => {
@@ -353,21 +357,10 @@ export default function ModuleCoaching() {
       >
         {messages.length === 0 && !chatMutation.isPending ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-            <Sparkles className="h-10 w-10 text-muted-foreground/20" />
-            <div>
-              <p className="text-muted-foreground mb-4" style={{ fontSize: "15px" }}>
-                Ready to start? Tap below to begin this step.
-              </p>
-              <Button
-                variant="outline"
-                size="default"
-                onClick={() => handleSend("Let's get started")}
-                className="text-base px-6 py-2.5"
-              >
-                Let's get started
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40" />
+            <p className="text-muted-foreground" style={{ fontSize: "15px" }}>
+              Starting your coaching session...
+            </p>
           </div>
         ) : (
           <div className="flex flex-col gap-4 p-4">
