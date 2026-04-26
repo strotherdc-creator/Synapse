@@ -17,7 +17,6 @@ import Profile from "./pages/Profile";
 import AdminModules from "./pages/AdminModules";
 import Landing from "./pages/Landing";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
-import { AuthDebugPanel } from "./components/AuthDebugPanel";
 
 function AuthenticatedRouter() {
   return (
@@ -60,7 +59,6 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <AppRouter />
-          <AuthDebugPanel />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
