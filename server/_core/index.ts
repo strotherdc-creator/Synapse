@@ -49,13 +49,31 @@ async function startServer() {
     })
   );
 
-  // Clerk authentication middleware — attaches auth to req
-  app.use(clerkMiddleware());
-
-  // Health check
+  // Health check — BEFORE any auth middleware so it always works
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
+
+  // Clerk authentication middleware — attaches auth to req
+  // @clerk/express looks for CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY env vars.
+  // We also accept VITE_CLERK_PUBLISHABLE_KEY and pass it explicitly.
+  const publishableKey =
+    process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || "";
+
+  if (ENV.clerkSecretKey && publishableKey) {
+    app.use(
+      clerkMiddleware({
+        publishableKey,
+        secretKey: ENV.clerkSecretKey,
+      })
+    );
+    console.log("[Auth] Clerk middleware enabled");
+  } else {
+    console.warn(
+      "[Auth] Clerk keys not fully configured — auth middleware disabled",
+      { hasSecret: !!ENV.clerkSecretKey, hasPublishable: !!publishableKey }
+    );
+  }
 
   // tRPC API
   app.use(
@@ -73,6 +91,14 @@ async function startServer() {
     serveStatic(app);
   }
 
+  // Global error handler — prevents unhandled errors from crashing the process
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error("[Server] Unhandled error:", err?.message ?? err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   const preferredPort = ENV.port;
   const port = await findAvailablePort(preferredPort);
 
@@ -82,7 +108,14 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
+    console.log(`Environment: ${ENV.isProduction ? "production" : "development"}`);
+    console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured" : "NOT configured"}`);
+    console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
+    console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+  console.error("[Server] Fatal startup error:", err);
+  process.exit(1);
+});
