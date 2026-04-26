@@ -37,9 +37,14 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // CORS — restrict to known origins in production
+  // CORS — Railway serves both frontend and backend from the same origin.
+  // Allow the Railway URL plus any CLIENT_URL override, and localhost for dev.
+  const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : "https://synapse-production-daae.up.railway.app";
+
   const allowedOrigins = ENV.isProduction
-    ? [process.env.CLIENT_URL ?? "https://synapse.us"].filter(Boolean)
+    ? [railwayUrl, process.env.CLIENT_URL].filter(Boolean) as string[]
     : ["http://localhost:5173", "http://localhost:3001"];
 
   app.use(
@@ -51,25 +56,12 @@ async function startServer() {
 
   // Health check — BEFORE any auth middleware so it always works
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, timestamp: Date.now(), version: "80b4e67" });
-  });
-
-  // Debug endpoint to check env var availability (no secrets exposed)
-  app.get("/api/debug", (_req, res) => {
-    res.json({
-      hasClerkSecret: !!process.env.CLERK_SECRET_KEY,
-      hasClerkPublishable: !!process.env.CLERK_PUBLISHABLE_KEY,
-      hasViteClerkPublishable: !!process.env.VITE_CLERK_PUBLISHABLE_KEY,
-      hasDbUrl: !!process.env.DATABASE_URL,
-      hasGemini: !!process.env.GEMINI_API_KEY,
-      nodeEnv: process.env.NODE_ENV,
-      port: process.env.PORT,
-    });
+    res.json({ ok: true, timestamp: Date.now() });
   });
 
   // Clerk authentication middleware — attaches auth to req
-  // @clerk/express looks for CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY env vars.
-  // We also accept VITE_CLERK_PUBLISHABLE_KEY and pass it explicitly.
+  // @clerk/express reads CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY from env.
+  // We also pass them explicitly from VITE_CLERK_PUBLISHABLE_KEY as a fallback.
   const publishableKey =
     process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || "";
 
@@ -87,11 +79,6 @@ async function startServer() {
       { hasSecret: !!ENV.clerkSecretKey, hasPublishable: !!publishableKey }
     );
   }
-
-  // Post-auth test endpoint
-  app.get("/api/test-auth", (_req, res) => {
-    res.json({ ok: true, message: "Clerk middleware passed" });
-  });
 
   // tRPC API
   app.use(
