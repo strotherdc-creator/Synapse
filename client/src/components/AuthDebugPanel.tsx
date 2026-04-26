@@ -1,5 +1,4 @@
 import { useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
-import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 
 /**
@@ -12,6 +11,7 @@ export function AuthDebugPanel() {
   const { getToken } = useClerkAuth();
   const [tokenStatus, setTokenStatus] = useState<string>("checking...");
   const [authMeResult, setAuthMeResult] = useState<string>("not called");
+  const [serverDebug, setServerDebug] = useState<string>("not called");
   const [expanded, setExpanded] = useState(true);
 
   // Check if getToken works
@@ -20,7 +20,28 @@ export function AuthDebugPanel() {
       getToken()
         .then((token) => {
           if (token) {
-            setTokenStatus(`OK (${token.length} chars, starts: ${token.substring(0, 20)}...)`);
+            setTokenStatus(`OK (${token.length} chars)`);
+            
+            // Call auth-debug endpoint with the token
+            fetch("/api/auth-debug", {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+              .then((r) => r.text())
+              .then((t) => setServerDebug(t.substring(0, 500)))
+              .catch((e) => setServerDebug(`FETCH ERR: ${e.message}`));
+
+            // Call auth.me with the token
+            fetch("/api/trpc/auth.me", {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            })
+              .then(async (r) => {
+                const text = await r.text();
+                setAuthMeResult(`${r.status}: ${text.substring(0, 300)}`);
+              })
+              .catch((e) => setAuthMeResult(`FETCH ERR: ${e.message}`));
           } else {
             setTokenStatus("NULL — no token returned");
           }
@@ -30,32 +51,6 @@ export function AuthDebugPanel() {
         });
     } else if (isLoaded) {
       setTokenStatus("N/A (not signed in)");
-    }
-  }, [isLoaded, isSignedIn, getToken]);
-
-  // Manually call auth.me to see what the server returns
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      setAuthMeResult("fetching...");
-      getToken()
-        .then(async (token) => {
-          try {
-            const headers: Record<string, string> = {
-              "Content-Type": "application/json",
-            };
-            if (token) {
-              headers["Authorization"] = `Bearer ${token}`;
-            }
-            const resp = await fetch("/api/trpc/auth.me", { headers });
-            const text = await resp.text();
-            setAuthMeResult(`${resp.status}: ${text.substring(0, 300)}`);
-          } catch (err: any) {
-            setAuthMeResult(`FETCH ERROR: ${err.message}`);
-          }
-        })
-        .catch((err) => {
-          setAuthMeResult(`TOKEN ERROR: ${err.message}`);
-        });
     }
   }, [isLoaded, isSignedIn, getToken]);
 
@@ -89,14 +84,14 @@ export function AuthDebugPanel() {
         bottom: 10,
         right: 10,
         zIndex: 99999,
-        background: "rgba(0,0,0,0.92)",
+        background: "rgba(0,0,0,0.95)",
         color: "#0f0",
         fontFamily: "monospace",
         fontSize: 11,
         padding: 12,
         borderRadius: 8,
-        maxWidth: 420,
-        maxHeight: 400,
+        maxWidth: 450,
+        maxHeight: 500,
         overflow: "auto",
         border: "1px solid #333",
       }}
@@ -115,7 +110,13 @@ export function AuthDebugPanel() {
         <div><strong>isSignedIn:</strong> {String(isSignedIn)}</div>
         <div><strong>Clerk user:</strong> {clerkUser ? `${clerkUser.primaryEmailAddress?.emailAddress} (${clerkUser.id})` : "null"}</div>
         <div style={{ marginTop: 6 }}><strong>getToken():</strong> {tokenStatus}</div>
-        <div style={{ marginTop: 6 }}><strong>auth.me response:</strong></div>
+        <div style={{ marginTop: 6, borderTop: "1px solid #333", paddingTop: 6 }}>
+          <strong style={{ color: "#ff0" }}>Server /api/auth-debug:</strong>
+        </div>
+        <div style={{ color: "#aaa", wordBreak: "break-all" }}>{serverDebug}</div>
+        <div style={{ marginTop: 6, borderTop: "1px solid #333", paddingTop: 6 }}>
+          <strong style={{ color: "#ff0" }}>auth.me response:</strong>
+        </div>
         <div style={{ color: "#aaa", wordBreak: "break-all" }}>{authMeResult}</div>
       </div>
     </div>

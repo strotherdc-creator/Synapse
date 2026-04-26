@@ -86,6 +86,30 @@ async function startServer() {
     );
   }
 
+  // --- Diagnostic endpoint (REMOVE AFTER DEBUGGING) ---
+  app.get("/api/auth-debug", (req: any, res: any) => {
+    try {
+      const { getAuth: ga } = require("@clerk/express");
+      const auth = ga(req);
+      res.json({
+        clerkMiddlewareActive: true,
+        userId: auth?.userId ?? null,
+        sessionId: auth?.sessionId ?? null,
+        hasAuthHeader: !!req.headers.authorization,
+        authHeaderPrefix: req.headers.authorization?.substring(0, 30) || null,
+        hasCookies: !!req.headers.cookie,
+        cookieNames: req.headers.cookie
+          ? req.headers.cookie.split(";").map((c: string) => c.trim().split("=")[0])
+          : [],
+        clerkSecretKeySet: !!ENV.clerkSecretKey,
+        clerkSecretKeyPrefix: ENV.clerkSecretKey ? ENV.clerkSecretKey.substring(0, 10) + "..." : null,
+        publishableKeyUsed: publishableKey ? publishableKey.substring(0, 20) + "..." : null,
+      });
+    } catch (err: any) {
+      res.json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
