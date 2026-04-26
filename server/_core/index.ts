@@ -51,7 +51,20 @@ async function startServer() {
 
   // Health check — BEFORE any auth middleware so it always works
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, timestamp: Date.now() });
+    res.json({ ok: true, timestamp: Date.now(), version: "80b4e67" });
+  });
+
+  // Debug endpoint to check env var availability (no secrets exposed)
+  app.get("/api/debug", (_req, res) => {
+    res.json({
+      hasClerkSecret: !!process.env.CLERK_SECRET_KEY,
+      hasClerkPublishable: !!process.env.CLERK_PUBLISHABLE_KEY,
+      hasViteClerkPublishable: !!process.env.VITE_CLERK_PUBLISHABLE_KEY,
+      hasDbUrl: !!process.env.DATABASE_URL,
+      hasGemini: !!process.env.GEMINI_API_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT,
+    });
   });
 
   // Clerk authentication middleware — attaches auth to req
@@ -74,6 +87,11 @@ async function startServer() {
       { hasSecret: !!ENV.clerkSecretKey, hasPublishable: !!publishableKey }
     );
   }
+
+  // Post-auth test endpoint
+  app.get("/api/test-auth", (_req, res) => {
+    res.json({ ok: true, message: "Clerk middleware passed" });
+  });
 
   // tRPC API
   app.use(
