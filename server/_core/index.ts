@@ -38,7 +38,6 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // CORS — Railway serves both frontend and backend from the same origin.
-  // Allow the Railway URL plus any CLIENT_URL override, and localhost for dev.
   const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
     : "https://synapse-production-daae.up.railway.app";
@@ -54,25 +53,31 @@ async function startServer() {
     })
   );
 
-  // Health check — BEFORE any auth middleware so it always works
+  // Health check — no auth needed
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
-  // Clerk authentication middleware — attaches auth to req
-  // @clerk/express reads CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY from env.
-  // We also pass them explicitly from VITE_CLERK_PUBLISHABLE_KEY as a fallback.
+  // --- API routes: Clerk middleware + tRPC ---
+  // Clerk middleware is ONLY applied to /api/* routes.
+  // This is correct for a React SPA architecture where:
+  //   - Static files (HTML/JS/CSS) need no server-side auth
+  //   - ClerkProvider on the client handles auth UI
+  //   - The server only verifies tokens on API calls
   const publishableKey =
     process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || "";
 
   if (ENV.clerkSecretKey && publishableKey) {
+    // Apply Clerk middleware ONLY to /api routes, with handshake disabled.
+    // Handshake is a server-rendering feature (Next.js); not needed for SPA.
     app.use(
+      "/api",
       clerkMiddleware({
         publishableKey,
         secretKey: ENV.clerkSecretKey,
       })
     );
-    console.log("[Auth] Clerk middleware enabled");
+    console.log("[Auth] Clerk middleware enabled on /api routes");
   } else {
     console.warn(
       "[Auth] Clerk keys not fully configured — auth middleware disabled",
@@ -89,14 +94,17 @@ async function startServer() {
     })
   );
 
-  // Development mode uses Vite, production mode uses static files
+  // --- Static files: served WITHOUT auth middleware ---
+  // In dev, Vite handles serving. In production, serve the built client files.
+  // No Clerk middleware here — the SPA shell loads for everyone,
+  // and ClerkProvider on the client handles auth state.
   if (!ENV.isProduction) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // Global error handler — prevents unhandled errors from crashing the process
+  // Global error handler
   app.use((err: any, _req: any, res: any, _next: any) => {
     console.error("[Server] Unhandled error:", err?.message ?? err);
     if (!res.headersSent) {
@@ -114,7 +122,7 @@ async function startServer() {
   server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${port}/`);
     console.log(`Environment: ${ENV.isProduction ? "production" : "development"}`);
-    console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured" : "NOT configured"}`);
+    console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured (/api only)" : "NOT configured"}`);
     console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
     console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
   });
