@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile || pnpm install
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Build client (Vite) and server (esbuild)
 RUN pnpm build
 
 # Production
@@ -19,5 +20,6 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
-EXPOSE 3001
+
+# Railway assigns PORT dynamically — don't hardcode EXPOSE
 CMD ["node", "dist/index.js"]

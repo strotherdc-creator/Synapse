@@ -40,21 +40,36 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath =
-    process.env.NODE_ENV === "development"
-      ? path.resolve(import.meta.dirname, "../..", "dist", "public")
-      : path.resolve(import.meta.dirname, "public");
+  // In production Docker, dist/index.js is at /app/dist/index.js
+  // and client build is at /app/dist/public/
+  // import.meta.dirname in esbuild output resolves to the dist folder
+  const distPath = path.resolve(import.meta.dirname, "public");
 
   if (!fs.existsSync(distPath)) {
-    console.error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    console.warn(
+      `[Static] Client build not found at: ${distPath}. API-only mode.`
     );
+    // Still serve API — just no frontend
+    app.use("*", (_req, res, next) => {
+      // Let API routes pass through, catch-all returns a simple message
+      if (_req.originalUrl.startsWith("/api")) {
+        return next();
+      }
+      res.status(200).json({
+        message: "Synapse API is running. Frontend is served separately via Vercel.",
+        health: "/api/health",
+      });
+    });
+    return;
   }
 
   app.use(express.static(distPath));
 
-  // SPA fallback
-  app.use("*", (_req, res) => {
+  // SPA fallback — serve index.html for non-API routes
+  app.use("*", (_req, res, next) => {
+    if (_req.originalUrl.startsWith("/api")) {
+      return next();
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
