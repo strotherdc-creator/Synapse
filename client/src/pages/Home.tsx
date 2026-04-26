@@ -33,10 +33,10 @@ export default function Home() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Overall Progress
             </CardTitle>
-            <Zap className="h-4 w-4 text-primary" />
+            <Zap className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{progressPercent}%</div>
+            <div className="text-2xl font-bold text-gold">{progressPercent}%</div>
             <Progress value={progressPercent} className="mt-2 h-2" />
           </CardContent>
         </Card>
@@ -46,7 +46,7 @@ export default function Home() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Modules
             </CardTitle>
-            <BookOpen className="h-4 w-4 text-primary" />
+            <BookOpen className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
@@ -61,7 +61,7 @@ export default function Home() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Lessons Completed
             </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <CheckCircle2 className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
@@ -79,7 +79,7 @@ export default function Home() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               AI Assistant
             </CardTitle>
-            <MessageSquare className="h-4 w-4 text-primary" />
+            <MessageSquare className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
             <div className="text-sm font-medium text-foreground">Ask Synapse</div>
@@ -96,7 +96,7 @@ export default function Home() {
           <h2 className="text-lg font-semibold text-foreground">Your Modules</h2>
           <button
             onClick={() => setLocation("/curriculum")}
-            className="text-sm text-primary hover:underline"
+            className="text-sm text-gold hover:underline"
           >
             View all
           </button>
@@ -131,7 +131,7 @@ export default function Home() {
                     <div className="flex items-start gap-3 mb-3">
                       <span className="text-2xl">{mod.iconEmoji || "📘"}</span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                        <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
                           {mod.title}
                         </h3>
                         {mod.description && (

@@ -167,7 +167,7 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <Zap className="h-5 w-5 text-primary shrink-0" />
+                  <Zap className="h-5 w-5 text-gold shrink-0" />
                   <span className="font-bold tracking-tight truncate text-foreground">
                     Synapse
                   </span>
@@ -206,7 +206,7 @@ function DashboardLayoutContent({
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-9 w-9 border shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-primary/20 text-primary">
+                    <AvatarFallback className="text-xs font-medium bg-gold/15 text-gold">
                       {user?.name?.charAt(0).toUpperCase() || "?"}
                     </AvatarFallback>
                   </Avatar>

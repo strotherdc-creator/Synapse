@@ -68,7 +68,7 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-lg">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="h-6 w-6 text-primary" />
+            <Zap className="h-6 w-6 text-gold" />
             <span className="text-xl font-bold tracking-tight">Synapse</span>
           </div>
           <SignInButton mode="modal">
@@ -83,13 +83,13 @@ export default function Landing() {
       {/* Hero */}
       <section className="pt-32 pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gold/30 bg-gold/10 text-gold text-sm mb-8">
             <Sparkles className="h-3.5 w-3.5" />
             AI-powered practice growth
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
             Grow your practice with{" "}
-            <span className="text-primary">Synapse</span>
+            <span className="text-gold">Synapse</span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
             The Bridge the Gap curriculum platform with AI coaching, content
@@ -137,8 +137,8 @@ export default function Landing() {
                 key={feature.title}
                 className="group rounded-xl border border-border bg-card p-8 hover:border-primary/40 transition-all"
               >
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="h-6 w-6 text-primary" />
+                <div className="h-12 w-12 rounded-lg bg-gold/10 flex items-center justify-center mb-5 group-hover:bg-gold/20 transition-colors">
+                  <feature.icon className="h-6 w-6 text-gold" />
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
                   {feature.title}
@@ -172,7 +172,7 @@ export default function Landing() {
                   key={benefit}
                   className="flex items-center gap-3 py-3 px-4 rounded-lg bg-card border border-border"
                 >
-                  <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-gold shrink-0" />
                   <span className="text-foreground">{benefit}</span>
                 </div>
               ))}
@@ -184,7 +184,7 @@ export default function Landing() {
       {/* CTA */}
       <section className="py-20 px-4 sm:px-6 border-t border-border/50">
         <div className="max-w-3xl mx-auto text-center">
-          <Zap className="h-10 w-10 text-primary mx-auto mb-6" />
+          <Zap className="h-10 w-10 text-gold mx-auto mb-6" />
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Ready to differentiate your practice?
           </h2>
@@ -208,7 +208,7 @@ export default function Landing() {
       <footer className="py-8 px-4 sm:px-6 border-t border-border/50">
         <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
+            <Zap className="h-4 w-4 text-gold" />
             <span>Synapse</span>
           </div>
           <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
