@@ -89,8 +89,18 @@
 - [x] No Manus references remaining in codebase
 
 ## Still Needed (requires your credentials)
-- [ ] Clerk keys — to enable auth
-- [ ] Gemini API key — to enable AI coaching
-- [ ] Railway PostgreSQL — to enable database
+- [x] Clerk keys — to enable auth
+- [x] Gemini API key — to enable AI coaching
+- [x] Railway PostgreSQL — to enable database
 - [ ] Stripe keys — to enable payments (last step)
-- [ ] Deploy to Vercel (frontend) + Railway (backend)
+- [x] Deploy to Railway (full-stack)
+
+## Bug Fixes (April 2026)
+- [x] Fix mobile coaching layout: font sizes too small, description truncated, keyboard covers input
+- [x] Remove unnecessary 'Let's get started' button — auto-start coaching conversation
+- [x] Hide auto-start trigger message from chat display
+- [x] Add onError handler to chat mutation — surface LLM failures visibly
+- [x] Prevent race condition: block send while mutation is pending
+- [x] Fix Groq fallback: llama-3.1-70b-versatile decommissioned → llama-3.3-70b-versatile
+- [x] Fix Confirm My Answer button: add onError, use last user message as answer, only show when AI has responded
+- [x] Add Groq API key to Railway environment
