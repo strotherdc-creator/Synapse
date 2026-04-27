@@ -140,6 +140,17 @@ export default function ModuleCoaching() {
         { role: "assistant", content: response.content },
       ]);
     },
+    onError: (error) => {
+      console.error("[Coaching chat error]", error.message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Sorry, I wasn\u2019t able to respond. Please try again in a moment.",
+        },
+      ]);
+    },
   });
 
   // Complete step mutation
@@ -166,7 +177,7 @@ export default function ModuleCoaching() {
   });
 
   const handleSend = (content: string) => {
-    if (!activeStepId || !content.trim()) return;
+    if (!activeStepId || !content.trim() || chatMutation.isPending) return;
     const trimmed = content.trim();
     setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setInput("");
