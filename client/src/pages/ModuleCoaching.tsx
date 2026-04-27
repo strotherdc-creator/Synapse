@@ -165,6 +165,17 @@ export default function ModuleCoaching() {
         setActiveStepId(nextStep.id);
       }
     },
+    onError: (error) => {
+      console.error("[Confirm answer error]", error.message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            "Sorry, there was an error saving your answer. Please try again.",
+        },
+      ]);
+    },
   });
 
   // Clear chat mutation
@@ -198,16 +209,19 @@ export default function ModuleCoaching() {
     }
   };
 
+  const hasAssistantMessage = messages.some((m) => m.role === "assistant");
+
   const handleConfirmAnswer = () => {
     if (!activeStepId || !activeStep) return;
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((m) => m.role === "assistant");
-    if (lastAssistant) {
+    // Prefer last user message as the "answer", fall back to last assistant message
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const finalAnswer = lastUser?.content || lastAssistant?.content;
+    if (finalAnswer) {
       completeMutation.mutate({
         stepId: activeStepId,
         moduleId,
-        finalAnswer: lastAssistant.content,
+        finalAnswer,
       });
     }
   };
@@ -445,7 +459,7 @@ export default function ModuleCoaching() {
       {/* ── Input + Confirm (pinned to bottom) ── */}
       <div className="shrink-0 border border-border rounded-b-lg bg-card">
         {/* Confirm answer button */}
-        {messages.length >= 2 && !activeStep?.completed && (
+        {hasAssistantMessage && !activeStep?.completed && (
           <div className="px-3 pt-2.5 pb-0.5">
             <Button
               size="sm"
