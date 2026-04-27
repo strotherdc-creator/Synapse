@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Send,
   Loader2,
@@ -12,6 +13,7 @@ import {
   RotateCcw,
   Mic,
   MicOff,
+  PartyPopper,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -30,6 +32,18 @@ export default function ModuleCoaching() {
 
   // Fetch module info
   const { data: mod } = trpc.modules.getById.useQuery({ id: moduleId });
+
+  // Fetch all modules to find the next one
+  const { data: allModules } = trpc.modules.list.useQuery();
+  const nextModule = useMemo(() => {
+    if (!allModules || !mod) return null;
+    const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
+    const currentIdx = sorted.findIndex((m) => m.id === moduleId);
+    if (currentIdx >= 0 && currentIdx < sorted.length - 1) {
+      return sorted[currentIdx + 1];
+    }
+    return null;
+  }, [allModules, mod, moduleId]);
 
   // Fetch coaching steps for this module
   const { data: steps, isLoading: stepsLoading } =
@@ -480,23 +494,58 @@ export default function ModuleCoaching() {
 
       {/* ── Input + Confirm (pinned to bottom) ── */}
       <div className="shrink-0 border border-border rounded-b-lg bg-card">
-        {/* Confirm answer button */}
+        {/* Confirm answer button — gold/orange for visibility */}
         {hasAssistantMessage && !activeStep?.completed && (
           <div className="px-3 pt-2.5 pb-0.5">
-            <Button
-              size="sm"
-              variant="outline"
+            <button
               onClick={handleConfirmAnswer}
               disabled={completeMutation.isPending || chatMutation.isPending}
-              className="w-full border-primary/30 text-primary hover:bg-primary/10 hover:text-primary text-sm py-2"
+              className="w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-base font-semibold transition-colors disabled:opacity-50"
+              style={{
+                backgroundColor: "oklch(0.78 0.14 80)",
+                color: "#1a1a1a",
+              }}
             >
               {completeMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+                <CheckCircle2 className="h-5 w-5" />
               )}
-              Confirm my answer &amp; move to next step
-            </Button>
+              Confirm &amp; Next Step
+            </button>
+          </div>
+        )}
+
+        {/* Module complete — show next module navigation */}
+        {allComplete && (
+          <div className="px-3 pt-2.5 pb-0.5">
+            {nextModule ? (
+              <button
+                onClick={() => setLocation(`/curriculum/${nextModule.id}/coaching`)}
+                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-base font-semibold transition-colors"
+                style={{
+                  backgroundColor: "oklch(0.78 0.14 80)",
+                  color: "#1a1a1a",
+                }}
+              >
+                <PartyPopper className="h-5 w-5" />
+                Continue to {nextModule.title}
+                <ArrowRight className="h-5 w-5" />
+              </button>
+            ) : (
+              <div className="text-center py-3">
+                <div className="flex items-center justify-center gap-2 text-base font-semibold" style={{ color: "oklch(0.78 0.14 80)" }}>
+                  <PartyPopper className="h-5 w-5" />
+                  All modules complete!
+                </div>
+                <button
+                  onClick={() => setLocation("/curriculum")}
+                  className="mt-2 text-sm text-muted-foreground underline hover:text-foreground"
+                >
+                  Back to Curriculum
+                </button>
+              </div>
+            )}
           </div>
         )}
 

@@ -107,3 +107,7 @@
 
 ## New Feature: Voice Dictation
 - [x] Add mic button to coaching chat input — Web Speech API speech-to-text
+
+## UX Improvements (April 27, 2026)
+- [x] Make confirm button orange/gold with more readable text
+- [x] Add next-module navigation when all steps in a module are complete
