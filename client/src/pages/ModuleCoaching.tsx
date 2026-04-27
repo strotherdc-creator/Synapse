@@ -10,10 +10,13 @@ import {
   Sparkles,
   User,
   RotateCcw,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import ReactMarkdown from "react-markdown";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -64,6 +67,25 @@ export default function ModuleCoaching() {
   const outerRef = useRef<HTMLDivElement>(null);
 
   const utils = trpc.useUtils();
+
+  // ── Voice dictation ──
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported: speechSupported,
+    toggleListening,
+  } = useSpeechToText();
+
+  // When speech recognition produces a final transcript, append it to the input
+  useEffect(() => {
+    if (transcript) {
+      setInput((prev) => {
+        const separator = prev && !prev.endsWith(" ") ? " " : "";
+        return prev + separator + transcript;
+      });
+    }
+  }, [transcript]);
 
   // ── Keyboard-aware height ──
   // On mobile, when the virtual keyboard opens, the visual viewport shrinks.
@@ -481,21 +503,40 @@ export default function ModuleCoaching() {
         <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
           <Textarea
             ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={isListening ? input + (interimTranscript ? (input ? " " : "") + interimTranscript : "") : input}
+            onChange={(e) => { if (!isListening) setInput(e.target.value); }}
             onKeyDown={handleKeyDown}
             onFocus={() => {
               // When input is focused on mobile, scroll chat to bottom after keyboard opens
               setTimeout(scrollToBottom, 300);
             }}
-            placeholder="Type your response..."
+            placeholder={isListening ? "Listening..." : "Type or tap mic to speak..."}
             className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
             rows={1}
+            readOnly={isListening}
           />
+          {speechSupported && (
+            <Button
+              type="button"
+              size="icon"
+              variant={isListening ? "destructive" : "outline"}
+              onClick={toggleListening}
+              className={`shrink-0 h-[44px] w-[44px] ${
+                isListening ? "animate-pulse" : ""
+              }`}
+              title={isListening ? "Stop recording" : "Start voice input"}
+            >
+              {isListening ? (
+                <MicOff className="h-5 w-5" />
+              ) : (
+                <Mic className="h-5 w-5" />
+              )}
+            </Button>
+          )}
           <Button
             type="submit"
             size="icon"
-            disabled={!input.trim() || chatMutation.isPending}
+            disabled={!input.trim() || chatMutation.isPending || isListening}
             className="shrink-0 h-[44px] w-[44px]"
           >
             {chatMutation.isPending ? (

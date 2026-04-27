@@ -104,3 +104,6 @@
 - [x] Fix Groq fallback: llama-3.1-70b-versatile decommissioned → llama-3.3-70b-versatile
 - [x] Fix Confirm My Answer button: add onError, use last user message as answer, only show when AI has responded
 - [x] Add Groq API key to Railway environment
+
+## New Feature: Voice Dictation
+- [x] Add mic button to coaching chat input — Web Speech API speech-to-text
