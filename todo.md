@@ -111,3 +111,7 @@
 ## UX Improvements (April 27, 2026)
 - [x] Make confirm button orange/gold with more readable text
 - [x] Add next-module navigation when all steps in a module are complete
+
+## Bug Fix (April 27, 2026)
+- [x] Fix module completion dead end: next-module button not appearing after completing all steps
+- [x] Ensure state resets properly when navigating between modules

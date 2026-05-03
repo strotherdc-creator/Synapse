@@ -516,85 +516,102 @@ export default function ModuleCoaching() {
           </div>
         )}
 
-        {/* Module complete — show next module navigation */}
-        {allComplete && (
-          <div className="px-3 pt-2.5 pb-0.5">
+        {/* Module complete — celebration + next module navigation */}
+        {allComplete ? (
+          <div className="px-3 py-4 space-y-3">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 text-lg font-bold" style={{ color: "oklch(0.78 0.14 80)" }}>
+                <PartyPopper className="h-6 w-6" />
+                Module Complete!
+                <PartyPopper className="h-6 w-6" />
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                You’ve finished all {totalSteps} steps. Great work!
+              </p>
+            </div>
             {nextModule ? (
               <button
                 onClick={() => setLocation(`/curriculum/${nextModule.id}/coaching`)}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-base font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 rounded-lg py-3.5 px-4 text-base font-semibold transition-colors"
                 style={{
                   backgroundColor: "oklch(0.78 0.14 80)",
                   color: "#1a1a1a",
                 }}
               >
-                <PartyPopper className="h-5 w-5" />
                 Continue to {nextModule.title}
                 <ArrowRight className="h-5 w-5" />
               </button>
             ) : (
-              <div className="text-center py-3">
-                <div className="flex items-center justify-center gap-2 text-base font-semibold" style={{ color: "oklch(0.78 0.14 80)" }}>
-                  <PartyPopper className="h-5 w-5" />
-                  All modules complete!
-                </div>
-                <button
-                  onClick={() => setLocation("/curriculum")}
-                  className="mt-2 text-sm text-muted-foreground underline hover:text-foreground"
-                >
-                  Back to Curriculum
-                </button>
-              </div>
+              <button
+                onClick={() => setLocation("/curriculum")}
+                className="w-full flex items-center justify-center gap-2 rounded-lg py-3.5 px-4 text-base font-semibold transition-colors"
+                style={{
+                  backgroundColor: "oklch(0.78 0.14 80)",
+                  color: "#1a1a1a",
+                }}
+              >
+                Back to Curriculum
+                <ArrowRight className="h-5 w-5" />
+              </button>
             )}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
-          <Textarea
-            ref={textareaRef}
-            value={isListening ? input + (interimTranscript ? (input ? " " : "") + interimTranscript : "") : input}
-            onChange={(e) => { if (!isListening) setInput(e.target.value); }}
-            onKeyDown={handleKeyDown}
-            onFocus={() => {
-              // When input is focused on mobile, scroll chat to bottom after keyboard opens
-              setTimeout(scrollToBottom, 300);
-            }}
-            placeholder={isListening ? "Listening..." : "Type or tap mic to speak..."}
-            className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
-            rows={1}
-            readOnly={isListening}
-          />
-          {speechSupported && (
-            <Button
-              type="button"
-              size="icon"
-              variant={isListening ? "destructive" : "outline"}
-              onClick={toggleListening}
-              className={`shrink-0 h-[44px] w-[44px] ${
-                isListening ? "animate-pulse" : ""
-              }`}
-              title={isListening ? "Stop recording" : "Start voice input"}
+            <button
+              onClick={() => setLocation("/curriculum")}
+              className="w-full text-center text-sm text-muted-foreground underline hover:text-foreground py-1"
             >
-              {isListening ? (
-                <MicOff className="h-5 w-5" />
-              ) : (
-                <Mic className="h-5 w-5" />
+              Return to Curriculum
+            </button>
+          </div>
+        ) : (
+          /* Normal input area — only show when module is NOT complete */
+          <>
+            <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
+              <Textarea
+                ref={textareaRef}
+                value={isListening ? input + (interimTranscript ? (input ? " " : "") + interimTranscript : "") : input}
+                onChange={(e) => { if (!isListening) setInput(e.target.value); }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // When input is focused on mobile, scroll chat to bottom after keyboard opens
+                  setTimeout(scrollToBottom, 300);
+                }}
+                placeholder={isListening ? "Listening..." : "Type or tap mic to speak..."}
+                className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
+                rows={1}
+                readOnly={isListening}
+              />
+              {speechSupported && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={isListening ? "destructive" : "outline"}
+                  onClick={toggleListening}
+                  className={`shrink-0 h-[44px] w-[44px] ${
+                    isListening ? "animate-pulse" : ""
+                  }`}
+                  title={isListening ? "Stop recording" : "Start voice input"}
+                >
+                  {isListening ? (
+                    <MicOff className="h-5 w-5" />
+                  ) : (
+                    <Mic className="h-5 w-5" />
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || chatMutation.isPending || isListening}
-            className="shrink-0 h-[44px] w-[44px]"
-          >
-            {chatMutation.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-          </Button>
-        </form>
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || chatMutation.isPending || isListening}
+                className="shrink-0 h-[44px] w-[44px]"
+              >
+                {chatMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
