@@ -85,21 +85,42 @@ export default function ModuleCoaching() {
   // ── Voice dictation ──
   const {
     isListening,
-    transcript,
-    interimTranscript,
+    fullTranscript,
+    interimText,
     isSupported: speechSupported,
     toggleListening,
+    resetTranscript,
   } = useSpeechToText();
 
-  // When speech recognition produces a final transcript, append it to the input
+  // Track what was in the input BEFORE the user started speaking
+  const inputBeforeSpeechRef = useRef("");
+
+  // When user starts listening, capture the current input
   useEffect(() => {
-    if (transcript) {
-      setInput((prev) => {
-        const separator = prev && !prev.endsWith(" ") ? " " : "";
-        return prev + separator + transcript;
-      });
+    if (isListening) {
+      inputBeforeSpeechRef.current = input;
     }
-  }, [transcript]);
+  }, [isListening]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When speech recognition produces final text, update the input
+  // (replace the speech portion, don't append)
+  useEffect(() => {
+    if (isListening || fullTranscript) {
+      const base = inputBeforeSpeechRef.current;
+      const separator = base && !base.endsWith(" ") && fullTranscript ? " " : "";
+      setInput(base + separator + fullTranscript);
+    }
+  }, [fullTranscript, isListening]);
+
+  // When user stops listening, commit the text and reset the hook
+  const prevListeningRef = useRef(false);
+  useEffect(() => {
+    if (prevListeningRef.current && !isListening) {
+      // Stopped listening — text is already in input, just reset the hook
+      resetTranscript();
+    }
+    prevListeningRef.current = isListening;
+  }, [isListening, resetTranscript]);
 
   // ── Keyboard-aware height ──
   // On mobile, when the virtual keyboard opens, the visual viewport shrinks.
@@ -567,7 +588,7 @@ export default function ModuleCoaching() {
             <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
               <Textarea
                 ref={textareaRef}
-                value={isListening ? input + (interimTranscript ? (input ? " " : "") + interimTranscript : "") : input}
+                value={isListening ? input + (interimText ? " " + interimText : "") : input}
                 onChange={(e) => { if (!isListening) setInput(e.target.value); }}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {

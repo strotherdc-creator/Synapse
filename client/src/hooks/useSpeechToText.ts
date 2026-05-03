@@ -37,13 +37,25 @@ function getSpeechRecognition(): SpeechRecognitionConstructor | null {
   );
 }
 
+/**
+ * Speech-to-text hook using the Web Speech API.
+ *
+ * Uses continuous mode but tracks results properly using resultIndex
+ * to avoid re-reading old results. Returns the full accumulated text
+ * and current interim text separately.
+ *
+ * The consumer should use `fullTranscript` directly as the accumulated
+ * final text (NOT append it). `interimText` is the current in-progress
+ * recognition that hasn't been finalized yet.
+ */
 export function useSpeechToText() {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [interimTranscript, setInterimTranscript] = useState("");
+  const [fullTranscript, setFullTranscript] = useState("");
+  const [interimText, setInterimText] = useState("");
   const [isSupported] = useState(() => getSpeechRecognition() !== null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const finalTranscriptRef = useRef("");
+  // Track how many results we've already processed as final
+  const processedCountRef = useRef(0);
 
   // Clean up on unmount
   useEffect(() => {
@@ -69,32 +81,37 @@ export function useSpeechToText() {
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    finalTranscriptRef.current = "";
-    setTranscript("");
-    setInterimTranscript("");
+    processedCountRef.current = 0;
+    setFullTranscript("");
+    setInterimText("");
 
     recognition.onstart = () => {
       setIsListening(true);
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = "";
-      let interimText = "";
+      let newFinals = "";
+      let currentInterim = "";
 
-      for (let i = 0; i < event.results.length; i++) {
+      // Only process from resultIndex onward to avoid re-reading old results
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
-          finalText += result[0].transcript;
+          newFinals += result[0].transcript;
         } else {
-          interimText += result[0].transcript;
+          currentInterim += result[0].transcript;
         }
       }
 
-      if (finalText) {
-        finalTranscriptRef.current = finalText;
-        setTranscript(finalText);
+      // Append only genuinely new final text
+      if (newFinals) {
+        setFullTranscript((prev) => {
+          const separator = prev && !prev.endsWith(" ") ? " " : "";
+          return prev + separator + newFinals.trim();
+        });
       }
-      setInterimTranscript(interimText);
+
+      setInterimText(currentInterim);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -107,7 +124,7 @@ export function useSpeechToText() {
 
     recognition.onend = () => {
       setIsListening(false);
-      setInterimTranscript("");
+      setInterimText("");
     };
 
     recognitionRef.current = recognition;
@@ -128,13 +145,22 @@ export function useSpeechToText() {
     }
   }, [isListening, startListening, stopListening]);
 
+  // Reset accumulated transcript (call when committing text to input)
+  const resetTranscript = useCallback(() => {
+    setFullTranscript("");
+    setInterimText("");
+  }, []);
+
   return {
     isListening,
-    transcript,
-    interimTranscript,
+    /** Accumulated final transcript text from this listening session */
+    fullTranscript,
+    /** Current interim (in-progress) recognition text */
+    interimText,
     isSupported,
     startListening,
     stopListening,
     toggleListening,
+    resetTranscript,
   };
 }

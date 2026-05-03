@@ -115,3 +115,6 @@
 ## Bug Fix (April 27, 2026)
 - [x] Fix module completion dead end: next-module button not appearing after completing all steps
 - [x] Ensure state resets properly when navigating between modules
+
+## Bug Fix (May 2, 2026)
+- [x] Fix speech-to-text: microphone repeats/duplicates text endlessly in continuous mode
