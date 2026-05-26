@@ -1,12 +1,22 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Curriculum() {
   const [, setLocation] = useLocation();
   const { data: modules, isLoading } = trpc.modules.list.useQuery();
+
+  // Determine which modules are unlocked
+  // Module 1 (first in sort order) is always unlocked
+  // Subsequent modules require the previous module's coaching to be complete
+  const isModuleUnlocked = (index: number): boolean => {
+    if (!modules) return false;
+    if (index === 0) return true; // First module always unlocked
+    // Previous module must have coaching complete
+    return modules[index - 1]?.coachingComplete === true;
+  };
 
   return (
     <div className="space-y-6">
@@ -15,7 +25,7 @@ export default function Curriculum() {
           Curriculum
         </h1>
         <p className="text-muted-foreground mt-1">
-          Browse all available modules and track your progress.
+          Complete each module in order to unlock the next.
         </p>
       </div>
 
@@ -34,20 +44,47 @@ export default function Curriculum() {
         </div>
       ) : modules && modules.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((mod) => {
+          {modules.map((mod, index) => {
+            const unlocked = isModuleUnlocked(index);
             const modProgress =
               mod.lessonCount > 0
                 ? Math.round((mod.completedCount / mod.lessonCount) * 100)
                 : 0;
+            const prevModTitle = index > 0 ? modules[index - 1]?.title : "";
+
             return (
               <Card
                 key={mod.id}
-                className="bg-card border-border cursor-pointer hover:border-primary/50 transition-all group"
-                onClick={() => setLocation(`/curriculum/${mod.id}`)}
+                className={`bg-card border-border transition-all ${
+                  unlocked
+                    ? "cursor-pointer hover:border-primary/50 group"
+                    : "opacity-60 cursor-not-allowed"
+                }`}
+                onClick={() => {
+                  if (unlocked) {
+                    setLocation(`/curriculum/${mod.id}`);
+                  }
+                }}
               >
                 <CardContent className="p-6">
-                  <div className="text-3xl mb-3">{mod.iconEmoji || "📘"}</div>
-                  <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-3xl">{mod.iconEmoji || "📘"}</div>
+                    {!unlocked && (
+                      <Lock className="h-5 w-5 text-muted-foreground/60" />
+                    )}
+                    {mod.coachingComplete && (
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--gold)", color: "#1a1a1a" }}>
+                        Complete
+                      </span>
+                    )}
+                  </div>
+                  <h3
+                    className={`font-semibold text-lg ${
+                      unlocked
+                        ? "text-foreground group-hover:text-primary transition-colors"
+                        : "text-muted-foreground"
+                    }`}
+                  >
                     {mod.title}
                   </h3>
                   {mod.description && (
@@ -55,12 +92,20 @@ export default function Curriculum() {
                       {mod.description}
                     </p>
                   )}
-                  <div className="mt-4 flex items-center gap-3">
-                    <Progress value={modProgress} className="h-1.5 flex-1" />
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {mod.completedCount}/{mod.lessonCount} lessons
-                    </span>
-                  </div>
+
+                  {unlocked ? (
+                    <div className="mt-4 flex items-center gap-3">
+                      <Progress value={modProgress} className="h-1.5 flex-1" />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {mod.completedCount}/{mod.lessonCount} lessons
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-muted-foreground italic">
+                      Complete "{prevModTitle}" first
+                    </p>
+                  )}
+
                   {mod.status === "draft" && (
                     <span className="inline-block mt-3 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
                       Draft

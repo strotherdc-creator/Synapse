@@ -33,8 +33,21 @@ export default function ModuleCoaching() {
   // Fetch module info
   const { data: mod } = trpc.modules.getById.useQuery({ id: moduleId });
 
-  // Fetch all modules to find the next one
+  // Fetch all modules to find the next one and check locking
   const { data: allModules } = trpc.modules.list.useQuery();
+
+  // Guard: redirect if this module is locked (previous module not complete)
+  useEffect(() => {
+    if (!allModules || allModules.length === 0) return;
+    const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
+    const currentIdx = sorted.findIndex((m) => m.id === moduleId);
+    if (currentIdx <= 0) return; // First module or not found — allow
+    const prevModule = sorted[currentIdx - 1];
+    if (!prevModule?.coachingComplete) {
+      setLocation("/curriculum");
+    }
+  }, [allModules, moduleId, setLocation]);
+
   const nextModule = useMemo(() => {
     if (!allModules || !mod) return null;
     const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);

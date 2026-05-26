@@ -118,3 +118,8 @@
 
 ## Bug Fix (May 2, 2026)
 - [x] Fix speech-to-text: microphone repeats/duplicates text endlessly in continuous mode
+
+## Feature (May 26, 2026)
+- [x] Enforce sequential module progression: lock modules until previous one is complete
+- [x] Show locked state on module cards (lock icon, dimmed, "Complete X first")
+- [x] Prevent direct URL navigation to locked modules (redirect to curriculum)

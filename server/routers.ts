@@ -40,10 +40,16 @@ const modulesRouter = router({
         const moduleLessons = await db.listLessons(mod.id, !isAdmin);
         const moduleProgress = progress.filter((p) => p.moduleId === mod.id);
         const completedCount = moduleProgress.filter((p) => p.completed).length;
+        // Check coaching completion for this module
+        const steps = await db.getModuleSteps(mod.id);
+        const stepProgress = await db.getUserStepProgress(ctx.user.id, mod.id);
+        const coachingCompletedSteps = stepProgress.filter((p) => p.completed).length;
+        const coachingComplete = coachingCompletedSteps >= steps.length && steps.length > 0;
         return {
           ...mod,
           lessonCount: moduleLessons.length,
           completedCount,
+          coachingComplete,
         };
       })
     );

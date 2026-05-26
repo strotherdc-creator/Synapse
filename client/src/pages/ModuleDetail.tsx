@@ -4,11 +4,27 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, BookOpen, CheckCircle2, Circle, MessageSquare, ChevronRight } from "lucide-react";
 import { useLocation, useParams } from "wouter";
+import { useEffect } from "react";
 
 export default function ModuleDetail() {
   const params = useParams<{ moduleId: string }>();
   const moduleId = parseInt(params.moduleId || "0");
   const [, setLocation] = useLocation();
+
+  // Fetch all modules to check if this one is unlocked
+  const { data: allModules } = trpc.modules.list.useQuery();
+
+  // Guard: redirect to curriculum if this module is locked
+  useEffect(() => {
+    if (!allModules || allModules.length === 0) return;
+    const sortedModules = [...allModules];
+    const currentIndex = sortedModules.findIndex((m) => m.id === moduleId);
+    if (currentIndex <= 0) return; // First module or not found — allow access
+    const prevModule = sortedModules[currentIndex - 1];
+    if (!prevModule?.coachingComplete) {
+      setLocation("/curriculum");
+    }
+  }, [allModules, moduleId, setLocation]);
 
   const { data: mod, isLoading: modLoading } = trpc.modules.getById.useQuery({ id: moduleId });
   const { data: lessons, isLoading: lessonsLoading } = trpc.lessons.list.useQuery({ moduleId });
