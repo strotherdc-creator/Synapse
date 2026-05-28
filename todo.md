@@ -123,3 +123,7 @@
 - [x] Enforce sequential module progression: lock modules until previous one is complete
 - [x] Show locked state on module cards (lock icon, dimmed, "Complete X first")
 - [x] Prevent direct URL navigation to locked modules (redirect to curriculum)
+
+## Bug Fix (May 27, 2026)
+- [x] Fix Overall Progress not updating on dashboard/curriculum
+- [x] Fix Lessons Learned not updating on dashboard/curriculum

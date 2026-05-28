@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
-import { BookOpen, CheckCircle2, MessageSquare, Zap } from "lucide-react";
+import { BookOpen, CheckCircle2, MessageSquare, Zap, Trophy, Target } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Home() {
@@ -10,9 +10,14 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { data: modules, isLoading } = trpc.modules.list.useQuery();
 
-  const totalLessons = modules?.reduce((sum, m) => sum + m.lessonCount, 0) ?? 0;
-  const completedLessons = modules?.reduce((sum, m) => sum + m.completedCount, 0) ?? 0;
-  const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  // Coaching step progress (primary metric)
+  const totalSteps = modules?.reduce((sum, m) => sum + m.stepCount, 0) ?? 0;
+  const completedSteps = modules?.reduce((sum, m) => sum + m.completedStepCount, 0) ?? 0;
+  const stepProgressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  // Module completion count
+  const completedModules = modules?.filter((m) => m.coachingComplete).length ?? 0;
+  const totalModules = modules?.length ?? 0;
 
   return (
     <div className="space-y-8">
@@ -36,38 +41,47 @@ export default function Home() {
             <Zap className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gold">{progressPercent}%</div>
-            <Progress value={progressPercent} className="mt-2 h-2" />
+            <div className="text-2xl font-bold text-gold">{stepProgressPercent}%</div>
+            <Progress value={stepProgressPercent} className="mt-2 h-2" />
+            <p className="text-xs text-muted-foreground mt-1">
+              {completedSteps} of {totalSteps} steps completed
+            </p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Modules
+              Modules Completed
             </CardTitle>
-            <BookOpen className="h-4 w-4 text-gold" />
+            <Trophy className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {modules?.length ?? 0}
+              {completedModules} / {totalModules}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Available to study</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {completedModules === totalModules && totalModules > 0
+                ? "All modules complete!"
+                : completedModules > 0
+                  ? "Keep going!"
+                  : "Start your first module"}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Lessons Completed
+              Steps Completed
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-gold" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {completedLessons} / {totalLessons}
+              {completedSteps} / {totalSteps}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Keep going!</p>
+            <p className="text-xs text-muted-foreground mt-1">Coaching steps across all modules</p>
           </CardContent>
         </Card>
 
@@ -118,8 +132,8 @@ export default function Home() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {modules.map((mod) => {
               const modProgress =
-                mod.lessonCount > 0
-                  ? Math.round((mod.completedCount / mod.lessonCount) * 100)
+                mod.stepCount > 0
+                  ? Math.round((mod.completedStepCount / mod.stepCount) * 100)
                   : 0;
               return (
                 <Card
@@ -131,9 +145,14 @@ export default function Home() {
                     <div className="flex items-start gap-3 mb-3">
                       <span className="text-2xl">{mod.iconEmoji || "📘"}</span>
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
-                          {mod.title}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
+                            {mod.title}
+                          </h3>
+                          {mod.coachingComplete && (
+                            <CheckCircle2 className="h-4 w-4 text-gold flex-shrink-0" />
+                          )}
+                        </div>
                         {mod.description && (
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {mod.description}
@@ -144,7 +163,7 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <Progress value={modProgress} className="h-1.5 flex-1" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {mod.completedCount}/{mod.lessonCount}
+                        {mod.completedStepCount}/{mod.stepCount} steps
                       </span>
                     </div>
                   </CardContent>

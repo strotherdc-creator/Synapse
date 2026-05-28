@@ -50,6 +50,8 @@ const modulesRouter = router({
           lessonCount: moduleLessons.length,
           completedCount,
           coachingComplete,
+          stepCount: steps.length,
+          completedStepCount: coachingCompletedSteps,
         };
       })
     );
