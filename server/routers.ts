@@ -652,6 +652,15 @@ const coachingRouter = router({
     }),
 });
 
+// ─── Admin Stats Router ──────────────────────────────────────────────
+
+const adminStatsRouter = router({
+  getStats: adminProcedure.query(async () => {
+    const stats = await db.getAdminStats();
+    return stats;
+  }),
+});
+
 // ─── App Router ──────────────────────────────────────────────────────
 
 export const appRouter = router({
@@ -667,6 +676,7 @@ export const appRouter = router({
   routine: routineRouter,
   coupons: couponsRouter,
   coaching: coachingRouter,
+  adminStats: adminStatsRouter,
 });
 
 export type AppRouter = typeof appRouter;

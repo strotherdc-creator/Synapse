@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, sql, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -470,4 +470,117 @@ export async function clearStepChatHistory(userId: number, stepId: number) {
   await db.delete(stepChatMessages).where(
     and(eq(stepChatMessages.userId, userId), eq(stepChatMessages.stepId, stepId))
   );
+}
+
+// ─── Admin Stats (read-only) ──────────────────────────────────────
+
+export async function getAdminStats() {
+  const db = await getDb();
+  if (!db) return null;
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // Total users
+  const totalUsersResult = await db.select({ count: count() }).from(users);
+  const totalUsers = totalUsersResult[0]?.count ?? 0;
+
+  // Active users (signed in within last 7 days)
+  const active7Result = await db.select({ count: count() }).from(users)
+    .where(gte(users.lastSignedIn, sevenDaysAgo));
+  const activeUsers7d = active7Result[0]?.count ?? 0;
+
+  // Active users (signed in within last 30 days)
+  const active30Result = await db.select({ count: count() }).from(users)
+    .where(gte(users.lastSignedIn, thirtyDaysAgo));
+  const activeUsers30d = active30Result[0]?.count ?? 0;
+
+  // Total coaching steps completed across all users
+  const totalStepsResult = await db.select({ count: count() }).from(userStepProgress)
+    .where(eq(userStepProgress.completed, true));
+  const totalStepsCompleted = totalStepsResult[0]?.count ?? 0;
+
+  // Total module steps available
+  const totalStepsAvailableResult = await db.select({ count: count() }).from(moduleSteps);
+  const totalStepsAvailable = totalStepsAvailableResult[0]?.count ?? 0;
+
+  // Module completion breakdown: for each module, how many users completed ALL steps
+  const allModules = await db.select().from(modules).orderBy(asc(modules.sortOrder));
+  const moduleBreakdown = await Promise.all(
+    allModules.map(async (mod) => {
+      const steps = await db.select({ count: count() }).from(moduleSteps)
+        .where(eq(moduleSteps.moduleId, mod.id));
+      const stepCount = steps[0]?.count ?? 0;
+
+      // Count users who completed all steps in this module
+      let usersCompleted = 0;
+      if (stepCount > 0) {
+        const completions = await db
+          .select({
+            userId: userStepProgress.userId,
+            completedCount: count(),
+          })
+          .from(userStepProgress)
+          .where(and(eq(userStepProgress.moduleId, mod.id), eq(userStepProgress.completed, true)))
+          .groupBy(userStepProgress.userId);
+        usersCompleted = completions.filter((c) => Number(c.completedCount) >= stepCount).length;
+      }
+
+      return {
+        moduleId: mod.id,
+        title: mod.title,
+        iconEmoji: mod.iconEmoji,
+        stepCount,
+        usersCompleted,
+      };
+    })
+  );
+
+  // Per-user activity: name, email, steps completed, last active, current streak
+  const allUsers = await db.select().from(users).orderBy(desc(users.lastSignedIn));
+  const userActivity = await Promise.all(
+    allUsers.map(async (u) => {
+      const stepsResult = await db.select({ count: count() }).from(userStepProgress)
+        .where(and(eq(userStepProgress.userId, u.id), eq(userStepProgress.completed, true)));
+      const stepsCompleted = stepsResult[0]?.count ?? 0;
+
+      const streakResult = await db.select().from(streaks).where(eq(streaks.userId, u.id)).limit(1);
+      const currentStreak = streakResult[0]?.currentStreak ?? 0;
+      const longestStreak = streakResult[0]?.longestStreak ?? 0;
+
+      return {
+        id: u.id,
+        name: u.name ?? "Unknown",
+        email: u.email ?? "",
+        role: u.role,
+        stepsCompleted,
+        currentStreak,
+        longestStreak,
+        lastSignedIn: u.lastSignedIn,
+        createdAt: u.createdAt,
+      };
+    })
+  );
+
+  // Recent activity (steps completed in last 7 days)
+  const recentStepsResult = await db.select({ count: count() }).from(userStepProgress)
+    .where(and(eq(userStepProgress.completed, true), gte(userStepProgress.completedAt, sevenDaysAgo)));
+  const recentStepsCompleted = recentStepsResult[0]?.count ?? 0;
+
+  // Content generated count
+  const contentResult = await db.select({ count: count() }).from(contentHistory);
+  const totalContentGenerated = contentResult[0]?.count ?? 0;
+
+  return {
+    totalUsers,
+    activeUsers7d,
+    activeUsers30d,
+    totalStepsCompleted,
+    totalStepsAvailable,
+    recentStepsCompleted,
+    totalContentGenerated,
+    moduleBreakdown,
+    userActivity,
+  };
 }

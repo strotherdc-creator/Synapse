@@ -15,6 +15,7 @@ import ContentStudio from "./pages/ContentStudio";
 import DailyRoutine from "./pages/DailyRoutine";
 import Profile from "./pages/Profile";
 import AdminModules from "./pages/AdminModules";
+import AdminStats from "./pages/AdminStats";
 import ModuleCoaching from "./pages/ModuleCoaching";
 import Landing from "./pages/Landing";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
@@ -33,6 +34,7 @@ function AuthenticatedRouter() {
         <Route path="/routine" component={DailyRoutine} />
         <Route path="/profile" component={Profile} />
         <Route path="/admin/modules" component={AdminModules} />
+        <Route path="/admin/stats" component={AdminStats} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

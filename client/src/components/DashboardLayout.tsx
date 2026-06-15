@@ -23,6 +23,7 @@ import {
 
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  BarChart3,
   BookOpen,
   Calendar,
   LayoutDashboard,
@@ -50,6 +51,7 @@ const menuItems = [
 
 const adminMenuItems = [
   { icon: Settings, label: "Manage Modules", path: "/admin/modules" },
+  { icon: BarChart3, label: "User Analytics", path: "/admin/stats" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -129,12 +129,17 @@
 - [x] Fix Lessons Learned not updating on dashboard/curriculum
 
 ## Landing Page (Sales Funnel) - June 2026
-- [ ] Build new high-converting landing/sales page (front-end only)
-- [ ] Section 1: Hero — headline, sub-headline, CTA anchoring to pricing
-- [ ] Section 2: Agitation — pain points (agencies, social media, overwhelm)
-- [ ] Section 3: Solution — 3 pillars with icons (Targeting, Daily Steps, Accountability)
-- [ ] Section 4: Inside the App — UI mockup/screenshot visual proof
-- [ ] Section 5: Pricing — Monthly $74.99 vs Annual $749 (highlight annual "Best Value")
-- [ ] Section 6: Guarantee — 14-Day "Full Waiting Room" Guarantee
-- [ ] Remove global nav on landing page; keep only small Login button top-right
-- [ ] TypeScript check passes, commit, push to GitHub
+- [x] Build new high-converting landing/sales page (front-end only)
+- [x] Section 1: Hero — headline, sub-headline, CTA anchoring to pricing
+- [x] Section 2: Agitation — pain points (agencies, social media, overwhelm)
+- [x] Section 3: Solution — 3 pillars with icons (Targeting, Daily Steps, Accountability)
+- [x] Section 4: Inside the App — UI mockup/screenshot visual proof
+- [x] Section 5: Pricing — Monthly $74.99 vs Annual $749 (highlight annual "Best Value")
+- [x] Section 6: Guarantee — 14-Day "Full Waiting Room" Guarantee
+- [x] Remove global nav on landing page; keep only small Login button top-right
+- [x] TypeScript check passes, commit, push to GitHub
+
+## Admin User Analytics - June 2026
+- [x] Add read-only admin stats endpoint (total users, active 7d/30d, steps completed, module breakdown)
+- [x] Build /admin/stats page with metric cards and user activity table
+- [x] Add "User Analytics" link to admin sidebar menu
