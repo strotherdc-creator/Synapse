@@ -1,6 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../shared/schema";
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
 import * as db from "../db";
 
 export type TrpcContext = {
@@ -23,18 +23,48 @@ export async function createContext(
 
       // Auto-create user on first visit
       if (!user) {
+        // Fetch full user details from Clerk to get email/name
+        const clerkUser = await clerkClient.users.getUser(auth.userId);
+        const email = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+        const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || null;
+
         await db.upsertUser({
           clerkId: auth.userId,
+          email: email ?? undefined,
+          name: name ?? undefined,
           lastSignedIn: new Date(),
         });
         const newUser = await db.getUserByClerkId(auth.userId);
         user = newUser ?? null;
       } else {
-        // Update last signed in (fire and forget)
-        db.upsertUser({
-          clerkId: auth.userId,
-          lastSignedIn: new Date(),
-        }).catch(() => {});
+        // Update last signed in + pass email for admin promotion check
+        const email = user.email;
+        if (!email) {
+          // If we don't have email stored yet, fetch from Clerk
+          try {
+            const clerkUser = await clerkClient.users.getUser(auth.userId);
+            const clerkEmail = clerkUser.emailAddresses?.[0]?.emailAddress ?? null;
+            if (clerkEmail) {
+              await db.upsertUser({
+                clerkId: auth.userId,
+                email: clerkEmail,
+                lastSignedIn: new Date(),
+              });
+              // Re-fetch user to get updated role
+              const updatedUser = await db.getUserByClerkId(auth.userId);
+              user = updatedUser ?? user;
+            }
+          } catch {
+            // Non-critical, continue with existing user
+          }
+        } else {
+          // Email exists, just update lastSignedIn (this also triggers admin check)
+          db.upsertUser({
+            clerkId: auth.userId,
+            email,
+            lastSignedIn: new Date(),
+          }).catch(() => {});
+        }
       }
     }
   } catch (error) {
