@@ -19,6 +19,7 @@ import AdminStats from "./pages/AdminStats";
 import ModuleCoaching from "./pages/ModuleCoaching";
 import Landing from "./pages/Landing";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
+import ProfileCompletion from "./components/ProfileCompletion";
 
 function AuthenticatedRouter() {
   return (
@@ -51,6 +52,11 @@ function AppRouter() {
 
   if (!user) {
     return <Landing />;
+  }
+
+  // Require profile completion (name) before accessing the app
+  if (!user.name || user.name.trim() === "") {
+    return <ProfileCompletion />;
   }
 
   return <AuthenticatedRouter />;
