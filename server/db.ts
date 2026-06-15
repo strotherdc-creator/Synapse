@@ -45,19 +45,23 @@ export async function upsertUser(user: Partial<InsertUser> & { clerkId: string }
   try {
     const existing = await db.select().from(users).where(eq(users.clerkId, user.clerkId)).limit(1);
 
+    // Check if this user should be admin (works for both new and existing users)
+    const isAdmin = ENV.adminEmail && user.email && user.email.toLowerCase() === ENV.adminEmail.toLowerCase();
+
     if (existing.length > 0) {
       const updateData: Record<string, unknown> = {};
       if (user.name !== undefined) updateData.name = user.name;
       if (user.email !== undefined) updateData.email = user.email;
-      if (user.role !== undefined) updateData.role = user.role;
       if (user.bio !== undefined) updateData.bio = user.bio;
       if (user.avatarUrl !== undefined) updateData.avatarUrl = user.avatarUrl;
+      // Promote to admin if email matches ADMIN_EMAIL (even for existing users)
+      if (isAdmin && existing[0].role !== "admin") {
+        updateData.role = "admin";
+      }
       updateData.lastSignedIn = user.lastSignedIn ?? new Date();
       updateData.updatedAt = new Date();
       await db.update(users).set(updateData).where(eq(users.clerkId, user.clerkId));
     } else {
-      // Check if this user should be admin
-      const isAdmin = ENV.adminEmail && user.email && user.email.toLowerCase() === ENV.adminEmail.toLowerCase();
       await db.insert(users).values({
         clerkId: user.clerkId,
         name: user.name ?? null,
