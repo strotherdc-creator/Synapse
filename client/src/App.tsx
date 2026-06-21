@@ -20,6 +20,7 @@ import ModuleCoaching from "./pages/ModuleCoaching";
 import Landing from "./pages/Landing";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 import ProfileCompletion from "./components/ProfileCompletion";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 function AuthenticatedRouter() {
   return (
@@ -69,6 +70,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <AppRouter />
+          <PWAInstallPrompt />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

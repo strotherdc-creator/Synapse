@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1a1a2e"/>
+  <g fill="none" stroke="#d4af37" stroke-width="3" stroke-linecap="round">
+    <!-- Neural connections -->
+    <line x1="160" y1="160" x2="256" y2="256"/>
+    <line x1="352" y1="160" x2="256" y2="256"/>
+    <line x1="160" y1="352" x2="256" y2="256"/>
+    <line x1="352" y1="352" x2="256" y2="256"/>
+    <line x1="128" y1="256" x2="256" y2="256"/>
+    <line x1="384" y1="256" x2="256" y2="256"/>
+    <line x1="256" y1="128" x2="256" y2="256"/>
+    <line x1="256" y1="384" x2="256" y2="256"/>
+    <!-- Secondary connections -->
+    <line x1="160" y1="160" x2="128" y2="256" opacity="0.6"/>
+    <line x1="352" y1="160" x2="384" y2="256" opacity="0.6"/>
+    <line x1="160" y1="352" x2="128" y2="256" opacity="0.6"/>
+    <line x1="352" y1="352" x2="384" y2="256" opacity="0.6"/>
+    <line x1="160" y1="160" x2="256" y2="128" opacity="0.6"/>
+    <line x1="352" y1="160" x2="256" y2="128" opacity="0.6"/>
+    <line x1="160" y1="352" x2="256" y2="384" opacity="0.6"/>
+    <line x1="352" y1="352" x2="256" y2="384" opacity="0.6"/>
+  </g>
+  <!-- Nodes -->
+  <g fill="#d4af37">
+    <circle cx="256" cy="256" r="20"/>
+    <circle cx="160" cy="160" r="12"/>
+    <circle cx="352" cy="160" r="12"/>
+    <circle cx="160" cy="352" r="12"/>
+    <circle cx="352" cy="352" r="12"/>
+    <circle cx="128" cy="256" r="10"/>
+    <circle cx="384" cy="256" r="10"/>
+    <circle cx="256" cy="128" r="10"/>
+    <circle cx="256" cy="384" r="10"/>
+  </g>
+  <!-- Center glow -->
+  <circle cx="256" cy="256" r="20" fill="#d4af37" opacity="0.3" filter="url(#glow)"/>
+  <defs>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>

@@ -143,3 +143,9 @@
 - [x] Add read-only admin stats endpoint (total users, active 7d/30d, steps completed, module breakdown)
 - [x] Build /admin/stats page with metric cards and user activity table
 - [x] Add "User Analytics" link to admin sidebar menu
+
+## Profile Completion Gate - June 2026
+- [x] Require name before app access (full-screen gate)
+- [x] Existing users without name see prompt once, then never again
+- [x] New users see it immediately after first sign-in
+- [x] Shows email (read-only from Google) + required name field
