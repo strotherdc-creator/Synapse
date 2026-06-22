@@ -149,3 +149,14 @@
 - [x] Existing users without name see prompt once, then never again
 - [x] New users see it immediately after first sign-in
 - [x] Shows email (read-only from Google) + required name field
+
+## PWA Support - June 2026
+- [x] Add manifest.json with Synapse branding (gold theme, dark background)
+- [x] Add service worker (cache-first static, network-first API)
+- [x] Generate PWA icons (192px, 512px, apple-touch-icon)
+- [x] Build PWAInstallPrompt component (Android/Desktop native prompt)
+- [x] iOS detection with Share → Add to Home Screen hint
+- [x] Dismissible banner (remembers 7 days, doesn't show if installed)
+- [x] Add apple-mobile-web-app meta tags to index.html
+- [x] TypeScript check passes
+- [x] Push to GitHub
