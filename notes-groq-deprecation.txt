@@ -1,7 +1,0 @@
-Groq Email - Jul 1, 2026:
-- Llama 3.3 70B Versatile is being deprecated TODAY (Jul 1, 2026)
-- Decommissioned fully on August 16, 2026 (requests will stop working)
-- Recommended replacement: GPT OSS 120B / Qwen3.6 27B
-- Applies to free and developer-tier usage
-- Enterprise customers with committed-spend contracts are NOT affected
-- Action needed: migrate to replacement models ASAP
