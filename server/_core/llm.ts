@@ -9,7 +9,7 @@ export type ChatMessage = {
 
 export type LLMResponse = {
   content: string;
-  provider: "gemini" | "groq-70b" | "groq-8b";
+  provider: "gemini" | "groq-gpt-oss-120b" | "groq-qwen-27b" | "groq-8b";
 };
 
 // ─── Timeout Utility ───────────────────────────────────────────────
@@ -129,22 +129,36 @@ export async function invokeLLM(messages: ChatMessage[]): Promise<LLMResponse> {
     errors.push("Gemini: API key not configured");
   }
 
-  // 2. Fallback to Groq llama-3.3-70b-versatile (no retry, 15s timeout)
+  // 2. Fallback to Groq GPT-OSS 120B (replaces deprecated llama-3.3-70b-versatile)
   if (ENV.groqApiKey) {
     try {
       const content = await withTimeout(
-        callGroq(messages, "llama-3.3-70b-versatile"),
+        callGroq(messages, "openai/gpt-oss-120b"),
         15000,
-        "Groq-70b"
+        "Groq-GPT-OSS-120B"
       );
-      return { content, provider: "groq-70b" };
+      return { content, provider: "groq-gpt-oss-120b" };
     } catch (error: any) {
-      const msg = `Groq-70b: ${error.message}`;
+      const msg = `Groq-GPT-OSS-120B: ${error.message}`;
       errors.push(msg);
       console.error(`[LLM] ${msg}`);
     }
 
-    // 3. Final fallback to Groq llama-3.1-8b-instant (fastest, highest rate limits)
+    // 3. Fallback to Groq Qwen3.6 27B (fast, capable reasoning model)
+    try {
+      const content = await withTimeout(
+        callGroq(messages, "qwen/qwen3.6-27b"),
+        15000,
+        "Groq-Qwen-27B"
+      );
+      return { content, provider: "groq-qwen-27b" };
+    } catch (error: any) {
+      const msg = `Groq-Qwen-27B: ${error.message}`;
+      errors.push(msg);
+      console.error(`[LLM] ${msg}`);
+    }
+
+    // 4. Final fallback to Groq llama-3.1-8b-instant (fastest, highest rate limits)
     try {
       const content = await withTimeout(
         callGroq(messages, "llama-3.1-8b-instant"),
