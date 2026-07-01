@@ -9,8 +9,49 @@ export type ChatMessage = {
 
 export type LLMResponse = {
   content: string;
-  provider: "gemini" | "groq";
+  provider: "gemini" | "groq-70b" | "groq-8b";
 };
+
+// ─── Timeout Utility ───────────────────────────────────────────────
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise
+      .then((val) => { clearTimeout(timer); resolve(val); })
+      .catch((err) => { clearTimeout(timer); reject(err); });
+  });
+}
+
+// ─── Retry Utility ─────────────────────────────────────────────────
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number,
+  delayMs: number,
+  label: string
+): Promise<T> {
+  let lastError: any;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastError = err;
+      const status = err?.status ?? err?.response?.status;
+      // Don't retry on auth errors (401/403) — key is invalid
+      if (status === 401 || status === 403) {
+        console.error(`[LLM] ${label} auth error (${status}): ${err.message}`);
+        throw err;
+      }
+      if (i < retries) {
+        const wait = delayMs * Math.pow(2, i);
+        console.warn(`[LLM] ${label} attempt ${i + 1} failed (${err.message}), retrying in ${wait}ms...`);
+        await new Promise((r) => setTimeout(r, wait));
+      }
+    }
+  }
+  throw lastError;
+}
 
 // ─── Gemini Provider ────────────────────────────────────────────────
 
@@ -45,15 +86,15 @@ async function callGemini(messages: ChatMessage[]): Promise<string> {
   return response.text();
 }
 
-// ─── Groq Provider (Fallback) ───────────────────────────────────────
+// ─── Groq Provider ─────────────────────────────────────────────────
 
-async function callGroq(messages: ChatMessage[]): Promise<string> {
+async function callGroq(messages: ChatMessage[], model: string): Promise<string> {
   if (!ENV.groqApiKey) throw new Error("GROQ_API_KEY not configured");
 
   const groq = new Groq({ apiKey: ENV.groqApiKey });
 
   const completion = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model,
     messages: messages.map((m) => ({
       role: m.role,
       content: m.content,
@@ -65,42 +106,65 @@ async function callGroq(messages: ChatMessage[]): Promise<string> {
   return completion.choices[0]?.message?.content ?? "Unable to generate response.";
 }
 
-// ─── Unified LLM Interface ─────────────────────────────────────────
+// ─── Unified LLM Interface (3-deep fallback with retry) ───────────
 
 export async function invokeLLM(messages: ChatMessage[]): Promise<LLMResponse> {
-  // Try Gemini first
+  const errors: string[] = [];
+
+  // 1. Try Gemini with retry (2 retries, 1s initial backoff, 15s timeout)
   if (ENV.geminiApiKey) {
     try {
-      const content = await callGemini(messages);
+      const content = await withTimeout(
+        withRetry(() => callGemini(messages), 2, 1000, "Gemini"),
+        15000,
+        "Gemini"
+      );
       return { content, provider: "gemini" };
     } catch (error: any) {
-      const status = error?.status ?? error?.response?.status;
-      const isRateLimit = status === 429;
-      const isServerError = status >= 500;
-
-      if (isRateLimit || isServerError) {
-        console.warn(
-          `[LLM] Gemini ${isRateLimit ? "rate limited" : "server error"} (${status}), falling back to Groq`
-        );
-      } else {
-        console.error("[LLM] Gemini error:", error.message);
-        // For non-rate-limit errors, still try fallback
-      }
+      const msg = `Gemini: ${error.message}`;
+      errors.push(msg);
+      console.error(`[LLM] ${msg}`);
     }
+  } else {
+    errors.push("Gemini: API key not configured");
   }
 
-  // Fallback to Groq
+  // 2. Fallback to Groq llama-3.3-70b-versatile (no retry, 15s timeout)
   if (ENV.groqApiKey) {
     try {
-      const content = await callGroq(messages);
-      return { content, provider: "groq" };
+      const content = await withTimeout(
+        callGroq(messages, "llama-3.3-70b-versatile"),
+        15000,
+        "Groq-70b"
+      );
+      return { content, provider: "groq-70b" };
     } catch (error: any) {
-      console.error("[LLM] Groq fallback error:", error.message);
+      const msg = `Groq-70b: ${error.message}`;
+      errors.push(msg);
+      console.error(`[LLM] ${msg}`);
     }
+
+    // 3. Final fallback to Groq llama-3.1-8b-instant (fastest, highest rate limits)
+    try {
+      const content = await withTimeout(
+        callGroq(messages, "llama-3.1-8b-instant"),
+        15000,
+        "Groq-8b"
+      );
+      return { content, provider: "groq-8b" };
+    } catch (error: any) {
+      const msg = `Groq-8b: ${error.message}`;
+      errors.push(msg);
+      console.error(`[LLM] ${msg}`);
+    }
+  } else {
+    errors.push("Groq: API key not configured");
   }
 
-  // Both failed
+  // All providers failed — include detailed error info
+  const detail = errors.join(" | ");
+  console.error(`[LLM] ALL PROVIDERS FAILED: ${detail}`);
   throw new Error(
-    "All LLM providers failed. Please check your API keys (GEMINI_API_KEY, GROQ_API_KEY)."
+    `All LLM providers failed. Details: ${detail}`
   );
 }
