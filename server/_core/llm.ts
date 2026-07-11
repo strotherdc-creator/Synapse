@@ -59,27 +59,36 @@ async function callGemini(messages: ChatMessage[]): Promise<string> {
   if (!ENV.geminiApiKey) throw new Error("GEMINI_API_KEY not configured");
 
   const genAI = new GoogleGenerativeAI(ENV.geminiApiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   // Extract system instruction from messages
   const systemMessages = messages.filter((m) => m.role === "system");
   const chatMessages = messages.filter((m) => m.role !== "system");
 
-  const systemInstruction = systemMessages.map((m) => m.content).join("\n\n");
+  const systemInstructionText = systemMessages.map((m) => m.content).join("\n\n");
+
+  // Create model with systemInstruction in Content object format (required by Gemini API)
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    ...(systemInstructionText
+      ? { systemInstruction: { role: "user", parts: [{ text: systemInstructionText }] } }
+      : {}),
+  });
 
   // Convert to Gemini format
-  const history = chatMessages.slice(0, -1).map((m) => ({
+  let history = chatMessages.slice(0, -1).map((m) => ({
     role: m.role === "assistant" ? ("model" as const) : ("user" as const),
     parts: [{ text: m.content }],
   }));
 
+  // Gemini requires first history message to be from 'user' — drop leading 'model' messages
+  while (history.length > 0 && history[0].role === "model") {
+    history = history.slice(1);
+  }
+
   const lastMessage = chatMessages[chatMessages.length - 1];
   if (!lastMessage) throw new Error("No user message provided");
 
-  const chat = model.startChat({
-    history,
-    systemInstruction: systemInstruction || undefined,
-  });
+  const chat = model.startChat({ history });
 
   const result = await chat.sendMessage(lastMessage.content);
   const response = result.response;
