@@ -162,4 +162,4 @@
 - [x] Push to GitHub
 
 ## Celebrations - July 2026
-- [ ] Fireworks/confetti animation when a module is completed
+- [x] Fireworks/confetti animation when a module is completed

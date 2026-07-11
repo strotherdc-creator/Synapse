@@ -1,14 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 /**
  * Confetti/Fireworks celebration overlay.
  * Renders 60 animated particles that burst from center and fade out.
+ * Plays a short celebration fanfare sound effect.
  * Purely visual, self-contained, no external dependencies.
- * Auto-removes itself after the animation completes (~3s).
+ * Auto-removes itself after the animation completes (~3.5s).
  */
 export function Confetti({ onComplete }: { onComplete?: () => void }) {
   const [particles] = useState(() => generateParticles(60));
   const [visible, setVisible] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Play celebration sound on mount
+  useEffect(() => {
+    try {
+      const audio = new Audio("/sounds/celebration.mp3");
+      audio.volume = 0.6;
+      audioRef.current = audio;
+      audio.play().catch(() => {
+        // Silently fail if autoplay is blocked — confetti still shows
+      });
+    } catch {
+      // Sound is optional — don't break the celebration
+    }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
