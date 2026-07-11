@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import ReactMarkdown from "react-markdown";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { Confetti } from "@/components/Confetti";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -78,6 +79,16 @@ export default function ModuleCoaching() {
   const totalSteps = steps?.length ?? 0;
   const completedSteps = steps?.filter((s) => s.completed).length ?? 0;
   const allComplete = completedSteps === totalSteps && totalSteps > 0;
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiShownRef = useRef(false);
+
+  // Trigger confetti once when module becomes complete
+  useEffect(() => {
+    if (allComplete && !confettiShownRef.current) {
+      confettiShownRef.current = true;
+      setShowConfetti(true);
+    }
+  }, [allComplete]);
 
   // Chat for the active step
   const { data: chatHistory, refetch: refetchChat } =
@@ -549,6 +560,9 @@ export default function ModuleCoaching() {
             </button>
           </div>
         )}
+
+        {/* Confetti celebration overlay */}
+        {showConfetti && <Confetti onComplete={() => setShowConfetti(false)} />}
 
         {/* Module complete — celebration + next module navigation */}
         {allComplete ? (

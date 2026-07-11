@@ -160,3 +160,6 @@
 - [x] Add apple-mobile-web-app meta tags to index.html
 - [x] TypeScript check passes
 - [x] Push to GitHub
+
+## Celebrations - July 2026
+- [ ] Fireworks/confetti animation when a module is completed
