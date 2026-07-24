@@ -257,20 +257,30 @@ export default function WWLD() {
   const { data: todayStatus } = trpc.wwld.getTodayStatus.useQuery({ date: today });
   const analyticsQuery = trpc.wwld.getAnalytics.useQuery();
 
-  const { start: statsStart, end: statsEnd } = getDateRange(period === "today" || period === "trends" ? "today" : period);
-  const { data: periodData, isLoading: periodLoading } = trpc.wwld.getStats.useQuery(
-    { startDate: statsStart, endDate: statsEnd },
-    { enabled: period !== "today" && period !== "trends" }
+  // Always fetch all period ranges so data is ready instantly when switching tabs
+  // and so invalidation after backlog saves refreshes everything regardless of active tab
+  const wtdRange = getDateRange("wtd");
+  const mtdRange = getDateRange("mtd");
+  const ytdRange = getDateRange("ytd");
+
+  const { data: wtdData, isLoading: wtdLoading } = trpc.wwld.getStats.useQuery(
+    { startDate: wtdRange.start, endDate: wtdRange.end }
   );
+  const { data: mtdData, isLoading: mtdLoading } = trpc.wwld.getStats.useQuery(
+    { startDate: mtdRange.start, endDate: mtdRange.end }
+  );
+  const { data: ytdData, isLoading: ytdLoading } = trpc.wwld.getStats.useQuery(
+    { startDate: ytdRange.start, endDate: ytdRange.end }
+  );
+
+  const periodData = period === "wtd" ? wtdData : period === "mtd" ? mtdData : period === "ytd" ? ytdData : undefined;
+  const periodLoading = period === "wtd" ? wtdLoading : period === "mtd" ? mtdLoading : period === "ytd" ? ytdLoading : false;
 
   const totals = period === "today" ? todayData?.totals : periodData?.totals;
   const isLoading = period === "today" ? todayLoading : periodLoading;
 
-  const weekRange = getDateRange("wtd");
-  const { data: weekData } = trpc.wwld.getStats.useQuery(
-    { startDate: weekRange.start, endDate: weekRange.end },
-    { enabled: period === "wtd" }
-  );
+  const weekRange = wtdRange;
+  const weekData = wtdData;
   const filledWeekData = weekData?.dailyBreakdown ? fillWeekDays(weekData.dailyBreakdown, weekRange.start, weekRange.end) : [];
 
   // ── Analytics derived data ──
