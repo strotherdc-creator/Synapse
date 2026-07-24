@@ -163,3 +163,13 @@
 
 ## Celebrations - July 2026
 - [x] Fireworks/confetti animation when a module is completed
+
+## WWLD Analytics Upgrade (July 2026)
+- [ ] Add getWwldAnalytics tRPC procedure (30-day daily data, day-of-week aggregates, week-over-week)
+- [ ] Build TrendLineChart component (30-day line chart with Recharts)
+- [ ] Build WeekComparisonChart component (this week vs last week bars)
+- [ ] Build DayOfWeekChart component (average by day heatmap bars)
+- [ ] Build MonthComparisonChart component (current vs prior month)
+- [ ] Build TrendInsightCards component (rule-based plain-English observations)
+- [ ] Upgrade WWLD.tsx analytics tab with all new charts and insights
+- [ ] Make WWLD the first screen after login (redirect from / to /wwld if stats not logged today)

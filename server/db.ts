@@ -726,3 +726,86 @@ export async function getWwldTotalsForRange(
 
   return { totals, dailyBreakdown };
 }
+
+export async function getWwldAnalytics(userId: number) {
+  const db = await getDb();
+  const empty = { officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+  if (!db) return { last30Days: [], dayOfWeekAverages: [], thisWeek: [], lastWeek: [], thisMonth: empty, lastMonth: empty };
+
+  const today = new Date();
+  const ninetyDaysAgo = new Date(today);
+  ninetyDaysAgo.setDate(today.getDate() - 89);
+  const startStr = ninetyDaysAgo.toISOString().split("T")[0];
+  const endStr = today.toISOString().split("T")[0];
+
+  const sessions = await db
+    .select()
+    .from(wwldSessions)
+    .where(and(eq(wwldSessions.userId, userId), gte(wwldSessions.sessionDate, startStr), lte(wwldSessions.sessionDate, endStr)))
+    .orderBy(wwldSessions.sessionDate);
+
+  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
+  for (const s of sessions) {
+    if (!byDay[s.sessionDate]) byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+    byDay[s.sessionDate].officeVisits += s.officeVisits;
+    byDay[s.sessionDate].newPatients += s.newPatients;
+    byDay[s.sessionDate].testResults += s.testResults;
+    byDay[s.sessionDate].progressExams += s.progressExams;
+    byDay[s.sessionDate].performanceReviews += s.performanceReviews;
+    byDay[s.sessionDate].carePlansSigned += s.carePlansSigned;
+  }
+  const allDays = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date));
+
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 29);
+  const thirtyStr = thirtyDaysAgo.toISOString().split("T")[0];
+  const last30Days = allDays.filter((d) => d.date >= thirtyStr);
+
+  const dowSums: Record<number, { sum: number; count: number; newPatients: number; carePlansSigned: number }> = {};
+  for (let i = 0; i < 7; i++) dowSums[i] = { sum: 0, count: 0, newPatients: 0, carePlansSigned: 0 };
+  for (const d of allDays) {
+    const dow = new Date(d.date + "T00:00:00").getDay();
+    dowSums[dow].sum += d.officeVisits;
+    dowSums[dow].newPatients += d.newPatients;
+    dowSums[dow].carePlansSigned += d.carePlansSigned;
+    dowSums[dow].count += 1;
+  }
+  const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayOfWeekAverages = [1, 2, 3, 4, 5, 6, 0].map((dow) => ({
+    day: DAY_NAMES[dow],
+    dow,
+    avgOfficeVisits: dowSums[dow].count > 0 ? Math.round((dowSums[dow].sum / dowSums[dow].count) * 10) / 10 : 0,
+    avgNewPatients: dowSums[dow].count > 0 ? Math.round((dowSums[dow].newPatients / dowSums[dow].count) * 10) / 10 : 0,
+    avgCarePlansSigned: dowSums[dow].count > 0 ? Math.round((dowSums[dow].carePlansSigned / dowSums[dow].count) * 10) / 10 : 0,
+    dataPoints: dowSums[dow].count,
+  }));
+
+  const todayDay = today.getDay();
+  const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() + mondayOffset);
+  const thisMondayStr = thisMonday.toISOString().split("T")[0];
+  const lastMonday = new Date(thisMonday);
+  lastMonday.setDate(thisMonday.getDate() - 7);
+  const lastMondayStr = lastMonday.toISOString().split("T")[0];
+  const lastSundayStr = new Date(thisMonday.getTime() - 86400000).toISOString().split("T")[0];
+
+  const thisWeek = allDays.filter((d) => d.date >= thisMondayStr && d.date <= endStr);
+  const lastWeek = allDays.filter((d) => d.date >= lastMondayStr && d.date <= lastSundayStr);
+
+  const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split("T")[0];
+  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split("T")[0];
+  const sumDays = (days: typeof allDays) => ({
+    officeVisits: days.reduce((s, d) => s + d.officeVisits, 0),
+    newPatients: days.reduce((s, d) => s + d.newPatients, 0),
+    testResults: days.reduce((s, d) => s + d.testResults, 0),
+    progressExams: days.reduce((s, d) => s + d.progressExams, 0),
+    performanceReviews: days.reduce((s, d) => s + d.performanceReviews, 0),
+    carePlansSigned: days.reduce((s, d) => s + d.carePlansSigned, 0),
+  });
+  const thisMonth = sumDays(allDays.filter((d) => d.date >= thisMonthStart));
+  const lastMonth = sumDays(allDays.filter((d) => d.date >= lastMonthStart && d.date <= lastMonthEnd));
+
+  return { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonth };
+}

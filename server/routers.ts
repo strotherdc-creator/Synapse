@@ -717,6 +717,10 @@ const wwldRouter = router({
     .query(async ({ ctx, input }) => {
       return db.getWwldTodayStatus(ctx.user.id, input.date);
     }),
+  getAnalytics: protectedProcedure
+    .query(async ({ ctx }) => {
+      return db.getWwldAnalytics(ctx.user.id);
+    }),
 });
 
 // ─── App Router ──────────────────────────────────────────────────────

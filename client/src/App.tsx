@@ -2,7 +2,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
+import { useEffect, useRef } from "react";
+import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -23,9 +25,44 @@ import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 import ProfileCompletion from "./components/ProfileCompletion";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
+function getTodayDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Silently redirects to /wwld on first login of the day if no stats have been logged.
+ * Renders nothing — purely a side-effect component mounted inside the authenticated router.
+ */
+function WwldLoginRedirect() {
+  const [location, setLocation] = useLocation();
+  const redirected = useRef(false);
+  const today = getTodayDate();
+
+  const { data: status } = trpc.wwld.getTodayStatus.useQuery(
+    { date: today },
+    { staleTime: 60_000, retry: false }
+  );
+
+  useEffect(() => {
+    if (redirected.current) return;
+    if (!status) return;
+    // Only redirect if user landed on root "/" and hasn't logged any session today
+    const nothingLogged = !status.morning && !status.afternoon && !status.endOfDay;
+    if (nothingLogged && location === "/") {
+      redirected.current = true;
+      setLocation("/wwld");
+    }
+  }, [status, location, setLocation]);
+
+  return null;
+}
+
 function AuthenticatedRouter() {
   return (
     <DashboardLayout>
+      {/* WWLD-first: redirect to /wwld on login if no stats logged today */}
+      <WwldLoginRedirect />
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/curriculum" component={Curriculum} />
