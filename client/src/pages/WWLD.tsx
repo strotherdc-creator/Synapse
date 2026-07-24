@@ -10,6 +10,16 @@ import {
 } from "@/components/ui/dialog";
 import { StatCard } from "@/components/wwld/StatCard";
 import { WeekChart } from "@/components/wwld/WeekChart";
+
+interface DayData {
+  date: string;
+  officeVisits: number;
+  newPatients: number;
+  testResults: number;
+  progressExams: number;
+  performanceReviews: number;
+  carePlansSigned: number;
+}
 import { StatEntryForm } from "@/components/wwld/StatEntryForm";
 import { BacklogModal } from "@/components/wwld/BacklogModal";
 import {
@@ -64,14 +74,14 @@ function getDateRange(period: "today" | "wtd" | "mtd" | "ytd"): { start: string;
 }
 
 function fillWeekDays(
-  data: Array<{ date: string; [key: string]: number | string }>,
+  data: Array<DayData>,
   start: string,
   end: string
-) {
-  const result = [];
+): DayData[] {
+  const result: DayData[] = [];
   const startD = new Date(start + "T00:00:00");
   const endD = new Date(end + "T00:00:00");
-  const byDate: Record<string, (typeof data)[0]> = {};
+  const byDate: Record<string, DayData> = {};
   for (const d of data) byDate[d.date] = d;
   const cur = new Date(startD);
   while (cur <= endD) {
