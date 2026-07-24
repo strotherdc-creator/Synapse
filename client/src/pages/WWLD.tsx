@@ -11,6 +11,7 @@ import {
 import { StatCard } from "@/components/wwld/StatCard";
 import { WeekChart } from "@/components/wwld/WeekChart";
 import { StatEntryForm } from "@/components/wwld/StatEntryForm";
+import { BacklogModal } from "@/components/wwld/BacklogModal";
 import {
   Plus,
   CheckCircle2,
@@ -311,14 +312,17 @@ export default function WWLD() {
               <p className="text-xs text-muted-foreground">What Would Lyle Do?</p>
             </div>
           </div>
-          <Button
-            onClick={() => openLogForm(new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "end_of_day")}
-            className="bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
-            size="sm"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Log Stats
-          </Button>
+          <div className="flex items-center gap-2">
+            <BacklogModal />
+            <Button
+              onClick={() => openLogForm(new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "end_of_day")}
+              className="bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Log Stats
+            </Button>
+          </div>
         </div>
       </div>
 
