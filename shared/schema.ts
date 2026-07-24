@@ -1,4 +1,4 @@
-import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 
 // ─── Enums ──────────────────────────────────────────────────────────
 
@@ -212,3 +212,30 @@ export const coupons = pgTable("coupons", {
 
 export type Coupon = typeof coupons.$inferSelect;
 export type InsertCoupon = typeof coupons.$inferInsert;
+
+// ─── WWLD Sessions ─────────────────────────────────────────────────
+// What Would Lyle Do? — daily practice stats tracker
+
+export const wwldSessions = pgTable(
+  "wwld_sessions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    sessionDate: varchar("session_date", { length: 10 }).notNull(), // YYYY-MM-DD
+    sessionType: varchar("session_type", { length: 20 }).notNull(), // 'morning' | 'afternoon' | 'end_of_day'
+    officeVisits: integer("office_visits").notNull().default(0),
+    newPatients: integer("new_patients").notNull().default(0),
+    testResults: integer("test_results").notNull().default(0),
+    progressExams: integer("progress_exams").notNull().default(0),
+    performanceReviews: integer("performance_reviews").notNull().default(0),
+    carePlansSigned: integer("care_plans_signed").notNull().default(0),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ([
+    unique().on(table.userId, table.sessionDate, table.sessionType),
+  ])
+);
+
+export type WwldSession = typeof wwldSessions.$inferSelect;
+export type InsertWwldSession = typeof wwldSessions.$inferInsert;

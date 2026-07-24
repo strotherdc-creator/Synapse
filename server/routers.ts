@@ -661,6 +661,64 @@ const adminStatsRouter = router({
   }),
 });
 
+// ─── WWLD Router ────────────────────────────────────────────────────
+
+const wwldRouter = router({
+  logSession: protectedProcedure
+    .input(
+      z.object({
+        sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        sessionType: z.enum(["morning", "afternoon", "end_of_day"]),
+        officeVisits: z.number().int().min(0).max(9999),
+        newPatients: z.number().int().min(0).max(9999),
+        testResults: z.number().int().min(0).max(9999),
+        progressExams: z.number().int().min(0).max(9999),
+        performanceReviews: z.number().int().min(0).max(9999),
+        carePlansSigned: z.number().int().min(0).max(9999),
+        notes: z.string().max(500).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const session = await db.upsertWwldSession({
+        userId: ctx.user.id,
+        ...input,
+      });
+      return { success: true, session };
+    }),
+
+  getToday: protectedProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .query(async ({ ctx, input }) => {
+      const sessions = await db.getWwldSessionsForDate(ctx.user.id, input.date);
+      const totals = {
+        officeVisits: sessions.reduce((s, r) => s + r.officeVisits, 0),
+        newPatients: sessions.reduce((s, r) => s + r.newPatients, 0),
+        testResults: sessions.reduce((s, r) => s + r.testResults, 0),
+        progressExams: sessions.reduce((s, r) => s + r.progressExams, 0),
+        performanceReviews: sessions.reduce((s, r) => s + r.performanceReviews, 0),
+        carePlansSigned: sessions.reduce((s, r) => s + r.carePlansSigned, 0),
+      };
+      return { sessions, totals };
+    }),
+
+  getStats: protectedProcedure
+    .input(
+      z.object({
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      return db.getWwldTotalsForRange(ctx.user.id, input.startDate, input.endDate);
+    }),
+
+  getTodayStatus: protectedProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .query(async ({ ctx, input }) => {
+      return db.getWwldTodayStatus(ctx.user.id, input.date);
+    }),
+});
+
 // ─── App Router ──────────────────────────────────────────────────────
 
 export const appRouter = router({
@@ -677,6 +735,7 @@ export const appRouter = router({
   coupons: couponsRouter,
   coaching: coachingRouter,
   adminStats: adminStatsRouter,
+  wwld: wwldRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -23,6 +23,7 @@ import {
 
 import { useIsMobile } from "@/hooks/useMobile";
 import {
+  BarChart2,
   BarChart3,
   BookOpen,
   Calendar,
@@ -46,6 +47,7 @@ const menuItems = [
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },
   { icon: Calendar, label: "Daily Routine", path: "/routine" },
+  { icon: BarChart2, label: "WWLD", path: "/wwld" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 

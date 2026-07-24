@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, sql, count } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -15,6 +15,7 @@ import {
   moduleSteps,
   userStepProgress,
   stepChatMessages,
+  wwldSessions,
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 
@@ -587,4 +588,141 @@ export async function getAdminStats() {
     moduleBreakdown,
     userActivity,
   };
+}
+
+// ─── WWLD ─────────────────────────────────────────────────────────────────────────────────────
+
+export type WwldSessionType = "morning" | "afternoon" | "end_of_day";
+
+export interface WwldSessionInput {
+  userId: number;
+  sessionDate: string;
+  sessionType: WwldSessionType;
+  officeVisits: number;
+  newPatients: number;
+  testResults: number;
+  progressExams: number;
+  performanceReviews: number;
+  carePlansSigned: number;
+  notes?: string;
+}
+
+export async function upsertWwldSession(input: WwldSessionInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db
+    .select()
+    .from(wwldSessions)
+    .where(
+      and(
+        eq(wwldSessions.userId, input.userId),
+        eq(wwldSessions.sessionDate, input.sessionDate),
+        eq(wwldSessions.sessionType, input.sessionType)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(wwldSessions)
+      .set({
+        officeVisits: input.officeVisits,
+        newPatients: input.newPatients,
+        testResults: input.testResults,
+        progressExams: input.progressExams,
+        performanceReviews: input.performanceReviews,
+        carePlansSigned: input.carePlansSigned,
+        notes: input.notes ?? null,
+      })
+      .where(eq(wwldSessions.id, existing[0].id));
+    return { ...existing[0], ...input };
+  } else {
+    const [inserted] = await db
+      .insert(wwldSessions)
+      .values({
+        userId: input.userId,
+        sessionDate: input.sessionDate,
+        sessionType: input.sessionType,
+        officeVisits: input.officeVisits,
+        newPatients: input.newPatients,
+        testResults: input.testResults,
+        progressExams: input.progressExams,
+        performanceReviews: input.performanceReviews,
+        carePlansSigned: input.carePlansSigned,
+        notes: input.notes ?? null,
+      })
+      .returning();
+    return inserted;
+  }
+}
+
+export async function getWwldSessionsForDate(userId: number, date: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(wwldSessions)
+    .where(
+      and(
+        eq(wwldSessions.userId, userId),
+        eq(wwldSessions.sessionDate, date)
+      )
+    )
+    .orderBy(wwldSessions.sessionType);
+}
+
+export async function getWwldTodayStatus(userId: number, date: string) {
+  const sessions = await getWwldSessionsForDate(userId, date);
+  return {
+    morning: sessions.some((s) => s.sessionType === "morning"),
+    afternoon: sessions.some((s) => s.sessionType === "afternoon"),
+    endOfDay: sessions.some((s) => s.sessionType === "end_of_day"),
+  };
+}
+
+export async function getWwldTotalsForRange(
+  userId: number,
+  startDate: string,
+  endDate: string
+) {
+  const db = await getDb();
+  if (!db) return { totals: { officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 }, dailyBreakdown: [] };
+
+  const sessions = await db
+    .select()
+    .from(wwldSessions)
+    .where(
+      and(
+        eq(wwldSessions.userId, userId),
+        gte(wwldSessions.sessionDate, startDate),
+        lte(wwldSessions.sessionDate, endDate)
+      )
+    )
+    .orderBy(wwldSessions.sessionDate);
+
+  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
+  for (const s of sessions) {
+    if (!byDay[s.sessionDate]) {
+      byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+    }
+    byDay[s.sessionDate].officeVisits += s.officeVisits;
+    byDay[s.sessionDate].newPatients += s.newPatients;
+    byDay[s.sessionDate].testResults += s.testResults;
+    byDay[s.sessionDate].progressExams += s.progressExams;
+    byDay[s.sessionDate].performanceReviews += s.performanceReviews;
+    byDay[s.sessionDate].carePlansSigned += s.carePlansSigned;
+  }
+
+  const dailyBreakdown = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date));
+  const totals = {
+    officeVisits: dailyBreakdown.reduce((sum, d) => sum + d.officeVisits, 0),
+    newPatients: dailyBreakdown.reduce((sum, d) => sum + d.newPatients, 0),
+    testResults: dailyBreakdown.reduce((sum, d) => sum + d.testResults, 0),
+    progressExams: dailyBreakdown.reduce((sum, d) => sum + d.progressExams, 0),
+    performanceReviews: dailyBreakdown.reduce((sum, d) => sum + d.performanceReviews, 0),
+    carePlansSigned: dailyBreakdown.reduce((sum, d) => sum + d.carePlansSigned, 0),
+  };
+
+  return { totals, dailyBreakdown };
 }

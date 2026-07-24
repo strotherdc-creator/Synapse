@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { BookOpen, CheckCircle2, MessageSquare, Zap, Trophy, Target } from "lucide-react";
 import { useLocation } from "wouter";
+import { SessionPrompt } from "@/components/wwld/SessionPrompt";
 
 export default function Home() {
   const { user } = useAuth();
@@ -21,6 +22,8 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
+      {/* WWLD daily stats prompt */}
+      <SessionPrompt />
       {/* Welcome header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
