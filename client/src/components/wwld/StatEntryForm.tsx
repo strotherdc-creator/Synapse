@@ -64,9 +64,11 @@ export function StatEntryForm({
   const utils = trpc.useUtils();
   const logSession = trpc.wwld.logSession.useMutation({
     onSuccess: () => {
+      // Invalidate ALL wwld queries so every tab and chart refreshes immediately
       utils.wwld.getToday.invalidate();
       utils.wwld.getTodayStatus.invalidate();
       utils.wwld.getStats.invalidate();
+      utils.wwld.getAnalytics.invalidate();
       setSubmitted(true);
       setTimeout(() => {
         onSuccess?.();
