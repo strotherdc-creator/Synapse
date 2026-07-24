@@ -175,10 +175,10 @@
 - [ ] Make WWLD the first screen after login (redirect from / to /wwld if stats not logged today)
 
 ## Lyle Algorithm (July 2026)
-- [ ] Add lyle_content and lyle_served_log tables to schema.ts
-- [ ] Seed lyle_content from CSV on server startup
-- [ ] Add DB functions for content lookup and served log
-- [ ] Build diagnostic engine (6-state: Breaking/Slipping/Stuck/Plateaued/Climbing/Momentum)
-- [ ] Build getDailyAction tRPC procedure with deduplication
-- [ ] Build WWLD recommendation card on frontend
-- [ ] Run DB migrations on Railway
+- [x] Add lyle_content and lyle_served_log tables to schema.ts
+- [x] Seed lyle_content from CSV on server startup
+- [x] Add DB functions for content lookup and served log
+- [x] Build diagnostic engine (6-state: Breaking/Slipping/Stuck/Plateaued/Climbing/Momentum)
+- [x] Build getDailyAction tRPC procedure with deduplication
+- [x] Build WWLD recommendation card on frontend
+- [x] Run DB migrations on Railway
