@@ -173,3 +173,12 @@
 - [ ] Build TrendInsightCards component (rule-based plain-English observations)
 - [ ] Upgrade WWLD.tsx analytics tab with all new charts and insights
 - [ ] Make WWLD the first screen after login (redirect from / to /wwld if stats not logged today)
+
+## Lyle Algorithm (July 2026)
+- [ ] Add lyle_content and lyle_served_log tables to schema.ts
+- [ ] Seed lyle_content from CSV on server startup
+- [ ] Add DB functions for content lookup and served log
+- [ ] Build diagnostic engine (6-state: Breaking/Slipping/Stuck/Plateaued/Climbing/Momentum)
+- [ ] Build getDailyAction tRPC procedure with deduplication
+- [ ] Build WWLD recommendation card on frontend
+- [ ] Run DB migrations on Railway

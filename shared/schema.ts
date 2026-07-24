@@ -239,3 +239,31 @@ export const wwldSessions = pgTable(
 
 export type WwldSession = typeof wwldSessions.$inferSelect;
 export type InsertWwldSession = typeof wwldSessions.$inferInsert;
+
+// ─── Lyle Content Bank ─────────────────────────────────────────────
+// Pre-seeded action lines from the Lyle Algorithm content bank CSV
+// 114 rows: 52 weekly themes + 62 daily action lines
+export const lyleContent = pgTable("lyle_content", {
+  id: serial("id").primaryKey(),
+  contentId: varchar("content_id", { length: 10 }).notNull().unique(), // e.g. W01, D01
+  cadence: varchar("cadence", { length: 10 }).notNull(),               // 'weekly' | 'daily'
+  pillar: varchar("pillar", { length: 100 }).notNull(),
+  metricTrigger: varchar("metric_trigger", { length: 100 }).notNull(),
+  trendState: varchar("trend_state", { length: 30 }).notNull(),        // breaking|slipping|stuck|plateaued|climbing|momentum
+  tone: varchar("tone", { length: 30 }).notNull(),
+  actionText: text("action_text").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type LyleContent = typeof lyleContent.$inferSelect;
+export type InsertLyleContent = typeof lyleContent.$inferInsert;
+
+// ─── Lyle Served Log ───────────────────────────────────────────────
+// Tracks which content items have been served to each user (deduplication)
+export const lyleServedLog = pgTable("lyle_served_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  contentId: varchar("content_id", { length: 10 }).notNull(),
+  servedAt: timestamp("served_at").defaultNow().notNull(),
+});
+export type LyleServedLog = typeof lyleServedLog.$inferSelect;
+export type InsertLyleServedLog = typeof lyleServedLog.$inferInsert;

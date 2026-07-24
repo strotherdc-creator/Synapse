@@ -10,6 +10,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { ENV } from "./env";
 import { seedCoachingSteps } from "../seed-coaching";
+import { seedLyleAlgorithmContent } from "../seed-lyle";
 import { scheduleWwldBackup } from "../wwld-backup";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -132,6 +133,7 @@ async function startServer() {
 
     // Seed coaching steps (idempotent — only runs if tables are empty)
     seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
+    seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
     // Schedule weekly WWLD data backup (production only, requires SMTP_USER + SMTP_PASS)
     scheduleWwldBackup();
   });

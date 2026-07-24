@@ -16,6 +16,8 @@ import {
   userStepProgress,
   stepChatMessages,
   wwldSessions,
+  lyleContent, InsertLyleContent,
+  lyleServedLog,
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 
@@ -808,4 +810,113 @@ export async function getWwldAnalytics(userId: number) {
   const lastMonth = sumDays(allDays.filter((d) => d.date >= lastMonthStart && d.date <= lastMonthEnd));
 
   return { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonth };
+}
+
+// ─── Lyle Algorithm ───────────────────────────────────────────────────────────
+
+/** Seed the lyle_content table from a pre-built rows array. Idempotent — skips if already seeded. */
+export async function seedLyleContent(rows: Omit<InsertLyleContent, "id" | "createdAt">[]) {
+  const db = await getDb();
+  if (!db) { console.warn("[Lyle] DB not available, skipping seed"); return; }
+  const existing = await db.select({ id: lyleContent.id }).from(lyleContent).limit(1);
+  if (existing.length > 0) {
+    console.log("[Lyle] Content already seeded, skipping");
+    return;
+  }
+  await db.insert(lyleContent).values(rows);
+  console.log(`[Lyle] Seeded ${rows.length} content rows`);
+}
+
+/** Return all content rows matching a trend state and cadence, excluding already-served IDs. */
+export async function getLyleContent(
+  trendState: string,
+  cadence: string,
+  excludeContentIds: string[]
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(lyleContent)
+    .where(
+      and(
+        eq(lyleContent.trendState, trendState),
+        eq(lyleContent.cadence, cadence)
+      )
+    );
+  return rows.filter((r) => !excludeContentIds.includes(r.contentId));
+}
+
+/** Return all content rows for a pillar + cadence, excluding already-served IDs. */
+export async function getLyleContentByPillar(
+  pillar: string,
+  cadence: string,
+  excludeContentIds: string[]
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(lyleContent)
+    .where(
+      and(
+        eq(lyleContent.pillar, pillar),
+        eq(lyleContent.cadence, cadence)
+      )
+    );
+  return rows.filter((r) => !excludeContentIds.includes(r.contentId));
+}
+
+/** Return all content rows for a pillar + cadence + trend state, excluding already-served IDs. */
+export async function getLyleContentByPillarAndState(
+  pillar: string,
+  cadence: string,
+  trendState: string,
+  excludeContentIds: string[]
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(lyleContent)
+    .where(
+      and(
+        eq(lyleContent.pillar, pillar),
+        eq(lyleContent.cadence, cadence),
+        eq(lyleContent.trendState, trendState)
+      )
+    );
+  return rows.filter((r) => !excludeContentIds.includes(r.contentId));
+}
+
+/** Return all content IDs served to a user in the last 12 months. */
+export async function getServedContentIds(userId: number): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  const rows = await db
+    .select({ contentId: lyleServedLog.contentId })
+    .from(lyleServedLog)
+    .where(
+      and(
+        eq(lyleServedLog.userId, userId),
+        gte(lyleServedLog.servedAt, cutoff)
+      )
+    );
+  return rows.map((r) => r.contentId);
+}
+
+/** Log that a content item was served to a user. */
+export async function markContentServed(userId: number, contentId: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(lyleServedLog).values({ userId, contentId });
+}
+
+/** Return all lyle_content rows (for fallback/full pool access). */
+export async function getAllLyleContent() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(lyleContent);
 }

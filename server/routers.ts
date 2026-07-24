@@ -721,6 +721,137 @@ const wwldRouter = router({
     .query(async ({ ctx }) => {
       return db.getWwldAnalytics(ctx.user.id);
     }),
+
+  getDailyAction: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.user.id;
+
+      // ── 1. Fetch last 4 weeks of sessions ──────────────────────────
+      const today = new Date();
+      const fourWeeksAgo = new Date(today);
+      fourWeeksAgo.setDate(today.getDate() - 28);
+      const startStr = fourWeeksAgo.toISOString().split("T")[0];
+      const endStr = today.toISOString().split("T")[0];
+      const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr);
+
+      // ── 2. Determine this week's Monday ───────────────────────────
+      const todayDay = today.getDay();
+      const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
+      const thisMonday = new Date(today);
+      thisMonday.setDate(today.getDate() + mondayOffset);
+      const thisMondayStr = thisMonday.toISOString().split("T")[0];
+      const isMonday = todayDay === 1;
+
+      // ── 3. Diagnostic engine ──────────────────────────────────────
+      // With < 7 days of data → default to 'breaking' state
+      const uniqueDays = dailyBreakdown.length;
+      const hasEnoughData = uniqueDays >= 7;
+
+      type TrendState = "breaking" | "slipping" | "stuck" | "plateaued" | "climbing" | "momentum";
+
+      function computeTrend(
+        values: number[],
+        fallback: TrendState = "breaking"
+      ): TrendState {
+        if (values.length < 7) return fallback;
+        const recent = values.slice(-7);
+        const prior = values.slice(-14, -7);
+        if (prior.length < 7) return fallback;
+        const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+        const priorAvg = prior.reduce((a, b) => a + b, 0) / prior.length;
+        if (priorAvg === 0) return recentAvg > 0 ? "climbing" : fallback;
+        const pct = (recentAvg - priorAvg) / priorAvg;
+        if (pct <= -0.15) return "breaking";
+        if (pct <= -0.05) return "slipping";
+        if (Math.abs(pct) < 0.05) {
+          // flat — check how long it's been flat
+          const allFlat = values.slice(-21);
+          const allFlatAvg = allFlat.reduce((a, b) => a + b, 0) / allFlat.length;
+          const variance = allFlat.reduce((s, v) => s + Math.abs(v - allFlatAvg), 0) / allFlat.length;
+          return variance / (allFlatAvg || 1) < 0.1 ? "stuck" : "plateaued";
+        }
+        if (pct >= 0.15) return "momentum";
+        return "climbing";
+      }
+
+      const ovVals = dailyBreakdown.map((d) => d.officeVisits);
+      const npVals = dailyBreakdown.map((d) => d.newPatients);
+      const cpVals = dailyBreakdown.map((d) => d.carePlansSigned);
+
+      const ovTrend = computeTrend(ovVals);
+      const npTrend = computeTrend(npVals);
+      const cpTrend = computeTrend(cpVals);
+
+      // Priority: breaking > slipping > stuck > plateaued > climbing > momentum
+      const PRIORITY: TrendState[] = ["breaking", "slipping", "stuck", "plateaued", "climbing", "momentum"];
+
+      type MetricDiag = { metric: string; pillar: string; metricTrigger: string; trendState: TrendState; value: number };
+
+      const diagnostics: MetricDiag[] = [
+        { metric: "office_visits", pillar: "Personal Growth & Discipline", metricTrigger: "plateaued_stats", trendState: ovTrend, value: ovVals.slice(-7).reduce((a, b) => a + b, 0) },
+        { metric: "new_patients",  pillar: "Referral & Visibility",         metricTrigger: "low_new_patients", trendState: npTrend, value: npVals.slice(-7).reduce((a, b) => a + b, 0) },
+        { metric: "care_plans",    pillar: "Closing & Sales Skill",          metricTrigger: "low_conversion",   trendState: cpTrend, value: cpVals.slice(-7).reduce((a, b) => a + b, 0) },
+      ];
+
+      diagnostics.sort((a, b) => PRIORITY.indexOf(a.trendState) - PRIORITY.indexOf(b.trendState));
+      const topDiag = diagnostics[0];
+
+      // ── 4. Deduplication ──────────────────────────────────────────
+      const servedIds = await db.getServedContentIds(userId);
+
+      // ── 5. Pick weekly theme (Monday cadence, persists Mon–Sun) ───
+      let weeklyContent: Awaited<ReturnType<typeof db.getLyleContentByPillarAndState>>[0] | null = null;
+      {
+        let pool = await db.getLyleContentByPillarAndState(topDiag.pillar, "weekly", topDiag.trendState, servedIds);
+        if (pool.length === 0) pool = await db.getLyleContentByPillar(topDiag.pillar, "weekly", servedIds);
+        if (pool.length === 0) pool = await db.getLyleContent(topDiag.trendState, "weekly", servedIds);
+        if (pool.length === 0) {
+          // All served — reset for this cadence and pick from full pool
+          const allWeekly = await db.getLyleContent(topDiag.trendState, "weekly", []);
+          pool = allWeekly;
+        }
+        if (pool.length > 0) {
+          // Deterministic within the week: pick by (userId + weekStart) mod pool.length
+          const seed = (userId * 31 + parseInt(thisMondayStr.replace(/-/g, ""), 10)) % pool.length;
+          weeklyContent = pool[Math.abs(seed) % pool.length];
+          if (isMonday) {
+            await db.markContentServed(userId, weeklyContent.contentId);
+          }
+        }
+      }
+
+      // ── 6. Pick daily action ──────────────────────────────────────
+      let dailyContent: Awaited<ReturnType<typeof db.getLyleContentByPillarAndState>>[0] | null = null;
+      {
+        let pool = await db.getLyleContentByPillarAndState(topDiag.pillar, "daily", topDiag.trendState, servedIds);
+        if (pool.length === 0) pool = await db.getLyleContentByPillar(topDiag.pillar, "daily", servedIds);
+        if (pool.length === 0) pool = await db.getLyleContent(topDiag.trendState, "daily", servedIds);
+        if (pool.length === 0) {
+          const allDaily = await db.getLyleContent(topDiag.trendState, "daily", []);
+          pool = allDaily;
+        }
+        if (pool.length > 0) {
+          // Deterministic within the day: pick by (userId + date) mod pool.length
+          const todayStr = endStr.replace(/-/g, "");
+          const seed = (userId * 17 + parseInt(todayStr, 10)) % pool.length;
+          dailyContent = pool[Math.abs(seed) % pool.length];
+          await db.markContentServed(userId, dailyContent.contentId);
+        }
+      }
+
+      return {
+        hasEnoughData,
+        trendState: topDiag.trendState,
+        triggerMetric: topDiag.metric,
+        triggerValue: topDiag.value,
+        pillar: topDiag.pillar,
+        weeklyTheme: weeklyContent?.actionText ?? null,
+        weeklyContentId: weeklyContent?.contentId ?? null,
+        dailyAction: dailyContent?.actionText ?? null,
+        dailyContentId: dailyContent?.contentId ?? null,
+        dailyTone: dailyContent?.tone ?? null,
+      };
+    }),
 });
 
 // ─── App Router ──────────────────────────────────────────────────────

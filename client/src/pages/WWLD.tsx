@@ -22,6 +22,7 @@ interface DayData {
 }
 import { StatEntryForm } from "@/components/wwld/StatEntryForm";
 import { BacklogModal } from "@/components/wwld/BacklogModal";
+import { LyleRecommendationCard } from "@/components/wwld/LyleRecommendationCard";
 import {
   Plus,
   CheckCircle2,
@@ -378,6 +379,9 @@ export default function WWLD() {
                 <StatCard label="Care Plans Signed" alias="CPS" value={totals?.carePlansSigned ?? 0} highlight={true} />
               </div>
             )}
+
+            {/* Lyle Algorithm Recommendation */}
+            <LyleRecommendationCard />
 
             {/* Week chart + comparison */}
             {period === "wtd" && (
