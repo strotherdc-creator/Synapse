@@ -1,4 +1,5 @@
+packages: []
 allowBuilds:
-  '@clerk/shared': set this to true or false
-  '@tailwindcss/oxide': set this to true or false
-  esbuild: set this to true or false
+  '@clerk/shared': true
+  '@tailwindcss/oxide': true
+  esbuild: true
