@@ -15,6 +15,7 @@ interface StatField {
 interface StatValues {
   officeVisits: number;
   newPatients: number;
+  recall: number;
   testResults: number;
   progressExams: number;
   performanceReviews: number;
@@ -24,6 +25,7 @@ interface StatValues {
 const STAT_FIELDS: StatField[] = [
   { key: "officeVisits", label: "Office Visits", alias: "OV" },
   { key: "newPatients", label: "New Patients", alias: "Day 1" },
+  { key: "recall", label: "Recall", alias: "RC" },
   { key: "testResults", label: "Test Results", alias: "Day 2" },
   { key: "progressExams", label: "Progress Exams", alias: "PE" },
   { key: "performanceReviews", label: "Performance Reviews", alias: "PR" },
@@ -54,6 +56,7 @@ export function StatEntryForm({
   const [values, setValues] = useState<StatValues>({
     officeVisits: initialValues?.officeVisits ?? 0,
     newPatients: initialValues?.newPatients ?? 0,
+    recall: (initialValues as any)?.recall ?? 0,
     testResults: initialValues?.testResults ?? 0,
     progressExams: initialValues?.progressExams ?? 0,
     performanceReviews: initialValues?.performanceReviews ?? 0,

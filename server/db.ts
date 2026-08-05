@@ -22,21 +22,41 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: Pool | null = null;
 
 export async function getDb() {
   if (!_db && ENV.databaseUrl) {
     try {
-      const pool = new Pool({
+      _pool = new Pool({
         connectionString: ENV.databaseUrl,
         ssl: { rejectUnauthorized: false },
       });
-      _db = drizzle(pool);
+      _db = drizzle(_pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
+      _pool = null;
     }
   }
   return _db;
+}
+
+/** Run idempotent schema migrations — safe to call on every startup. */
+export async function runMigrations() {
+  await getDb(); // ensure pool is initialized
+  if (!_pool) { console.warn("[Migrations] No DB pool available, skipping."); return; }
+  const migrations = [
+    // Add recall column (Aug 2026)
+    `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
+  ];
+  for (const sql of migrations) {
+    try {
+      await _pool.query(sql);
+    } catch (e: any) {
+      console.error(`[Migrations] Failed: ${sql.substring(0, 60)}...`, e.message);
+    }
+  }
+  console.log(`[Migrations] ${migrations.length} migration(s) applied.`);
 }
 
 // ─── Users ───────────────────────────────────────────────────────────
@@ -602,6 +622,7 @@ export interface WwldSessionInput {
   sessionType: WwldSessionType;
   officeVisits: number;
   newPatients: number;
+  recall: number;
   testResults: number;
   progressExams: number;
   performanceReviews: number;
@@ -631,6 +652,7 @@ export async function upsertWwldSession(input: WwldSessionInput) {
       .set({
         officeVisits: input.officeVisits,
         newPatients: input.newPatients,
+        recall: input.recall,
         testResults: input.testResults,
         progressExams: input.progressExams,
         performanceReviews: input.performanceReviews,
@@ -648,6 +670,7 @@ export async function upsertWwldSession(input: WwldSessionInput) {
         sessionType: input.sessionType,
         officeVisits: input.officeVisits,
         newPatients: input.newPatients,
+        recall: input.recall,
         testResults: input.testResults,
         progressExams: input.progressExams,
         performanceReviews: input.performanceReviews,
@@ -689,7 +712,7 @@ export async function getWwldTotalsForRange(
   endDate: string
 ) {
   const db = await getDb();
-  if (!db) return { totals: { officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 }, dailyBreakdown: [] };
+  if (!db) return { totals: { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 }, dailyBreakdown: [] };
 
   const sessions = await db
     .select()
@@ -703,13 +726,14 @@ export async function getWwldTotalsForRange(
     )
     .orderBy(wwldSessions.sessionDate);
 
-  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
+  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
   for (const s of sessions) {
     if (!byDay[s.sessionDate]) {
-      byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+      byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
     }
     byDay[s.sessionDate].officeVisits += s.officeVisits;
     byDay[s.sessionDate].newPatients += s.newPatients;
+    byDay[s.sessionDate].recall += (s.recall ?? 0);
     byDay[s.sessionDate].testResults += s.testResults;
     byDay[s.sessionDate].progressExams += s.progressExams;
     byDay[s.sessionDate].performanceReviews += s.performanceReviews;
@@ -720,6 +744,7 @@ export async function getWwldTotalsForRange(
   const totals = {
     officeVisits: dailyBreakdown.reduce((sum, d) => sum + d.officeVisits, 0),
     newPatients: dailyBreakdown.reduce((sum, d) => sum + d.newPatients, 0),
+    recall: dailyBreakdown.reduce((sum, d) => sum + d.recall, 0),
     testResults: dailyBreakdown.reduce((sum, d) => sum + d.testResults, 0),
     progressExams: dailyBreakdown.reduce((sum, d) => sum + d.progressExams, 0),
     performanceReviews: dailyBreakdown.reduce((sum, d) => sum + d.performanceReviews, 0),
@@ -731,7 +756,7 @@ export async function getWwldTotalsForRange(
 
 export async function getWwldAnalytics(userId: number) {
   const db = await getDb();
-  const empty = { officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+  const empty = { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
   if (!db) return { last30Days: [], dayOfWeekAverages: [], thisWeek: [], lastWeek: [], thisMonth: empty, lastMonth: empty };
 
   const today = new Date();
@@ -746,11 +771,12 @@ export async function getWwldAnalytics(userId: number) {
     .where(and(eq(wwldSessions.userId, userId), gte(wwldSessions.sessionDate, startStr), lte(wwldSessions.sessionDate, endStr)))
     .orderBy(wwldSessions.sessionDate);
 
-  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
+  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
   for (const s of sessions) {
-    if (!byDay[s.sessionDate]) byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+    if (!byDay[s.sessionDate]) byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
     byDay[s.sessionDate].officeVisits += s.officeVisits;
     byDay[s.sessionDate].newPatients += s.newPatients;
+    byDay[s.sessionDate].recall += (s.recall ?? 0);
     byDay[s.sessionDate].testResults += s.testResults;
     byDay[s.sessionDate].progressExams += s.progressExams;
     byDay[s.sessionDate].performanceReviews += s.performanceReviews;
@@ -801,6 +827,7 @@ export async function getWwldAnalytics(userId: number) {
   const sumDays = (days: typeof allDays) => ({
     officeVisits: days.reduce((s, d) => s + d.officeVisits, 0),
     newPatients: days.reduce((s, d) => s + d.newPatients, 0),
+    recall: days.reduce((s, d) => s + d.recall, 0),
     testResults: days.reduce((s, d) => s + d.testResults, 0),
     progressExams: days.reduce((s, d) => s + d.progressExams, 0),
     performanceReviews: days.reduce((s, d) => s + d.performanceReviews, 0),

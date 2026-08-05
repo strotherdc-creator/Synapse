@@ -671,6 +671,7 @@ const wwldRouter = router({
         sessionType: z.enum(["morning", "afternoon", "end_of_day"]),
         officeVisits: z.number().int().min(0).max(9999),
         newPatients: z.number().int().min(0).max(9999),
+        recall: z.number().int().min(0).max(9999),
         testResults: z.number().int().min(0).max(9999),
         progressExams: z.number().int().min(0).max(9999),
         performanceReviews: z.number().int().min(0).max(9999),
@@ -693,6 +694,7 @@ const wwldRouter = router({
       const totals = {
         officeVisits: sessions.reduce((s, r) => s + r.officeVisits, 0),
         newPatients: sessions.reduce((s, r) => s + r.newPatients, 0),
+        recall: sessions.reduce((s, r) => s + (r.recall ?? 0), 0),
         testResults: sessions.reduce((s, r) => s + r.testResults, 0),
         progressExams: sessions.reduce((s, r) => s + r.progressExams, 0),
         performanceReviews: sessions.reduce((s, r) => s + r.performanceReviews, 0),

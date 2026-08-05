@@ -225,6 +225,7 @@ export const wwldSessions = pgTable(
     sessionType: varchar("session_type", { length: 20 }).notNull(), // 'morning' | 'afternoon' | 'end_of_day'
     officeVisits: integer("office_visits").notNull().default(0),
     newPatients: integer("new_patients").notNull().default(0),
+    recall: integer("recall").notNull().default(0),
     testResults: integer("test_results").notNull().default(0),
     progressExams: integer("progress_exams").notNull().default(0),
     performanceReviews: integer("performance_reviews").notNull().default(0),

@@ -373,6 +373,7 @@ export default function WWLD() {
               <div className="grid grid-cols-3 gap-3">
                 <StatCard label="Office Visits" alias="OV" value={totals?.officeVisits ?? 0} highlight={true} />
                 <StatCard label="New Patients" alias="Day 1" value={totals?.newPatients ?? 0} />
+                <StatCard label="Recall" alias="RC" value={(totals as any)?.recall ?? 0} />
                 <StatCard label="Test Results" alias="Day 2" value={totals?.testResults ?? 0} />
                 <StatCard label="Progress Exams" alias="PE" value={totals?.progressExams ?? 0} />
                 <StatCard label="Performance Reviews" alias="PR" value={totals?.performanceReviews ?? 0} />
@@ -580,6 +581,7 @@ export default function WWLD() {
                 ? {
                     officeVisits: existingSession.officeVisits,
                     newPatients: existingSession.newPatients,
+                    recall: (existingSession as any).recall ?? 0,
                     testResults: existingSession.testResults,
                     progressExams: existingSession.progressExams,
                     performanceReviews: existingSession.performanceReviews,

@@ -19,6 +19,7 @@ type EntryMode = "pick" | "by-day" | "week-total" | "month-total";
 interface StatValues {
   officeVisits: number;
   newPatients: number;
+  recall: number;
   testResults: number;
   progressExams: number;
   performanceReviews: number;
@@ -28,6 +29,7 @@ interface StatValues {
 const EMPTY_STATS: StatValues = {
   officeVisits: 0,
   newPatients: 0,
+  recall: 0,
   testResults: 0,
   progressExams: 0,
   performanceReviews: 0,
@@ -37,6 +39,7 @@ const EMPTY_STATS: StatValues = {
 const STAT_LABELS: { key: keyof StatValues; label: string; short: string }[] = [
   { key: "officeVisits", label: "Office Visits", short: "Visits" },
   { key: "newPatients", label: "New Patients (Day 1s)", short: "Day 1s" },
+  { key: "recall", label: "Recall", short: "Recall" },
   { key: "testResults", label: "Test Results (Day 2s)", short: "Day 2s" },
   { key: "progressExams", label: "Progress Exams", short: "Progress" },
   { key: "performanceReviews", label: "Performance Reviews", short: "Perf Rev" },
