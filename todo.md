@@ -183,11 +183,8 @@
 - [x] Build WWLD recommendation card on frontend
 - [x] Run DB migrations on Railway
 
-## Add Recall Stat (August 2026)
-- [x] Add recall column to wwld_sessions schema
-- [x] Run DB migration to add recall column (runs on Railway startup via runMigrations)
-- [x] Update all server DB functions to include recall
-- [x] Update StatEntryForm to include Recall input field
-- [x] Update StatCard display for Recall
-- [x] Update WWLD analytics and charts for Recall
-- [ ] Update Lyle Algorithm diagnostics to include Recall (future enhancement)
+## Coaching UI Redesign (August 2026)
+- [ ] Move text input above Confirm & Next Step button
+- [ ] Rename green send button to "Send Answer" (with arrow icon)
+- [ ] Add step-by-step instruction hint ("Step 1: Type your answer → Step 2: Confirm when ready")
+- [ ] Visually separate the two actions so users understand the flow

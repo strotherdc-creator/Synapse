@@ -539,27 +539,6 @@ export default function ModuleCoaching() {
 
       {/* ── Input + Confirm (pinned to bottom) ── */}
       <div className="shrink-0 border border-border rounded-b-lg bg-card">
-        {/* Confirm answer button — gold/orange for visibility */}
-        {hasAssistantMessage && !activeStep?.completed && (
-          <div className="px-3 pt-2.5 pb-0.5">
-            <button
-              onClick={handleConfirmAnswer}
-              disabled={completeMutation.isPending || chatMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-base font-semibold transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: "oklch(0.78 0.14 80)",
-                color: "#1a1a1a",
-              }}
-            >
-              {completeMutation.isPending ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-5 w-5" />
-              )}
-              Confirm &amp; Next Step
-            </button>
-          </div>
-        )}
 
         {/* Confetti celebration overlay */}
         {showConfetti && <Confetti onComplete={() => setShowConfetti(false)} />}
@@ -611,54 +590,87 @@ export default function ModuleCoaching() {
           </div>
         ) : (
           /* Normal input area — only show when module is NOT complete */
-          <>
-            <form onSubmit={handleSubmit} className="flex gap-2 p-3 items-end">
-              <Textarea
-                ref={textareaRef}
-                value={isListening ? input + (interimText ? " " + interimText : "") : input}
-                onChange={(e) => { if (!isListening) setInput(e.target.value); }}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  // When input is focused on mobile, scroll chat to bottom after keyboard opens
-                  setTimeout(scrollToBottom, 300);
-                }}
-                placeholder={isListening ? "Listening..." : "Type or tap mic to speak..."}
-                className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
-                rows={1}
-                readOnly={isListening}
-              />
-              {speechSupported && (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant={isListening ? "destructive" : "outline"}
-                  onClick={toggleListening}
-                  className={`shrink-0 h-[44px] w-[44px] ${
-                    isListening ? "animate-pulse" : ""
-                  }`}
-                  title={isListening ? "Stop recording" : "Start voice input"}
-                >
-                  {isListening ? (
-                    <MicOff className="h-5 w-5" />
-                  ) : (
-                    <Mic className="h-5 w-5" />
-                  )}
-                </Button>
-              )}
-              <Button
-                type="submit"
-                size="icon"
-                disabled={!input.trim() || chatMutation.isPending || isListening}
-                className="shrink-0 h-[44px] w-[44px]"
-              >
-                {chatMutation.isPending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
+          <div className="flex flex-col gap-0">
+
+            {/* Step 1: Type your answer */}
+            <div className="px-3 pt-3 pb-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Step 1 — Type your answer, then tap Send
+              </p>
+              <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+                <Textarea
+                  ref={textareaRef}
+                  value={isListening ? input + (interimText ? " " + interimText : "") : input}
+                  onChange={(e) => { if (!isListening) setInput(e.target.value); }}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => {
+                    setTimeout(scrollToBottom, 300);
+                  }}
+                  placeholder={isListening ? "Listening..." : "Type your answer here..."}
+                  className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
+                  rows={1}
+                  readOnly={isListening}
+                />
+                {speechSupported && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={isListening ? "destructive" : "outline"}
+                    onClick={toggleListening}
+                    className={`shrink-0 h-[44px] w-[44px] ${
+                      isListening ? "animate-pulse" : ""
+                    }`}
+                    title={isListening ? "Stop recording" : "Start voice input"}
+                  >
+                    {isListening ? (
+                      <MicOff className="h-5 w-5" />
+                    ) : (
+                      <Mic className="h-5 w-5" />
+                    )}
+                  </Button>
                 )}
-              </Button>
-            </form>
-          </>
+                <Button
+                  type="submit"
+                  disabled={!input.trim() || chatMutation.isPending || isListening}
+                  className="shrink-0 h-[44px] px-4 gap-1.5 font-semibold"
+                  style={{ backgroundColor: "oklch(0.55 0.18 145)", color: "#fff" }}
+                >
+                  {chatMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Send
+                </Button>
+              </form>
+            </div>
+
+            {/* Step 2: Confirm when satisfied */}
+            {hasAssistantMessage && !activeStep?.completed && (
+              <div className="px-3 pt-1 pb-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                  Step 2 — Happy with your answer? Save &amp; continue
+                </p>
+                <button
+                  onClick={handleConfirmAnswer}
+                  disabled={completeMutation.isPending || chatMutation.isPending}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg py-3 px-4 text-base font-semibold transition-colors disabled:opacity-50"
+                  style={{
+                    backgroundColor: "oklch(0.78 0.14 80)",
+                    color: "#1a1a1a",
+                  }}
+                >
+                  {completeMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5" />
+                  )}
+                  Save &amp; Continue
+                </button>
+              </div>
+            )}
+
+          </div>
         )}
       </div>
     </div>
