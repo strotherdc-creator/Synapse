@@ -184,7 +184,8 @@
 - [x] Run DB migrations on Railway
 
 ## Coaching UI Redesign (August 2026)
-- [ ] Move text input above Confirm & Next Step button
-- [ ] Rename green send button to "Send Answer" (with arrow icon)
-- [ ] Add step-by-step instruction hint ("Step 1: Type your answer → Step 2: Confirm when ready")
-- [ ] Visually separate the two actions so users understand the flow
+- [x] Move text input above Confirm & Next Step button
+- [x] Rename green send button to "Send" (green color, Send icon)
+- [x] Add step-by-step instruction labels (Step 1 / Step 2)
+- [x] Visually separate the two actions so users understand the flow
+- [x] Rename "Confirm & Next Step" to "Save & Continue"
