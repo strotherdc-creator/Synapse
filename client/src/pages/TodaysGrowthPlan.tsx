@@ -34,6 +34,12 @@ export default function TodaysGrowthPlan() {
     },
     onError: (err: any) => toast.error(err.message),
   });
+  const cancelMutation = trpc.engagement.cancelAction.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
   const refreshMutation = trpc.engagement.refreshAction.useMutation({
     onSuccess: () => {
       utils.engagement.getDailyPlan.invalidate();
@@ -138,14 +144,27 @@ export default function TodaysGrowthPlan() {
         </div>
       </div>
 
-      {/* Topic */}
+      {/* Lyle Recommendation */}
+      {data?.lyleRecommendation && (
+        <div className="bg-amber-900/30 border-2 border-amber-500/40 rounded-2xl p-6">
+          <p className="text-sm font-bold text-amber-300 uppercase tracking-wide mb-2">Lyle Recommends</p>
+          <p className="text-xl font-bold text-white leading-relaxed">
+            {data.lyleRecommendation.actionText}
+          </p>
+          <p className="text-base text-amber-200/70 mt-3">
+            Your {data.lyleRecommendation.metricTrigger} is "{data.lyleRecommendation.trendState}"
+          </p>
+        </div>
+      )}
+
+      {/* Topic — right above the action area */}
       <div className="flex items-center gap-3">
-        <span className="px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-base">
-          {data?.topic?.label ?? "General Corrective Care"}
+        <span className="px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-lg">
+          Topic: {data?.topic?.label ?? "General Corrective Care"}
         </span>
         <button
           onClick={() => setShowTopicPicker(!showTopicPicker)}
-          className="text-base text-gray-400 hover:text-white underline"
+          className="text-lg text-gray-400 hover:text-white underline"
         >
           Change
         </button>
@@ -154,7 +173,7 @@ export default function TodaysGrowthPlan() {
       {/* Topic Picker */}
       {showTopicPicker && (
         <div className="bg-gray-800 border border-gray-600 rounded-2xl p-5 space-y-3">
-          <p className="text-lg font-bold text-white">Pick your focus:</p>
+          <p className="text-lg font-bold text-white">Pick your focus condition:</p>
           <div className="space-y-2">
             {topicsQuery.data?.topics.map((t: any) => (
               <button
@@ -175,31 +194,18 @@ export default function TodaysGrowthPlan() {
         </div>
       )}
 
-      {/* Lyle Recommendation */}
-      {data?.lyleRecommendation && (
-        <div className="bg-amber-900/30 border-2 border-amber-500/40 rounded-2xl p-6">
-          <p className="text-sm font-bold text-amber-300 uppercase tracking-wide mb-2">Lyle Recommends</p>
-          <p className="text-xl font-bold text-white leading-relaxed">
-            {data.lyleRecommendation.actionText}
-          </p>
-          <p className="text-base text-amber-200/70 mt-3">
-            Your {data.lyleRecommendation.metricTrigger} is "{data.lyleRecommendation.trendState}"
-          </p>
-        </div>
-      )}
-
       {/* ─── CURRENT ACTION (one at a time) ─── */}
       {currentAction && (
         <div className="space-y-4">
           {/* Back button */}
           <div className="flex items-center justify-between">
             <button
-              onClick={() => deferMutation.mutate({ actionId: currentAction.id })}
-              disabled={deferMutation.isPending}
+              onClick={() => cancelMutation.mutate({ actionId: currentAction.id })}
+              disabled={cancelMutation.isPending}
               className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
-              Back to list
+              {cancelMutation.isPending ? "..." : "← Back to list"}
             </button>
             <button
               onClick={() => refreshMutation.mutate({ actionId: currentAction.id })}
@@ -251,7 +257,7 @@ export default function TodaysGrowthPlan() {
       )}
 
       {/* ─── PICK NEXT ACTION (always available) ─── */}
-      {(data?.status === "needs_pick" || (data?.status === "active" && !currentAction)) && (
+      {(data?.status === "needs_pick" || !currentAction) && (
         <div className="space-y-4">
           <p className="text-lg font-bold text-gray-300 uppercase tracking-wide">
             {completedActions.length > 0 ? "Pick Your Next Action" : "What do you want to do first?"}

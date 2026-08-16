@@ -124,21 +124,33 @@ function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopic
       const captionPost = `${topic.pillarPhrases[pillarIdx]} ${topic.oneSentenceDifference}\n\nIf you're dealing with ${topic.topProblems[0].toLowerCase()}, you don't have to keep living with it. We find the real problem and fix it.\n\n📍 Link in bio to book.\n\n#chiropractic #${topic.shortLabel.toLowerCase().replace(/\s+/g, "")} #correction #getfixed`;
       return {
         title: `Record a video: ${topic.videoTopics[vidIdx]}`,
-        script: `🎬 VIDEO SCRIPT (30-60 seconds)\n\nTopic: ${topic.videoTopics[vidIdx]}\n\nOpening (look at camera, say this):\n"${topic.pillarPhrases[pillarIdx]}"\n\nKey points to hit:\n• "${topic.topProblems[0]}"\n• "${topic.desiredOutcome}"\n• "If this sounds like you, come see us."\n\nClose with:\n"${topic.oneSentenceDifference}"\n\n🎥 Film at your desk, adjustment room, or outside your office.\nLook directly at camera. Keep it under 60 seconds.\n\n─────────────────────\n\n📋 POST CAPTION (copy this to post with your video):\n\n${captionPost}`,
+        script: `🎬 VIDEO SCRIPT: "${topic.videoTopics[vidIdx]}"\n\n⏱️ 30-60 seconds | Film at your desk or adjustment room | Look directly at camera\n\n─────────────────────\n\n🎯 HOOK (first 3 seconds — stop the scroll):\n"If you're dealing with ${topic.topProblems[0].toLowerCase()}... stop. I need to tell you something nobody else is going to say."\n\n📖 THE TEACHING (15-30 seconds):\n"${topic.pillarPhrases[pillarIdx]}"\n\n"Here's what most people don't know: ${topic.topProblems[0].toLowerCase()} isn't the problem. It's the SIGNAL. Something structural is off — and until someone actually finds it and corrects it, you're just managing symptoms."\n\n"${topic.desiredOutcome} — that's what happens when you fix the cause, not just chase the pain."\n\n🔥 THE CLOSE (5-10 seconds):\n"${topic.oneSentenceDifference}"\n\n"If this sounds like you or someone you know — link in bio. Let's find out what's actually going on."\n\n─────────────────────\n\n💡 VIDEO TIPS:\n• First 3 seconds decide if they watch or scroll — start with the problem, not "Hi I'm Dr..."\n• Talk TO one person, not AT an audience\n• Confidence > perfection. One take is fine.\n• End with a clear next step (link in bio, DM me, call us)\n\n─────────────────────\n\n📋 POST CAPTION (copy this to post with your video):\n\n${captionPost}`,
         visualGuidance: null,
       };
     }
     case "referral_ask": {
+      const referralVariants = [
+        `🤝 REFERRAL: THE PATTERN INTERRUPT\n\nDon't ask "Do you know anyone?" — that's easy to say no to.\n\nInstead, after a great visit, try this:\n\nPause. Make eye contact. Then say:\n"Can I ask you something personal?"\n\n(They'll say yes — this is a pattern interrupt. You now have their full attention.)\n\nThen:\n"${topic.referralTriggerLine}"\n\nWhy this works: You broke the autopilot. They're actually thinking now — not just nodding.\n\nIf they mention someone:\n"${topic.easyIntroLine}"\n\n─────────────────────\n\n💡 PSYCHOLOGY: Chris Voss calls this "tactical empathy" — you're creating a moment of genuine connection before the ask. Chase Hughes calls it "authority framing" — the pause + eye contact signals this matters.`,
+        `🤝 REFERRAL: THE LABELING TECHNIQUE\n\nBefore you ask for the referral, LABEL what they're feeling:\n\n"It seems like you're really relieved that we figured out what was going on with your [${topic.topProblems[0].toLowerCase()}]."\n\n(Wait. Let them confirm. They'll usually elaborate.)\n\nThen:\n"You know what — if you know someone else who's been dealing with something similar and nobody can figure it out... ${topic.referralTriggerLine.toLowerCase()}"\n\nWhy this works: When you label their emotion first, they feel SEEN. The referral ask becomes natural — they WANT to share that feeling with someone they care about.\n\n─────────────────────\n\n💡 PSYCHOLOGY: Labeling (Chris Voss) + reciprocity principle. When someone feels genuinely helped, they naturally want to pass it forward. You're not asking for a favor — you're giving them permission to help someone they love.`,
+        `🤝 REFERRAL: THE STORY BRIDGE\n\nDon't ask for a referral. Tell a story instead:\n\n"You know, I had a patient just like you — they'd been dealing with [${topic.topProblems[0].toLowerCase()}] for years. Nobody could figure it out. They almost gave up. But we found [the structural issue] and now they're [${topic.desiredOutcome.toLowerCase()}]."\n\nPause. Then:\n"If you ever hear someone telling a story like yours used to be — send them my way. ${topic.referralTriggerLine.toLowerCase()}"\n\nWhy this works: Stories bypass resistance. They're not being "sold" — they're being trusted with information. The story also reminds them of their own transformation, which makes them want to share it.\n\n─────────────────────\n\n💡 PSYCHOLOGY: Narrative transport (people drop their guard during stories) + identity reinforcement (they now see themselves as someone who was FIXED, not just treated).`
+      ];
+      const refIdx = dayOfYear % referralVariants.length;
       return {
         title: "Ask for a referral today",
-        script: `🤝 REFERRAL SCRIPT\n\nAt the end of an appointment, say:\n"${topic.referralTriggerLine}"\n\nIf they mention someone:\n"${topic.easyIntroLine}"\n\nIn public or with friends:\n"${topic.knownForSentence}"`,
+        script: referralVariants[refIdx],
         visualGuidance: null,
       };
     }
     case "patient_outreach": {
+      const outreachVariants = [
+        `📞 OUTREACH: THE SPECIFIC MEMORY\n\nBefore you call, take 10 seconds to think:\n• What was their specific problem?\n• What did THEY say mattered to them? (Their kid's game? Their job? Sleep?)\n• What was the last thing you noticed about their progress?\n\nThen call:\n\n"Hey [Name], it's Dr. [You]. I was thinking about you today — specifically about how you told me [specific thing they said]. I wanted to check in. How's that going?"\n\nWait. Listen. Don't pitch.\n\nIf they've lapsed:\n"Look, I noticed you were making real progress with [their ${topic.topProblems[0].toLowerCase()}]. I don't want you to lose that ground. What's getting in the way of coming back in?"\n\n─────────────────────\n\n💡 WHY THIS WORKS:\n• The specific memory proves you actually care (not a mass call)\n• Asking "what's getting in the way" (Chris Voss) is an open-ended calibrated question — it puts them in problem-solving mode instead of defensive mode\n• You're not guilting them. You're showing them you noticed their progress and you don't want them to backslide.`,
+        `📞 OUTREACH: THE DISRUPTION CALL\n\nMost recall calls sound like: "Hi, just checking in, wanted to see how you're doing!"\n\nThat's easy to ignore. Try this instead:\n\n"Hey [Name], it's Dr. [You]. I need to be honest with you about something."\n\n(Pause. This is a pattern interrupt — they're paying attention now.)\n\n"When I look at where you were when you started and where you got to... I think we left something unfinished. And I don't want you to be one of those people who was 80% better and then slowly slides back to where they started. That's not okay with me."\n\nThen ask:\n"What would need to be true for you to come back in this week?"\n\n─────────────────────\n\n💡 WHY THIS WORKS:\n• "I need to be honest with you" (Chase Hughes) — creates instant attention and trust\n• You're framing it as YOUR concern, not their failure\n• "What would need to be true" (Chris Voss calibrated question) — removes barriers instead of creating pressure\n• You're positioning yourself as someone who genuinely won't let them fail.`,
+        `📞 OUTREACH: THE PROGRESS ANCHOR\n\nPull up their file before you call. Find ONE specific measurable improvement they made.\n\nThen:\n\n"Hey [Name], it's Dr. [You]. I was reviewing some patient files today and yours caught my eye. Do you remember when you first came in you couldn't [specific limitation]? And by your last visit you were [specific improvement]?"\n\n(Let them respond. They'll usually say something positive.)\n\n"That's exactly why I'm calling. That kind of progress doesn't happen by accident — it happened because something structural was changing. I want to make sure we don't lose that. When can we get you back in for a progress check?"\n\n─────────────────────\n\n💡 WHY THIS WORKS:\n• Anchoring to their real progress makes the call about THEM, not about your schedule\n• "Your file caught my eye" — they feel individually noticed, not mass-contacted\n• "Progress doesn't happen by accident" — reinforces that correction is working, not just temporary relief\n• You're asking WHEN, not IF (assumptive close, but earned through genuine care).`
+      ];
+      const outIdx = dayOfYear % outreachVariants.length;
       return {
         title: "Reach out to a patient",
-        script: `📞 OUTREACH TEMPLATE\n\nFor a recall patient:\n"Hey [Name], it's Dr. [You]. I was thinking about you — it's been a while since we checked on [their issue]. How are you doing? I'd love to get you back in and make sure everything is holding."\n\nFor a current patient who missed:\n"Hey [Name], just checking in — we missed you this week. Everything okay? Let's get you back on track."`,
+        script: outreachVariants[outIdx],
         visualGuidance: null,
       };
     }
@@ -473,6 +485,21 @@ export const engagementRouter = router({
       });
 
       return { success: true, deferredTo: tomorrowStr };
+    }),
+
+  // Cancel an action — delete it so the user can pick something else
+  cancelAction: protectedProcedure
+    .input(z.object({ actionId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      guardFeature("actions", ctx.user.clerkId);
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      await dbInstance
+        .delete(growthActions)
+        .where(and(eq(growthActions.id, input.actionId), eq(growthActions.userId, ctx.user.id)));
+
+      return { success: true };
     }),
 
   // Refresh an action — regenerate with a different script variant (same category)
