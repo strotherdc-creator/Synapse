@@ -334,8 +334,16 @@ export default function TodaysGrowthPlan() {
 
       {/* ─── CURRICULUM REMINDER ─── */}
       {curriculum && !curriculum.allComplete && (
-        <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <h3 className="text-lg font-bold text-foreground">📚 Complete your modules</h3>
+        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+          {/* Quick jump button */}
+          <a
+            href={`/curriculum/${curriculum.incompleteModules[0]?.id}/coaching`}
+            className="flex items-center justify-between w-full py-3.5 px-5 rounded-xl bg-primary text-white font-bold text-base hover:bg-primary/90 transition-colors"
+          >
+            <span>📚 Continue Curriculum</span>
+            <span className="text-sm opacity-80">{curriculum.incompleteModules[0]?.title}</span>
+          </a>
+          <h3 className="text-base font-bold text-foreground">Modules to complete</h3>
           <p className="text-sm text-muted-foreground">
             Finish these to unlock fully customized content, positioning, and referral language.
           </p>
