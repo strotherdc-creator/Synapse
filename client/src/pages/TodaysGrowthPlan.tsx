@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { CheckCircle2, Flame, Trophy, Target, Copy, ExternalLink } from "lucide-react";
+import { CheckCircle2, Flame, Trophy, Target, Copy, ExternalLink, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function TodaysGrowthPlan() {
   const utils = trpc.useUtils();
@@ -25,6 +25,12 @@ export default function TodaysGrowthPlan() {
       utils.engagement.getDailyPlan.invalidate();
       utils.routine.getStreak.invalidate();
       toast.success("Done! Pick your next action.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+  const deferMutation = trpc.engagement.deferAction.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -178,7 +184,26 @@ export default function TodaysGrowthPlan() {
       {/* ─── CURRENT ACTION (one at a time) ─── */}
       {currentAction && (
         <div className="space-y-4">
-          <p className="text-lg font-bold text-gray-300 uppercase tracking-wide">Current Action</p>
+          {/* Back button */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => deferMutation.mutate({ actionId: currentAction.id })}
+              disabled={deferMutation.isPending}
+              className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Back to list
+            </button>
+            <button
+              onClick={() => deferMutation.mutate({ actionId: currentAction.id })}
+              disabled={deferMutation.isPending}
+              className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
+            >
+              <RefreshCw className="h-5 w-5" />
+              Different script
+            </button>
+          </div>
+
           <div className="rounded-2xl border-2 border-emerald-500/40 bg-gray-800/80 overflow-hidden">
             <div className="p-6">
               <p className="text-2xl font-bold text-white leading-snug">
