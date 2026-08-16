@@ -50,8 +50,8 @@ export default function Profile() {
   });
 
   const handleSavePractice = () => {
-    if (!name.trim() || !practiceName.trim() || !city.trim() || !state.trim()) {
-      toast.error("Name, Practice Name, City, and State are required.");
+    if (!name.trim() || !practiceName.trim() || !city.trim() || !state.trim() || !phone.trim() || !website.trim()) {
+      toast.error("Name, Practice Name, City, State, Phone, and Website are required.");
       return;
     }
     updatePracticeMutation.mutate({
@@ -107,11 +107,11 @@ export default function Profile() {
               <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="Michigan" maxLength={50} />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Phone</Label>
+              <Label className="text-foreground font-semibold">Phone *</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(269) 555-0123" maxLength={30} />
             </div>
             <div className="space-y-2">
-              <Label className="text-foreground">Website</Label>
+              <Label className="text-foreground font-semibold">Website *</Label>
               <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://smithchiro.com" />
             </div>
           </div>

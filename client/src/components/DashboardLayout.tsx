@@ -182,10 +182,17 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
-              {allItems.map((item) => {
+            {allItems.map((item) => {
                 const isActive =
                   location === item.path ||
                   (item.path !== "/" && location.startsWith(item.path));
+                const needsProfileAttention = item.path === "/profile" && user && (
+                  !(user as any).practiceName ||
+                  !(user as any).city ||
+                  !(user as any).state ||
+                  !(user as any).phone ||
+                  !(user as any).website
+                );
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
@@ -197,7 +204,15 @@ function DashboardLayoutContent({
                       <item.icon
                         className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
                       />
-                      <span>{item.label}</span>
+                      <span className="flex items-center gap-2">
+                        {item.label}
+                        {needsProfileAttention && (
+                          <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+                          </span>
+                        )}
+                      </span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
