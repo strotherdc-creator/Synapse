@@ -34,6 +34,13 @@ export default function TodaysGrowthPlan() {
     },
     onError: (err: any) => toast.error(err.message),
   });
+  const refreshMutation = trpc.engagement.refreshAction.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
+      toast.success("Here's a different one.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
   const selectTopicMutation = trpc.engagement.selectTopic.useMutation({
     onSuccess: () => {
       utils.engagement.getDailyPlan.invalidate();
@@ -195,12 +202,12 @@ export default function TodaysGrowthPlan() {
               Back to list
             </button>
             <button
-              onClick={() => deferMutation.mutate({ actionId: currentAction.id })}
-              disabled={deferMutation.isPending}
+              onClick={() => refreshMutation.mutate({ actionId: currentAction.id })}
+              disabled={refreshMutation.isPending}
               className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
             >
-              <RefreshCw className="h-5 w-5" />
-              Different script
+              <RefreshCw className={`h-5 w-5 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+              {refreshMutation.isPending ? "Loading..." : "Different script"}
             </button>
           </div>
 

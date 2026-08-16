@@ -475,6 +475,36 @@ export const engagementRouter = router({
       return { success: true, deferredTo: tomorrowStr };
     }),
 
+  // Refresh an action — regenerate with a different script variant (same category)
+  refreshAction: protectedProcedure
+    .input(z.object({ actionId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      guardFeature("actions", ctx.user.clerkId);
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [action] = await dbInstance
+        .select()
+        .from(growthActions)
+        .where(and(eq(growthActions.id, input.actionId), eq(growthActions.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!action) throw new TRPCError({ code: "NOT_FOUND", message: "Action not found" });
+
+      // Get topic and use a shifted day index for different content
+      const topic = await ensureUserTopic(dbInstance, ctx.user.id, ctx.user.email ?? "");
+      const baseDayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      const shiftedDay = baseDayOfYear + Math.floor(Math.random() * 5) + 1;
+      const content = getActionContent(action.sourceRef ?? action.source, topic, shiftedDay);
+
+      await dbInstance
+        .update(growthActions)
+        .set({ title: content.title, script: content.script, updatedAt: new Date() })
+        .where(eq(growthActions.id, input.actionId));
+
+      return { success: true };
+    }),
+
   // Record an outcome after completing an action
   recordOutcome: protectedProcedure
     .input(z.object({
