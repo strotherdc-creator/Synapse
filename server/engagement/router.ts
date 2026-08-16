@@ -114,17 +114,18 @@ function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopic
       const imgIdx = dayOfYear % topic.imagePromptTemplates.length;
       return {
         title: `Post about ${topic.shortLabel}`,
-        script: topic.socialPostTemplates[postIdx],
-        visualGuidance: `📸 Photo idea: ${topic.photoSuggestions[photoIdx]}\n\n🤖 AI image prompt (paste into Gemini/ChatGPT):\n"${topic.imagePromptTemplates[imgIdx]}"`,
+        script: `📋 YOUR POST (copy this):\n\n${topic.socialPostTemplates[postIdx]}\n\n─────────────────────\n\n📸 PHOTO OPTION:\n${topic.photoSuggestions[photoIdx]}\n\n🤖 AI IMAGE OPTION (paste this into Gemini or ChatGPT to generate an image):\n"${topic.imagePromptTemplates[imgIdx]}"`,
+        visualGuidance: null,
       };
     }
     case "video": {
       const vidIdx = dayOfYear % topic.videoTopics.length;
       const pillarIdx = dayOfYear % topic.pillarPhrases.length;
+      const captionPost = `${topic.pillarPhrases[pillarIdx]} ${topic.oneSentenceDifference}\n\nIf you're dealing with ${topic.topProblems[0].toLowerCase()}, you don't have to keep living with it. We find the real problem and fix it.\n\n📍 Link in bio to book.\n\n#chiropractic #${topic.shortLabel.toLowerCase().replace(/\s+/g, "")} #correction #getfixed`;
       return {
         title: `Record a video: ${topic.videoTopics[vidIdx]}`,
-        script: `🎬 VIDEO SCRIPT (30-60 seconds)\n\nTopic: ${topic.videoTopics[vidIdx]}\n\nOpening: "${topic.pillarPhrases[pillarIdx]}"\n\nKey points:\n• ${topic.topProblems[0]}\n• ${topic.desiredOutcome}\n• "If this sounds like you, come see us."\n\nClose: "${topic.oneSentenceDifference}"`,
-        visualGuidance: `Film at your desk, adjustment room, or outside your office. Look directly at camera. Keep it under 60 seconds.`,
+        script: `🎬 VIDEO SCRIPT (30-60 seconds)\n\nTopic: ${topic.videoTopics[vidIdx]}\n\nOpening (look at camera, say this):\n"${topic.pillarPhrases[pillarIdx]}"\n\nKey points to hit:\n• "${topic.topProblems[0]}"\n• "${topic.desiredOutcome}"\n• "If this sounds like you, come see us."\n\nClose with:\n"${topic.oneSentenceDifference}"\n\n🎥 Film at your desk, adjustment room, or outside your office.\nLook directly at camera. Keep it under 60 seconds.\n\n─────────────────────\n\n📋 POST CAPTION (copy this to post with your video):\n\n${captionPost}`,
+        visualGuidance: null,
       };
     }
     case "referral_ask": {
@@ -217,7 +218,7 @@ export const engagementRouter = router({
 
   // Pick 3 daily actions — creates the plan for today
   pickDailyActions: protectedProcedure
-    .input(z.object({ actionKeys: z.array(z.string()).min(3).max(7) }))
+    .input(z.object({ actionKeys: z.array(z.string()).min(1).max(7) }))
     .mutation(async ({ ctx, input }) => {
       guardFeature("dailyPlan", ctx.user.clerkId);
       const dbInstance = await db.getDb();
