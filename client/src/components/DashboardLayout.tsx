@@ -286,9 +286,12 @@ function DashboardLayoutContent({
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-10 w-10 rounded-lg bg-surface border border-border flex items-center justify-center">
-                <Menu className="h-5 w-5 text-foreground" />
-              </SidebarTrigger>
+              <button
+                onClick={toggleSidebar}
+                className="h-10 w-10 rounded-lg bg-surface border border-border flex items-center justify-center"
+              >
+                <Menu className="h-6 w-6 text-foreground" />
+              </button>
               <span className="font-semibold text-foreground">
                 {activeMenuItem?.label ?? "Synapse"}
               </span>
