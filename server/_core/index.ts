@@ -14,6 +14,7 @@ import { seedLyleAlgorithmContent } from "../seed-lyle";
 import { scheduleWwldBackup } from "../wwld-backup";
 import { runMigrations } from "../db";
 import { ENGAGEMENT_MIGRATIONS } from "../engagement/migrations";
+import { scheduleEngagementEmails } from "../engagement/email-reminders";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -140,6 +141,8 @@ async function startServer() {
     seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
     // Schedule weekly WWLD data backup (production only, requires SMTP_USER + SMTP_PASS)
     scheduleWwldBackup();
+    // Schedule engagement email reminders (daily + weekly review)
+    scheduleEngagementEmails();
   });
 }
 
