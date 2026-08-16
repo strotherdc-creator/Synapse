@@ -3,7 +3,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { isEngagementEnabled } from "./flags";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
-import { getTopicById, getTopicLabels } from "./quick-start-topics";
+import { getTopicById, getTopicLabels, QUICK_START_TOPICS } from "./quick-start-topics";
 import {
   dailyGrowthPlans,
   growthActions,
@@ -14,7 +14,55 @@ import {
   lyleServedLog,
   wwldSessions,
 } from "../../shared/schema";
-import { eq, and, desc, asc, sql, isNull } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
+
+// ─── Constants ─────────────────────────────────────────────────────
+
+/** Action categories the doctor can pick from each day */
+export const ACTION_CATEGORIES = [
+  {
+    key: "social_post",
+    label: "Post to social media",
+    icon: "📱",
+    description: "Copy your topic-based post and share it on Facebook, Instagram, or LinkedIn",
+  },
+  {
+    key: "video",
+    label: "Make a short video",
+    icon: "🎬",
+    description: "Record a 30-60 second video using today's script and bullet points",
+  },
+  {
+    key: "referral_ask",
+    label: "Ask for a referral",
+    icon: "🤝",
+    description: "Use your referral trigger line with a patient or in public today",
+  },
+  {
+    key: "patient_outreach",
+    label: "Reach out to a patient",
+    icon: "📞",
+    description: "Call, text, or message an existing patient to check in or recall them",
+  },
+  {
+    key: "community_connection",
+    label: "Community connection",
+    icon: "🏘️",
+    description: "Connect with a local business owner, gym, or potential referral source",
+  },
+  {
+    key: "curriculum_lesson",
+    label: "Complete a curriculum lesson",
+    icon: "📚",
+    description: "Work through your next lesson to unlock customized content",
+  },
+  {
+    key: "ai_coach",
+    label: "Ask the AI Coach a question",
+    icon: "💬",
+    description: "Get Lyle-based coaching on a specific challenge you're facing",
+  },
+] as const;
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -28,215 +76,95 @@ function guardFeature(feature: Parameters<typeof isEngagementEnabled>[0], clerkI
   }
 }
 
-// ─── Daily Plan Engine ──────────────────────────────────────────────
-
-interface PlanAction {
-  source: string;
-  sourceRef: string | null;
-  title: string;
-  whyNow: string | null;
-  script: string | null;
-  estimateMinutes: number;
-  pillar: string | null;
-  required: boolean;
-}
-
-/**
- * Deterministic daily plan selection.
- * Priority:
- *   1. Lyle daily action (if available and not already completed today)
- *   2. Coaching asset activation (newest unactivated saved answer)
- *   3. Content Studio activation (newest unused generated content)
- *   4. Daily Routine task (first incomplete)
- * Max: 1 required + 2 optional = 3 actions
- */
-async function buildDailyActions(userId: number, date: string): Promise<PlanAction[]> {
-  const dbInstance = await db.getDb();
-  if (!dbInstance) return [];
-
-  const actions: PlanAction[] = [];
-
-  // Get user's selected topic for fallback content
-  const [userPrefs] = await dbInstance
+/** Get or auto-assign the user's topic (defaults to general_corrective) */
+async function ensureUserTopic(dbInstance: any, userId: number, email: string) {
+  const [prefs] = await dbInstance
     .select()
     .from(userEngagementPreferences)
     .where(eq(userEngagementPreferences.userId, userId))
     .limit(1);
-  const selectedTopicId = userPrefs?.selectedTopicId ?? null;
-  const topic = selectedTopicId ? getTopicById(selectedTopicId) : null;
 
-  // ── 1. Lyle daily action ──────────────────────────────────────────
-  // Check if there's a Lyle recommendation for today that hasn't been acted on
-  const servedToday = await dbInstance
-    .select()
-    .from(lyleServedLog)
-    .where(and(
-      eq(lyleServedLog.userId, userId),
-      sql`${lyleServedLog.servedAt}::date = ${date}::date`
-    ))
-    .limit(1);
+  if (prefs?.selectedTopicId) {
+    return getTopicById(prefs.selectedTopicId) ?? QUICK_START_TOPICS[7]; // fallback to general
+  }
 
-  if (servedToday.length > 0) {
-    const contentRow = await dbInstance
-      .select()
-      .from(lyleContent)
-      .where(eq(lyleContent.contentId, servedToday[0].contentId))
-      .limit(1);
+  // Auto-assign general_corrective
+  const defaultTopic = QUICK_START_TOPICS[7]; // "general_corrective"
+  if (prefs) {
+    await dbInstance
+      .update(userEngagementPreferences)
+      .set({ selectedTopicId: defaultTopic.id, updatedAt: new Date() })
+      .where(eq(userEngagementPreferences.userId, userId));
+  } else {
+    await dbInstance
+      .insert(userEngagementPreferences)
+      .values({ userId, emailAddress: email, selectedTopicId: defaultTopic.id });
+  }
+  return defaultTopic;
+}
 
-    if (contentRow.length > 0) {
-      actions.push({
-        source: "lyle",
-        sourceRef: contentRow[0].contentId,
-        title: contentRow[0].actionText,
-        whyNow: `Your ${contentRow[0].metricTrigger.replace(/_/g, " ")} trend is "${contentRow[0].trendState}" — this action targets your ${contentRow[0].pillar} pillar.`,
+/** Generate expanded content for an action category based on the user's topic */
+function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopicById>, dayOfYear: number) {
+  if (!topic) return { title: categoryKey, script: null, visualGuidance: null };
+
+  switch (categoryKey) {
+    case "social_post": {
+      const postIdx = dayOfYear % topic.socialPostTemplates.length;
+      const photoIdx = dayOfYear % topic.photoSuggestions.length;
+      const imgIdx = dayOfYear % topic.imagePromptTemplates.length;
+      return {
+        title: `Post about ${topic.shortLabel}`,
+        script: topic.socialPostTemplates[postIdx],
+        visualGuidance: `📸 Photo idea: ${topic.photoSuggestions[photoIdx]}\n\n🤖 AI image prompt (paste into Gemini/ChatGPT):\n"${topic.imagePromptTemplates[imgIdx]}"`,
+      };
+    }
+    case "video": {
+      const vidIdx = dayOfYear % topic.videoTopics.length;
+      const pillarIdx = dayOfYear % topic.pillarPhrases.length;
+      return {
+        title: `Record a video: ${topic.videoTopics[vidIdx]}`,
+        script: `🎬 VIDEO SCRIPT (30-60 seconds)\n\nTopic: ${topic.videoTopics[vidIdx]}\n\nOpening: "${topic.pillarPhrases[pillarIdx]}"\n\nKey points:\n• ${topic.topProblems[0]}\n• ${topic.desiredOutcome}\n• "If this sounds like you, come see us."\n\nClose: "${topic.oneSentenceDifference}"`,
+        visualGuidance: `Film at your desk, adjustment room, or outside your office. Look directly at camera. Keep it under 60 seconds.`,
+      };
+    }
+    case "referral_ask": {
+      return {
+        title: "Ask for a referral today",
+        script: `🤝 REFERRAL SCRIPT\n\nAt the end of an appointment, say:\n"${topic.referralTriggerLine}"\n\nIf they mention someone:\n"${topic.easyIntroLine}"\n\nIn public or with friends:\n"${topic.knownForSentence}"`,
+        visualGuidance: null,
+      };
+    }
+    case "patient_outreach": {
+      return {
+        title: "Reach out to a patient",
+        script: `📞 OUTREACH TEMPLATE\n\nFor a recall patient:\n"Hey [Name], it's Dr. [You]. I was thinking about you — it's been a while since we checked on [their issue]. How are you doing? I'd love to get you back in and make sure everything is holding."\n\nFor a current patient who missed:\n"Hey [Name], just checking in — we missed you this week. Everything okay? Let's get you back on track."`,
+        visualGuidance: null,
+      };
+    }
+    case "community_connection": {
+      return {
+        title: "Make a community connection",
+        script: `🏘️ COMMUNITY OUTREACH\n\nYour community lane: ${topic.communityLane}\n\nApproach:\n"Hi, I'm Dr. [You] — I'm the chiropractor down the street. I work with a lot of people dealing with ${topic.topProblems[0].toLowerCase()}. If any of your [clients/members/customers] ever mention back or neck issues, I'd love to be your go-to referral. Can I leave some cards?"\n\nFollow up within 1 week with a thank-you or a small gift (coffee, etc.)`,
+        visualGuidance: null,
+      };
+    }
+    case "curriculum_lesson": {
+      return {
+        title: "Complete your next curriculum lesson",
         script: null,
-        estimateMinutes: 5,
-        pillar: contentRow[0].pillar,
-        required: true,
-      });
+        visualGuidance: null,
+      };
     }
-  }
-
-  // ── 2. Coaching asset activation ──────────────────────────────────
-  // Find the most recent coaching answer that hasn't been turned into an action yet
-  const recentAnswers = await dbInstance
-    .select()
-    .from(db.getUserAnswersTable())
-    .where(eq(db.getUserAnswersTable().userId, userId))
-    .orderBy(desc(db.getUserAnswersTable().updatedAt))
-    .limit(5);
-
-  // Only use coaching answers if they have meaningful content (not fragments)
-  const usableAnswers = recentAnswers.filter(a => a.answer && a.answer.length > 20);
-
-  if (usableAnswers.length > 0 && actions.length < 3) {
-    // Check if any of these answers have already been activated today
-    const existingActions = await dbInstance
-      .select()
-      .from(growthActions)
-      .where(and(
-        eq(growthActions.userId, userId),
-        eq(growthActions.actionDate, date),
-        eq(growthActions.source, "coaching")
-      ));
-
-    const activatedRefs = new Set(existingActions.map(a => a.sourceRef));
-    const unactivated = usableAnswers.find(a => !activatedRefs.has(`answer-${a.id}`));
-
-    if (unactivated) {
-      const answerPreview = unactivated.answer.length > 80
-        ? unactivated.answer.slice(0, 80) + "..."
-        : unactivated.answer;
-      actions.push({
-        source: "coaching",
-        sourceRef: `answer-${unactivated.id}`,
-        title: `Use your answer today: "${answerPreview}"`,
-        whyNow: "You refined this in coaching — try using it in a real conversation today.",
-        script: unactivated.answer,
-        estimateMinutes: 3,
-        pillar: "Communication & Listening",
-        required: false,
-      });
-    }
-  } else if (topic && actions.length < 3) {
-    // No usable coaching answers — use the quick-start topic instead
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    const liner = topic.tableTalkOneLiners[dayOfYear % topic.tableTalkOneLiners.length];
-    actions.push({
-      source: "coaching",
-      sourceRef: `topic-${topic.id}-liner-${dayOfYear % topic.tableTalkOneLiners.length}`,
-      title: `Say this today: "${liner}"`,
-      whyNow: `This is how patients describe you when you're positioned for ${topic.shortLabel}. Use it at the table or in conversation.`,
-      script: `One-liner to use:\n"${liner}"\n\nReferral trigger:\n"${topic.referralTriggerLine}"\n\nWant a fully customized version? Complete your coaching modules.`,
-      estimateMinutes: 2,
-      pillar: "Communication & Listening",
-      required: false,
-    });
-  }
-
-  // ── 3. Content Studio activation ──────────────────────────────────
-  // Find the most recent generated content not yet activated
-  const recentContent = await dbInstance
-    .select()
-    .from(db.getContentHistoryTable())
-    .where(eq(db.getContentHistoryTable().userId, userId))
-    .orderBy(desc(db.getContentHistoryTable().createdAt))
-    .limit(3);
-
-  if (recentContent.length > 0 && actions.length < 3) {
-    const existingContentActions = await dbInstance
-      .select()
-      .from(growthActions)
-      .where(and(
-        eq(growthActions.userId, userId),
-        eq(growthActions.actionDate, date),
-        eq(growthActions.source, "content")
-      ));
-
-    const activatedContentRefs = new Set(existingContentActions.map(a => a.sourceRef));
-    const unactivatedContent = recentContent.find(c => !activatedContentRefs.has(`content-${c.id}`));
-
-    if (unactivatedContent) {
-      const typeLabel = unactivatedContent.contentType.replace(/_/g, " ");
-      actions.push({
-        source: "content",
-        sourceRef: `content-${unactivatedContent.id}`,
-        title: `Copy & post your ${typeLabel}`,
-        whyNow: "You created this content — copy it, post it, and build your visibility today.",
-        script: unactivatedContent.generatedContent.slice(0, 500),
-        estimateMinutes: 2,
-        pillar: "Referral & Visibility",
-        required: false,
-      });
-    }
-  } else if (topic && actions.length < 3) {
-    // No content studio items — generate a topic-based social post with visual guidance
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-    const postIndex = dayOfYear % topic.socialPostTemplates.length;
-    const videoIndex = dayOfYear % topic.videoTopics.length;
-    const photoIndex = dayOfYear % topic.photoSuggestions.length;
-    const post = topic.socialPostTemplates[postIndex];
-    const videoTopic = topic.videoTopics[videoIndex];
-    const photoSuggestion = topic.photoSuggestions[photoIndex];
-
-    actions.push({
-      source: "content",
-      sourceRef: `topic-${topic.id}-post-${postIndex}`,
-      title: `Post about ${topic.shortLabel} today`,
-      whyNow: `Consistent visibility on ${topic.label} builds your reputation as the go-to doctor for this.`,
-      script: `📋 COPY THIS POST:\n\n${post}\n\n📸 VISUAL OPTIONS:\n\n• Photo idea: ${photoSuggestion}\n• Video idea (30-60 sec): ${videoTopic}\n• AI image prompt (paste into Gemini/ChatGPT):\n  "${topic.imagePromptTemplates[postIndex % topic.imagePromptTemplates.length]}"`,
-      estimateMinutes: 5,
-      pillar: "Referral & Visibility",
-      required: false,
-    });
-  }
-
-  // ── 4. WWLD stat entry reminder ───────────────────────────────────
-  if (actions.length < 3) {
-    const todaySession = await dbInstance
-      .select()
-      .from(wwldSessions)
-      .where(and(
-        eq(wwldSessions.userId, userId),
-        eq(wwldSessions.sessionDate, date)
-      ))
-      .limit(1);
-
-    if (todaySession.length === 0) {
-      actions.push({
-        source: "routine",
-        sourceRef: "wwld-stats",
-        title: "Log today's practice numbers in WWLD",
-        whyNow: "Tracking daily stats is how Lyle knows what to recommend next.",
+    case "ai_coach": {
+      return {
+        title: "Ask the AI Coach a question",
         script: null,
-        estimateMinutes: 1,
-        pillar: "Personal Growth & Discipline",
-        required: false,
-      });
+        visualGuidance: null,
+      };
     }
+    default:
+      return { title: categoryKey, script: null, visualGuidance: null };
   }
-
-  return actions.slice(0, 3); // Hard cap at 3
 }
 
 // ─── Engagement Router ──────────────────────────────────────────────
@@ -247,6 +175,11 @@ export const engagementRouter = router({
     return { topics: getTopicLabels() };
   }),
 
+  // Get action categories for the picker
+  getActionCategories: protectedProcedure.query(async () => {
+    return { categories: ACTION_CATEGORIES };
+  }),
+
   // Set the user's selected quick-start topic
   selectTopic: protectedProcedure
     .input(z.object({ topicId: z.string() }))
@@ -254,7 +187,6 @@ export const engagementRouter = router({
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-      // Validate topic exists
       const topic = getTopicById(input.topicId);
       if (!topic) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid topic ID" });
 
@@ -283,48 +215,69 @@ export const engagementRouter = router({
       return { success: true, topicId: input.topicId, topicLabel: topic.label };
     }),
 
-  // Get or create today's growth plan
-  getDailyPlan: protectedProcedure.query(async ({ ctx }) => {
-    guardFeature("dailyPlan", ctx.user.clerkId);
-    const dbInstance = await db.getDb();
-    if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+  // Pick 3 daily actions — creates the plan for today
+  pickDailyActions: protectedProcedure
+    .input(z.object({ actionKeys: z.array(z.string()).min(3).max(7) }))
+    .mutation(async ({ ctx, input }) => {
+      guardFeature("dailyPlan", ctx.user.clerkId);
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-    const date = todayStr();
-    const userId = ctx.user.id;
+      const date = todayStr();
+      const userId = ctx.user.id;
 
-    // Check for existing plan
-    const existing = await dbInstance
-      .select()
-      .from(dailyGrowthPlans)
-      .where(and(eq(dailyGrowthPlans.userId, userId), eq(dailyGrowthPlans.planDate, date)))
-      .limit(1);
+      // Validate all keys
+      const validKeys = ACTION_CATEGORIES.map(c => c.key);
+      for (const key of input.actionKeys) {
+        if (!validKeys.includes(key as any)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Invalid action: ${key}` });
+        }
+      }
 
-    let planId: number;
-    if (existing.length > 0) {
-      planId = existing[0].id;
-    } else {
-      // Create today's plan
-      const [newPlan] = await dbInstance
+      // Get or auto-assign topic
+      const topic = await ensureUserTopic(dbInstance, userId, ctx.user.email ?? "");
+      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+
+      // Delete any existing plan for today (allows re-picking)
+      const existingPlan = await dbInstance
+        .select()
+        .from(dailyGrowthPlans)
+        .where(and(eq(dailyGrowthPlans.userId, userId), eq(dailyGrowthPlans.planDate, date)))
+        .limit(1);
+
+      if (existingPlan.length > 0) {
+        await dbInstance.delete(growthActions).where(and(eq(growthActions.userId, userId), eq(growthActions.actionDate, date)));
+        await dbInstance.delete(dailyGrowthPlans).where(eq(dailyGrowthPlans.id, existingPlan[0].id));
+      }
+
+      // Create new plan
+      const [plan] = await dbInstance
         .insert(dailyGrowthPlans)
-        .values({ userId, planDate: date, focus: "New Patients & Referrals" })
+        .values({ userId, planDate: date, focus: topic.shortLabel, state: "active" })
         .returning({ id: dailyGrowthPlans.id });
-      planId = newPlan.id;
 
-      // Generate actions
-      const planActions = await buildDailyActions(userId, date);
-      for (let i = 0; i < planActions.length; i++) {
+      // Create actions with expanded content
+      for (let i = 0; i < input.actionKeys.length; i++) {
+        const key = input.actionKeys[i];
+        const category = ACTION_CATEGORIES.find(c => c.key === key)!;
+        const content = getActionContent(key, topic, dayOfYear);
+
         await dbInstance.insert(growthActions).values({
           userId,
-          planId,
-          source: planActions[i].source,
-          sourceRef: planActions[i].sourceRef,
-          title: planActions[i].title,
-          whyNow: planActions[i].whyNow,
-          script: planActions[i].script,
-          estimateMinutes: planActions[i].estimateMinutes,
-          pillar: planActions[i].pillar,
+          planId: plan.id,
+          source: "picked",
+          sourceRef: key,
+          title: content.title,
+          whyNow: category.description,
+          script: content.script,
+          estimateMinutes: key === "video" ? 5 : key === "social_post" ? 3 : 2,
+          pillar: key === "referral_ask" || key === "community_connection" ? "Referral & Visibility" :
+                  key === "patient_outreach" ? "Retention & Case Management" :
+                  key === "curriculum_lesson" ? "Personal Growth & Discipline" :
+                  key === "social_post" || key === "video" ? "Referral & Visibility" :
+                  "Communication & Listening",
           sortOrder: i,
-          required: planActions[i].required,
+          required: i === 0,
           status: "pending",
           actionDate: date,
         });
@@ -333,28 +286,64 @@ export const engagementRouter = router({
       // Log event
       await dbInstance.insert(engagementEvents).values({
         userId,
-        eventName: "plan_created",
+        eventName: "actions_picked",
         entityType: "plan",
-        entityId: planId,
+        entityId: plan.id,
       });
+
+      return { success: true, planId: plan.id };
+    }),
+
+  // Get today's plan (returns picked actions or empty if not picked yet)
+  getDailyPlan: protectedProcedure.query(async ({ ctx }) => {
+    guardFeature("dailyPlan", ctx.user.clerkId);
+    const dbInstance = await db.getDb();
+    if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+    const date = todayStr();
+    const userId = ctx.user.id;
+
+    // Get user's topic (auto-assign if needed)
+    const topic = await ensureUserTopic(dbInstance, userId, ctx.user.email ?? "");
+
+    // Check for existing plan
+    const [existing] = await dbInstance
+      .select()
+      .from(dailyGrowthPlans)
+      .where(and(eq(dailyGrowthPlans.userId, userId), eq(dailyGrowthPlans.planDate, date)))
+      .limit(1);
+
+    if (!existing) {
+      // No plan yet — doctor needs to pick actions
+      // Also get the Lyle recommendation for display
+      const lyleAction = await getLyleRecommendation(dbInstance, userId, date);
+      return {
+        status: "needs_pick" as const,
+        topic: { id: topic.id, label: topic.label, shortLabel: topic.shortLabel },
+        lyleRecommendation: lyleAction,
+        actions: [],
+      };
     }
 
-    // Fetch actions for this plan
+    // Plan exists — fetch actions
     const actions = await dbInstance
       .select()
       .from(growthActions)
-      .where(and(eq(growthActions.planId, planId), eq(growthActions.userId, userId)))
+      .where(and(eq(growthActions.planId, existing.id), eq(growthActions.userId, userId)))
       .orderBy(asc(growthActions.sortOrder));
 
-    const plan = existing.length > 0 ? existing[0] : (await dbInstance
-      .select().from(dailyGrowthPlans).where(eq(dailyGrowthPlans.id, planId)).limit(1))[0];
+    const lyleAction = await getLyleRecommendation(dbInstance, userId, date);
+
+    const completedCount = actions.filter(a => a.status === "completed").length;
 
     return {
+      status: "active" as const,
+      topic: { id: topic.id, label: topic.label, shortLabel: topic.shortLabel },
+      lyleRecommendation: lyleAction,
       plan: {
-        id: plan.id,
-        date: plan.planDate,
-        focus: plan.focus,
-        state: plan.state,
+        id: existing.id,
+        date: existing.planDate,
+        focus: existing.focus,
       },
       actions: actions.map(a => ({
         id: a.id,
@@ -368,8 +357,43 @@ export const engagementRouter = router({
         required: a.required,
         status: a.status,
         completedAt: a.completedAt,
-        deferredTo: a.deferredTo,
       })),
+      completedCount,
+      totalCount: actions.length,
+    };
+  }),
+
+  // Get curriculum progress for the reminder section
+  getCurriculumReminder: protectedProcedure.query(async ({ ctx }) => {
+    const modules = await db.listModules(true); // published only
+    const progress = await db.getUserProgress(ctx.user.id);
+
+    const modulesWithProgress = await Promise.all(
+      modules.map(async (mod) => {
+        const steps = await db.getModuleSteps(mod.id);
+        const stepProgress = await db.getUserStepProgress(ctx.user.id, mod.id);
+        const completedSteps = stepProgress.filter(p => p.completed).length;
+        const totalSteps = steps.length;
+        const isComplete = completedSteps >= totalSteps && totalSteps > 0;
+        return {
+          id: mod.id,
+          title: mod.title,
+          completedSteps,
+          totalSteps,
+          isComplete,
+          percentComplete: totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
+        };
+      })
+    );
+
+    const incomplete = modulesWithProgress.filter(m => !m.isComplete);
+    const allComplete = incomplete.length === 0;
+
+    return {
+      allComplete,
+      incompleteModules: incomplete,
+      totalModules: modulesWithProgress.length,
+      completedModules: modulesWithProgress.filter(m => m.isComplete).length,
     };
   }),
 
@@ -393,6 +417,17 @@ export const engagementRouter = router({
         .update(growthActions)
         .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() })
         .where(eq(growthActions.id, input.actionId));
+
+      // Update streak via routine system
+      const date = todayStr();
+      const allActions = await dbInstance
+        .select()
+        .from(growthActions)
+        .where(and(eq(growthActions.userId, ctx.user.id), eq(growthActions.actionDate, date)));
+      const allComplete = allActions.every(a => a.id === input.actionId || a.status === "completed");
+      if (allComplete) {
+        await db.updateStreak(ctx.user.id, date);
+      }
 
       await dbInstance.insert(engagementEvents).values({
         userId: ctx.user.id,
@@ -420,7 +455,6 @@ export const engagementRouter = router({
 
       if (!action) throw new TRPCError({ code: "NOT_FOUND", message: "Action not found" });
 
-      // Defer to tomorrow
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = tomorrow.toISOString().slice(0, 10);
@@ -497,7 +531,6 @@ export const engagementRouter = router({
 
     if (prefs) return prefs;
 
-    // Create defaults
     const [newPrefs] = await dbInstance
       .insert(userEngagementPreferences)
       .values({ userId: ctx.user.id, emailAddress: ctx.user.email })
@@ -540,3 +573,33 @@ export const engagementRouter = router({
       return { success: true };
     }),
 });
+
+// ─── Lyle Recommendation Helper ────────────────────────────────────
+
+async function getLyleRecommendation(dbInstance: any, userId: number, date: string) {
+  const servedToday = await dbInstance
+    .select()
+    .from(lyleServedLog)
+    .where(and(
+      eq(lyleServedLog.userId, userId),
+      sql`${lyleServedLog.servedAt}::date = ${date}::date`
+    ))
+    .limit(1);
+
+  if (servedToday.length === 0) return null;
+
+  const [contentRow] = await dbInstance
+    .select()
+    .from(lyleContent)
+    .where(eq(lyleContent.contentId, servedToday[0].contentId))
+    .limit(1);
+
+  if (!contentRow) return null;
+
+  return {
+    actionText: contentRow.actionText,
+    pillar: contentRow.pillar,
+    trendState: contentRow.trendState,
+    metricTrigger: contentRow.metricTrigger.replace(/_/g, " "),
+  };
+}

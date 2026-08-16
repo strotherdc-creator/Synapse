@@ -14,7 +14,6 @@ import ModuleDetail from "./pages/ModuleDetail";
 import LessonView from "./pages/LessonView";
 import Chat from "./pages/Chat";
 import ContentStudio from "./pages/ContentStudio";
-import DailyRoutine from "./pages/DailyRoutine";
 import Profile from "./pages/Profile";
 import AdminModules from "./pages/AdminModules";
 import AdminStats from "./pages/AdminStats";
@@ -123,7 +122,6 @@ function AuthenticatedRouter() {
         <Route path="/curriculum/:moduleId/coaching" component={ModuleCoaching} />
         <Route path="/chat" component={Chat} />
         <Route path="/content" component={ContentStudio} />
-        <Route path="/routine" component={DailyRoutine} />
         <Route path="/profile" component={Profile} />
         <Route path="/admin/modules" component={AdminModules} />
         <Route path="/admin/stats" component={AdminStats} />

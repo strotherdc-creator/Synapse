@@ -1,353 +1,375 @@
-import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, ArrowRight, Sparkles, Target, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { OutcomeModal } from "@/components/engagement/OutcomeModal";
-
-type ActionStatus = "pending" | "completed" | "deferred" | "skipped";
-
-interface ActionCardProps {
-  id: number;
-  title: string;
-  whyNow: string | null;
-  script: string | null;
-  estimateMinutes: number | null;
-  pillar: string | null;
-  required: boolean;
-  status: ActionStatus;
-  source: string;
-  onComplete: (id: number) => void;
-  onDefer: (id: number) => void;
-  isCompleting: boolean;
-  isDeferring: boolean;
-}
-
-function ActionCard({
-  id, title, whyNow, script, estimateMinutes, pillar, required, status, source,
-  onComplete, onDefer, isCompleting, isDeferring
-}: ActionCardProps) {
-  const [showScript, setShowScript] = useState(false);
-  const isActive = status === "pending";
-  const isDone = status === "completed";
-  const isDeferred = status === "deferred";
-
-  const sourceColors: Record<string, string> = {
-    lyle: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    coaching: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    content: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    routine: "bg-green-500/10 text-green-600 border-green-500/20",
-  };
-
-  const sourceLabels: Record<string, string> = {
-    lyle: "Lyle Recommends",
-    coaching: "From Your Coaching",
-    content: "Content to Share",
-    routine: "Daily Habit",
-  };
-
-  return (
-    <Card className={`border transition-all ${isDone ? "border-green-500/30 bg-green-500/5 opacity-80" : isDeferred ? "border-muted opacity-60" : required ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-card"}`}>
-      <CardContent className="p-5 space-y-4">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className={`text-sm px-3 py-1 rounded-full border font-medium ${sourceColors[source] ?? "bg-muted text-muted-foreground border-border"}`}>
-                {sourceLabels[source] ?? source}
-              </span>
-              {required && (
-                <span className="text-sm px-3 py-1 rounded-full bg-amber-500/20 text-amber-600 border border-amber-500/30 font-semibold">
-                  Priority
-                </span>
-              )}
-              {estimateMinutes && (
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-4 w-4" /> ~{estimateMinutes} min
-                </span>
-              )}
-            </div>
-            <p className={`text-base font-semibold leading-relaxed ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-              {title}
-            </p>
-          </div>
-          {isDone && <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0" />}
-        </div>
-
-        {/* Why now */}
-        {whyNow && isActive && (
-          <p className="text-sm text-muted-foreground italic leading-relaxed">{whyNow}</p>
-        )}
-
-        {/* Script preview */}
-        {script && isActive && (
-          <div>
-            <button
-              onClick={() => setShowScript(!showScript)}
-              className="text-sm text-primary font-medium flex items-center gap-1 hover:underline"
-            >
-              {showScript ? "Hide script" : "View script"} <ChevronRight className={`h-4 w-4 transition-transform ${showScript ? "rotate-90" : ""}`} />
-            </button>
-            {showScript && (
-              <div className="mt-2 p-4 bg-muted/50 rounded-md text-sm text-foreground whitespace-pre-wrap border border-border leading-relaxed relative">
-                {script}
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(script);
-                    const el = document.activeElement as HTMLElement;
-                    el?.blur();
-                  }}
-                  className="mt-3 w-full py-2.5 rounded-md bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
-                >
-                  📋 Copy to Clipboard
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Pillar */}
-        {pillar && isActive && (
-          <p className="text-sm text-muted-foreground">
-            <Target className="h-4 w-4 inline mr-1" />{pillar}
-          </p>
-        )}
-
-        {/* Action buttons */}
-        {isActive && (
-          <div className="flex items-center gap-3 pt-2">
-            <Button
-              size="lg"
-              onClick={() => onComplete(id)}
-              disabled={isCompleting || isDeferring}
-              className="bg-green-600 hover:bg-green-700 text-white text-base font-semibold px-6 py-3 h-12"
-            >
-              {isCompleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
-              Done
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => onDefer(id)}
-              disabled={isCompleting || isDeferring}
-              className="text-muted-foreground text-base px-6 py-3 h-12"
-            >
-              {isDeferring ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5 mr-2" />}
-              Tomorrow
-            </Button>
-          </div>
-        )}
-
-        {/* Deferred state */}
-        {isDeferred && (
-          <p className="text-xs text-muted-foreground">Moved to tomorrow</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { CheckCircle2, Flame, Trophy, Target, Copy, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 
 export default function TodaysGrowthPlan() {
-  const [showTopicPicker, setShowTopicPicker] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
   const utils = trpc.useUtils();
-  const topicsQuery = trpc.engagement.getTopics.useQuery(undefined, { staleTime: 300_000 });
-  const prefsQuery = trpc.engagement.getPreferences.useQuery(undefined, { staleTime: 60_000 });
+
+  // Queries
+  const planQuery = trpc.engagement.getDailyPlan.useQuery(undefined, { retry: 1 });
+  const categoriesQuery = trpc.engagement.getActionCategories.useQuery();
+  const topicsQuery = trpc.engagement.getTopics.useQuery();
+  const curriculumQuery = trpc.engagement.getCurriculumReminder.useQuery();
+  const streakQuery = trpc.routine.getStreak.useQuery();
+
+  // Mutations
+  const pickMutation = trpc.engagement.pickDailyActions.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
+      toast.success("Let's go! Your actions are set.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+  const completeMutation = trpc.engagement.completeAction.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
+      utils.routine.getStreak.invalidate();
+      toast.success("Nice work! Action complete.");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
   const selectTopicMutation = trpc.engagement.selectTopic.useMutation({
     onSuccess: () => {
       utils.engagement.getDailyPlan.invalidate();
-      utils.engagement.getPreferences.invalidate();
-      setShowTopicPicker(false);
+      toast.success("Topic updated! Your plan will refresh.");
     },
-  });
-  const { data, isLoading, error } = trpc.engagement.getDailyPlan.useQuery(undefined, {
-    retry: 1,
-    staleTime: 30_000,
+    onError: (err: any) => toast.error(err.message),
   });
 
-  const completeMutation = trpc.engagement.completeAction.useMutation({
-    onSuccess: () => utils.engagement.getDailyPlan.invalidate(),
-  });
+  // Local state
+  const [selectedActions, setSelectedActions] = useState<string[]>([]);
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+  const [expandedAction, setExpandedAction] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  const deferMutation = trpc.engagement.deferAction.useMutation({
-    onSuccess: () => utils.engagement.getDailyPlan.invalidate(),
-  });
+  const data = planQuery.data;
+  const streak = streakQuery.data;
+  const categories = categoriesQuery.data?.categories ?? [];
+  const curriculum = curriculumQuery.data;
 
-  const [completingId, setCompletingId] = useState<number | null>(null);
-  const [deferringId, setDeferringId] = useState<number | null>(null);
-  const [outcomeAction, setOutcomeAction] = useState<{ id: number; title: string } | null>(null);
+  // Handle action toggle in picker
+  const toggleAction = (key: string) => {
+    setSelectedActions(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
 
-  const handleComplete = async (actionId: number) => {
-    setCompletingId(actionId);
+  // Submit picks
+  const handleSubmitPicks = () => {
+    if (selectedActions.length < 3) {
+      toast.error("Pick at least 3 actions for today.");
+      return;
+    }
+    pickMutation.mutate({ actionKeys: selectedActions });
+  };
+
+  // Copy script to clipboard
+  const handleCopy = async (text: string, actionId: number) => {
     try {
-      await completeMutation.mutateAsync({ actionId });
-      // Show outcome modal after successful completion
-      const action = data?.actions.find(a => a.id === actionId);
-      if (action) {
-        setOutcomeAction({ id: actionId, title: action.title });
-      }
-    } finally {
-      setCompletingId(null);
+      await navigator.clipboard.writeText(text);
+      setCopiedId(actionId);
+      toast.success("Copied to clipboard!");
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error("Failed to copy");
     }
   };
 
-  const handleDefer = async (actionId: number) => {
-    setDeferringId(actionId);
-    try {
-      await deferMutation.mutateAsync({ actionId });
-    } finally {
-      setDeferringId(null);
-    }
-  };
-
-  // Feature not enabled — show a friendly placeholder
-  if (error?.data?.code === "FORBIDDEN") {
+  // Loading state
+  if (planQuery.isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Today's Growth Plan</h1>
-          <p className="text-muted-foreground mt-1">Coming soon — your personalized daily actions.</p>
-        </div>
+      <div className="max-w-2xl mx-auto p-6 space-y-6">
+        <div className="h-10 bg-muted rounded animate-pulse" />
+        <div className="h-32 bg-muted rounded animate-pulse" />
+        <div className="h-48 bg-muted rounded animate-pulse" />
       </div>
     );
   }
 
-  if (isLoading) {
+  // Error state
+  if (planQuery.error) {
+    if ((planQuery.error as any).data?.code === "FORBIDDEN") {
+      return (
+        <div className="max-w-2xl mx-auto p-6">
+          <h1 className="text-3xl font-bold">Today's Growth Plan</h1>
+          <p className="text-lg text-muted-foreground mt-2">Coming soon — your personalized daily actions.</p>
+        </div>
+      );
+    }
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Today's Growth Plan</h1>
-          <p className="text-muted-foreground mt-1">Building your plan...</p>
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <Card key={i} className="border-border bg-card animate-pulse">
-              <CardContent className="p-4 h-24" />
-            </Card>
-          ))}
-        </div>
+      <div className="max-w-2xl mx-auto p-6">
+        <h1 className="text-3xl font-bold">Today's Growth Plan</h1>
+        <p className="text-lg text-red-400 mt-2">Something went wrong. Please refresh.</p>
       </div>
     );
   }
 
-  if (!data) return null;
-
-  const pendingCount = data.actions.filter(a => a.status === "pending").length;
-  const completedCount = data.actions.filter(a => a.status === "completed").length;
-  const allDone = pendingCount === 0 && data.actions.length > 0;
+  const completedCount = data?.status === "active" ? (data.completedCount ?? 0) : 0;
+  const totalCount = data?.status === "active" ? (data.totalCount ?? 0) : 0;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto p-4 space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-7 w-7 text-amber-500" />
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Today's Growth Plan</h1>
-        </div>
-        <p className="text-lg text-muted-foreground mt-2">
-          {allDone
-            ? "All done for today — great work!"
-            : `${pendingCount} action${pendingCount !== 1 ? "s" : ""} to grow your practice today`}
+        <h1 className="text-3xl font-bold tracking-tight">Today's Growth Plan</h1>
+        <p className="text-lg text-muted-foreground mt-1">
+          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
       </div>
 
-      {/* Focus badge */}
+      {/* Streak & Progress */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card border border-border rounded-xl p-4 text-center">
+          <Flame className="h-6 w-6 text-orange-500 mx-auto mb-1" />
+          <p className="text-2xl font-bold">{streak?.currentStreak ?? 0}</p>
+          <p className="text-xs text-muted-foreground">Day Streak</p>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 text-center">
+          <Trophy className="h-6 w-6 text-yellow-500 mx-auto mb-1" />
+          <p className="text-2xl font-bold">{streak?.longestStreak ?? 0}</p>
+          <p className="text-xs text-muted-foreground">Best Streak</p>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 text-center">
+          <Target className="h-6 w-6 text-primary mx-auto mb-1" />
+          <p className="text-2xl font-bold">{completedCount}/{totalCount}</p>
+          <p className="text-xs text-muted-foreground">Today</p>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      {data?.status === "active" && (
+        <div className="w-full bg-muted rounded-full h-3">
+          <div
+            className="bg-emerald-500 h-3 rounded-full transition-all duration-500"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      )}
+
+      {/* Topic Badge + Change */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
-          Focus: {data.plan.focus}
+        <span className="px-3 py-1.5 rounded-full bg-primary/15 text-primary font-semibold text-sm">
+          Focus: {data?.topic?.label ?? "General Corrective Care"}
         </span>
-        {completedCount > 0 && (
-          <span className="text-sm text-green-500 font-semibold">
-            {completedCount}/{data.actions.length} completed
-          </span>
-        )}
         <button
           onClick={() => setShowTopicPicker(!showTopicPicker)}
-          className="text-sm px-3 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          className="text-sm text-muted-foreground hover:text-foreground underline"
         >
-          {prefsQuery.data?.selectedTopicId ? "Change Topic" : "Pick a Topic"}
+          Change topic
         </button>
       </div>
 
-      {/* Topic picker */}
-      {showTopicPicker && topicsQuery.data && (
-        <Card className="border-primary/20 bg-card">
-          <CardContent className="p-5 space-y-3">
-            <p className="text-base font-semibold text-foreground">Choose your focus condition:</p>
-            <p className="text-sm text-muted-foreground">This shapes your daily one-liners, social posts, and video ideas. Want a topic not on this list? Complete your coaching modules for a fully custom approach.</p>
-            <div className="grid gap-2">
-              {topicsQuery.data.topics.map(t => (
+      {/* Topic Picker */}
+      {showTopicPicker && (
+        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+          <p className="text-sm font-semibold text-foreground mb-2">Pick your focus condition:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {topicsQuery.data?.topics.map((t: any) => (
+              <button
+                key={t.id}
+                onClick={() => { selectTopicMutation.mutate({ topicId: t.id }); setShowTopicPicker(false); }}
+                className={`text-left p-3 rounded-lg border transition-colors ${
+                  data?.topic?.id === t.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                }`}
+              >
+                <p className="font-semibold text-sm text-foreground">{t.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 italic">
+            Want a topic not on this list? Complete your coaching modules for a fully custom approach.
+          </p>
+        </div>
+      )}
+
+      {/* Lyle Recommendation */}
+      {data?.lyleRecommendation && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-bold">Lyle Recommends</span>
+            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs font-bold">Priority</span>
+          </div>
+          <p className="text-base font-semibold text-foreground leading-relaxed">
+            {data.lyleRecommendation.actionText}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2 italic">
+            Your {data.lyleRecommendation.metricTrigger} trend is "{data.lyleRecommendation.trendState}" — this targets your {data.lyleRecommendation.pillar} pillar.
+          </p>
+        </div>
+      )}
+
+      {/* ─── ACTION PICKER (when no plan yet) ─── */}
+      {data?.status === "needs_pick" && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Pick your 3 actions for today</h2>
+            <p className="text-base text-muted-foreground mt-1">
+              Choose at least 3. These become your daily checklist.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {categories.map((cat: any) => {
+              const isSelected = selectedActions.includes(cat.key);
+              return (
                 <button
-                  key={t.id}
-                  onClick={() => selectTopicMutation.mutate({ topicId: t.id })}
-                  disabled={selectTopicMutation.isPending}
-                  className={`text-left p-3 rounded-lg border transition-all ${prefsQuery.data?.selectedTopicId === t.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/40 hover:bg-primary/5"}`}
+                  key={cat.key}
+                  onClick={() => toggleAction(cat.key)}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-border hover:border-primary/40"
+                  }`}
                 >
-                  <p className="text-base font-medium text-foreground">{t.label}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{cat.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-base font-semibold text-foreground">{cat.label}</p>
+                      <p className="text-sm text-muted-foreground">{cat.description}</p>
+                    </div>
+                    {isSelected && <CheckCircle2 className="h-6 w-6 text-emerald-500 shrink-0" />}
+                  </div>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+
+          <button
+            onClick={handleSubmitPicks}
+            disabled={selectedActions.length < 3 || pickMutation.isPending}
+            className="w-full py-4 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {pickMutation.isPending ? "Setting up..." : `Lock in ${selectedActions.length} action${selectedActions.length !== 1 ? "s" : ""}`}
+          </button>
+
+          {selectedActions.length > 0 && selectedActions.length < 3 && (
+            <p className="text-sm text-amber-400 text-center">Pick at least 3 actions</p>
+          )}
+        </div>
+      )}
+
+      {/* ─── ACTIVE CHECKLIST (when plan exists) ─── */}
+      {data?.status === "active" && data.actions && data.actions.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-foreground">Your actions today</h2>
+
+          {data.actions.map((action: any) => {
+            const isCompleted = action.status === "completed";
+            const isExpanded = expandedAction === action.id;
+
+            return (
+              <div
+                key={action.id}
+                className={`rounded-xl border-2 transition-all overflow-hidden ${
+                  isCompleted ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-card"
+                }`}
+              >
+                {/* Action header */}
+                <div className="p-4 flex items-start gap-3">
+                  <button
+                    onClick={() => !isCompleted && completeMutation.mutate({ actionId: action.id })}
+                    disabled={isCompleted || completeMutation.isPending}
+                    className={`mt-0.5 shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isCompleted
+                        ? "bg-emerald-500 border-emerald-500"
+                        : "border-muted-foreground hover:border-emerald-500"
+                    }`}
+                  >
+                    {isCompleted && <CheckCircle2 className="h-5 w-5 text-white" />}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-base font-semibold leading-relaxed ${isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                      {action.title}
+                    </p>
+                    {action.whyNow && !isCompleted && (
+                      <p className="text-sm text-muted-foreground mt-1">{action.whyNow}</p>
+                    )}
+                  </div>
+
+                  {action.script && (
+                    <button
+                      onClick={() => setExpandedAction(isExpanded ? null : action.id)}
+                      className="shrink-0 p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                    </button>
+                  )}
+                </div>
+
+                {/* Expanded script/content */}
+                {isExpanded && action.script && (
+                  <div className="px-4 pb-4 border-t border-border pt-3">
+                    <pre className="whitespace-pre-wrap text-sm text-foreground font-sans leading-relaxed bg-muted/50 rounded-lg p-4">
+                      {action.script}
+                    </pre>
+                    <button
+                      onClick={() => handleCopy(action.script!, action.id)}
+                      className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                    >
+                      <Copy className="h-4 w-4" />
+                      {copiedId === action.id ? "Copied!" : "Copy to clipboard"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* All complete celebration */}
+          {progressPercent === 100 && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-6 text-center">
+              <Trophy className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-foreground">All actions complete!</h3>
+              <p className="text-base text-muted-foreground mt-1">
+                Your streak is now <span className="font-bold text-emerald-400">{streak?.currentStreak ?? 1}</span> days!
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
 
-      {/* All done celebration */}
-      {allDone && (
-        <Card className="border-green-500/30 bg-green-500/5">
-          <CardContent className="p-8 text-center space-y-3">
-            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
-            <p className="text-xl font-bold text-foreground">Practice growth actions complete</p>
-            <p className="text-base text-muted-foreground leading-relaxed">
-              You took {completedCount} step{completedCount !== 1 ? "s" : ""} toward growing your practice today. Come back tomorrow for fresh actions.
-            </p>
-          </CardContent>
-        </Card>
+      {/* ─── CURRICULUM REMINDER ─── */}
+      {curriculum && !curriculum.allComplete && (
+        <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+          <h3 className="text-lg font-bold text-foreground">📚 Complete your modules</h3>
+          <p className="text-sm text-muted-foreground">
+            Finish these to unlock fully customized content, positioning, and referral language.
+          </p>
+          <div className="space-y-2">
+            {curriculum.incompleteModules.map((mod: any) => (
+              <a
+                key={mod.id}
+                href={`/curriculum/${mod.id}/coaching`}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/40 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{mod.title}</p>
+                  <p className="text-xs text-muted-foreground">{mod.completedSteps}/{mod.totalSteps} steps</p>
+                </div>
+                <div className="w-16 bg-muted rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full" style={{ width: `${mod.percentComplete}%` }} />
+                </div>
+                <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
+              </a>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground italic">
+            {curriculum.completedModules}/{curriculum.totalModules} modules complete
+          </p>
+        </div>
       )}
 
-      {/* Action cards */}
-      <div className="space-y-4">
-        {data.actions.map((action) => (
-          <ActionCard
-            key={action.id}
-            id={action.id}
-            title={action.title}
-            whyNow={action.whyNow}
-            script={action.script}
-            estimateMinutes={action.estimateMinutes}
-            pillar={action.pillar}
-            required={action.required}
-            status={action.status as ActionStatus}
-            source={action.source}
-            onComplete={handleComplete}
-            onDefer={handleDefer}
-            isCompleting={completingId === action.id}
-            isDeferring={deferringId === action.id}
-          />
-        ))}
-      </div>
-
-      {/* Empty state */}
-      {data.actions.length === 0 && (
-        <Card className="border-border bg-card">
-          <CardContent className="p-6 text-center space-y-2">
-            <Target className="h-8 w-8 text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              No actions generated yet. Log your WWLD stats and complete some coaching steps to get personalized recommendations.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Outcome reflection modal */}
-      {outcomeAction && (
-        <OutcomeModal
-          actionId={outcomeAction.id}
-          actionTitle={outcomeAction.title}
-          onClose={() => setOutcomeAction(null)}
-          onSuccess={() => utils.engagement.getDailyPlan.invalidate()}
-        />
-      )}
+      {/* AI Coach link */}
+      <a
+        href="/chat"
+        className="block w-full text-center py-3 rounded-xl border border-border hover:border-primary/40 text-base font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      >
+        💬 Have a question? Ask the AI Coach
+      </a>
     </div>
   );
 }

@@ -25,8 +25,8 @@ export default function WeeklyReview() {
     );
   }
 
-  const completedCount = data?.actions.filter(a => a.status === "completed").length ?? 0;
-  const totalCount = data?.actions.length ?? 0;
+  const completedCount = data?.actions?.filter((a: any) => a.status === "completed").length ?? 0;
+  const totalCount = data?.actions?.length ?? 0;
   const rate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
@@ -80,7 +80,7 @@ export default function WeeklyReview() {
               : "This week was quiet. One action tomorrow starts a new streak."}
           </p>
           <p className="text-xs text-muted-foreground">
-            Focus: {data?.plan.focus ?? "New Patients & Referrals"}
+            Focus: {(data as any)?.plan?.focus ?? data?.topic?.label ?? "New Patients & Referrals"}
           </p>
         </CardContent>
       </Card>
@@ -91,8 +91,8 @@ export default function WeeklyReview() {
           <p className="text-sm font-medium text-foreground">What you accomplished:</p>
           <div className="space-y-1">
             {data?.actions
-              .filter(a => a.status === "completed")
-              .map(a => (
+              ?.filter((a: any) => a.status === "completed")
+              .map((a: any) => (
                 <div key={a.id} className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
                   <span>{a.title}</span>
