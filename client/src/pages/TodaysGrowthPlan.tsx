@@ -157,13 +157,10 @@ export default function TodaysGrowthPlan() {
 
       {/* Lyle Recommendation */}
       {data?.lyleRecommendation && (
-        <div className="bg-amber-900/30 border-2 border-amber-500/40 rounded-2xl p-6">
-          <p className="text-sm font-bold text-amber-300 uppercase tracking-wide mb-2">Lyle Recommends</p>
-          <p className="text-xl font-bold text-white leading-relaxed">
+        <div className="bg-amber-900/30 border border-amber-500/40 rounded-xl px-4 py-3">
+          <p className="text-xs font-bold text-amber-300 uppercase tracking-wide">💡 Lyle says</p>
+          <p className="text-base font-semibold text-white mt-1 line-clamp-2">
             {data.lyleRecommendation.actionText}
-          </p>
-          <p className="text-base text-amber-200/70 mt-3">
-            Your {data.lyleRecommendation.metricTrigger} is "{data.lyleRecommendation.trendState}"
           </p>
         </div>
       )}
