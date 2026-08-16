@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, ArrowRight, Sparkles, Target, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { OutcomeModal } from "@/components/engagement/OutcomeModal";
 
 type ActionStatus = "pending" | "completed" | "deferred" | "skipped";
 
@@ -153,11 +154,17 @@ export default function TodaysGrowthPlan() {
 
   const [completingId, setCompletingId] = useState<number | null>(null);
   const [deferringId, setDeferringId] = useState<number | null>(null);
+  const [outcomeAction, setOutcomeAction] = useState<{ id: number; title: string } | null>(null);
 
   const handleComplete = async (actionId: number) => {
     setCompletingId(actionId);
     try {
       await completeMutation.mutateAsync({ actionId });
+      // Show outcome modal after successful completion
+      const action = data?.actions.find(a => a.id === actionId);
+      if (action) {
+        setOutcomeAction({ id: actionId, title: action.title });
+      }
     } finally {
       setCompletingId(null);
     }
@@ -280,6 +287,16 @@ export default function TodaysGrowthPlan() {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Outcome reflection modal */}
+      {outcomeAction && (
+        <OutcomeModal
+          actionId={outcomeAction.id}
+          actionTitle={outcomeAction.title}
+          onClose={() => setOutcomeAction(null)}
+          onSuccess={() => utils.engagement.getDailyPlan.invalidate()}
+        />
       )}
     </div>
   );
