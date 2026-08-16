@@ -21,6 +21,8 @@ import AdminStats from "./pages/AdminStats";
 import ModuleCoaching from "./pages/ModuleCoaching";
 import Landing from "./pages/Landing";
 import WWLD from "./pages/WWLD";
+import TodaysGrowthPlan from "./pages/TodaysGrowthPlan";
+import WeeklyReview from "./pages/WeeklyReview";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 import ProfileCompletion from "./components/ProfileCompletion";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
@@ -76,6 +78,8 @@ function AuthenticatedRouter() {
         <Route path="/admin/modules" component={AdminModules} />
         <Route path="/admin/stats" component={AdminStats} />
         <Route path="/wwld" component={WWLD} />
+        <Route path="/today" component={TodaysGrowthPlan} />
+        <Route path="/review" component={WeeklyReview} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

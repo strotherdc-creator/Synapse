@@ -21,6 +21,10 @@ import {
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 
+// Table accessors for use by engagement router (avoids circular imports)
+export function getUserAnswersTable() { return userAnswers; }
+export function getContentHistoryTable() { return contentHistory; }
+
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
@@ -42,12 +46,13 @@ export async function getDb() {
 }
 
 /** Run idempotent schema migrations — safe to call on every startup. */
-export async function runMigrations() {
+export async function runMigrations(additionalMigrations: string[] = []) {
   await getDb(); // ensure pool is initialized
   if (!_pool) { console.warn("[Migrations] No DB pool available, skipping."); return; }
-  const migrations = [
+  const migrations: string[] = [
     // Add recall column (Aug 2026)
     `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
+    ...additionalMigrations,
   ];
   for (const sql of migrations) {
     try {

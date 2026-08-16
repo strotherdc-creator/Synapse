@@ -33,6 +33,7 @@ import {
   PanelLeft,
   PenTool,
   Settings,
+  Sparkles,
   User,
   Zap,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { Button } from "./ui/button";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Sparkles, label: "Today's Plan", path: "/today" },
   { icon: BookOpen, label: "Curriculum", path: "/curriculum" },
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },

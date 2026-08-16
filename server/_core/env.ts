@@ -3,6 +3,15 @@ export const ENV = {
   clerkSecretKey: process.env.CLERK_SECRET_KEY ?? "",
   clerkPublishableKey: process.env.VITE_CLERK_PUBLISHABLE_KEY ?? "",
 
+  // Engagement feature flags
+  engagementDailyPlanEnabled: process.env.ENGAGEMENT_DAILY_PLAN_ENABLED === "true",
+  engagementActionsEnabled: process.env.ENGAGEMENT_ACTIONS_ENABLED === "true",
+  engagementContentActivationEnabled: process.env.ENGAGEMENT_CONTENT_ACTIVATION_ENABLED === "true",
+  engagementWeeklyReviewEnabled: process.env.ENGAGEMENT_WEEKLY_REVIEW_ENABLED === "true",
+  engagementEmailEnabled: process.env.ENGAGEMENT_EMAIL_ENABLED === "true",
+  engagementCampaignsEnabled: process.env.ENGAGEMENT_CAMPAIGNS_ENABLED === "true",
+  engagementPilotClerkIds: (process.env.ENGAGEMENT_PILOT_CLERK_IDS ?? "").split(",").filter(Boolean),
+
   // Database
   databaseUrl: process.env.DATABASE_URL ?? "",
 
