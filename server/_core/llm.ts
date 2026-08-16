@@ -9,7 +9,7 @@ export type ChatMessage = {
 
 export type LLMResponse = {
   content: string;
-  provider: "gemini" | "groq-gpt-oss-120b" | "groq-qwen-27b" | "groq-8b";
+  provider: "gemini" | "groq-gpt-oss-120b" | "groq-qwen-27b" | "groq-gpt-oss-20b";
 };
 
 // ─── Timeout Utility ───────────────────────────────────────────────
@@ -101,18 +101,45 @@ async function callGroq(messages: ChatMessage[], model: string): Promise<string>
   if (!ENV.groqApiKey) throw new Error("GROQ_API_KEY not configured");
 
   const groq = new Groq({ apiKey: ENV.groqApiKey });
+  const isGptOss = model.startsWith("openai/gpt-oss-");
+  const systemInstruction = messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const chatMessages = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({ role: message.role, content: message.content }));
+
+  // Groq recommends putting GPT-OSS instructions in the user message rather
+  // than relying on a system message. Preserve the app's existing prompt while
+  // keeping the fallback compatible with the supported model family.
+  if (isGptOss && systemInstruction) {
+    const firstUserMessage = chatMessages.find((message) => message.role === "user");
+    if (firstUserMessage) {
+      firstUserMessage.content = `Instructions:\n${systemInstruction}\n\nUser request:\n${firstUserMessage.content}`;
+    } else {
+      chatMessages.unshift({ role: "user", content: `Instructions:\n${systemInstruction}` });
+    }
+  }
 
   const completion = await groq.chat.completions.create({
     model,
-    messages: messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    })),
-    max_tokens: 4096,
+    messages: chatMessages,
+    ...(isGptOss
+      ? {
+          max_completion_tokens: 4096,
+          reasoning_effort: "low" as const,
+          include_reasoning: false,
+        }
+      : { max_tokens: 4096 }),
     temperature: 0.7,
   });
 
-  return completion.choices[0]?.message?.content ?? "Unable to generate response.";
+  const content = completion.choices[0]?.message?.content?.trim();
+  if (!content) {
+    throw new Error(`${model} returned no final response content`);
+  }
+  return content;
 }
 
 // ─── Unified LLM Interface (3-deep fallback with retry) ───────────
@@ -167,16 +194,16 @@ export async function invokeLLM(messages: ChatMessage[]): Promise<LLMResponse> {
       console.error(`[LLM] ${msg}`);
     }
 
-    // 4. Final fallback to Groq llama-3.1-8b-instant (fastest, highest rate limits)
+    // 4. Final fallback to Groq GPT-OSS 20B (supported replacement for retired Llama 3.1 8B Instant)
     try {
       const content = await withTimeout(
-        callGroq(messages, "llama-3.1-8b-instant"),
+        callGroq(messages, "openai/gpt-oss-20b"),
         15000,
-        "Groq-8b"
+        "Groq-GPT-OSS-20B"
       );
-      return { content, provider: "groq-8b" };
+      return { content, provider: "groq-gpt-oss-20b" };
     } catch (error: any) {
-      const msg = `Groq-8b: ${error.message}`;
+      const msg = `Groq-GPT-OSS-20B: ${error.message}`;
       errors.push(msg);
       console.error(`[LLM] ${msg}`);
     }
