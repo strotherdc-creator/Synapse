@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
@@ -33,12 +33,15 @@ function getTodayDate(): string {
 }
 
 /**
- * Silently redirects to /wwld on first login of the day if no stats have been logged.
- * Renders nothing — purely a side-effect component mounted inside the authenticated router.
+ * Daily action popup — shows on first visit of the day with two clear choices:
+ * 1. Today's Plan (start of day)
+ * 2. Log Stats (end of day)
+ * Dismisses after choice or if user taps outside.
  */
-function WwldLoginRedirect() {
+function DailyActionPopup() {
   const [location, setLocation] = useLocation();
-  const redirected = useRef(false);
+  const dismissed = useRef(false);
+  const [visible, setVisible] = useState(true);
   const today = getTodayDate();
 
   const { data: status } = trpc.wwld.getTodayStatus.useQuery(
@@ -47,24 +50,71 @@ function WwldLoginRedirect() {
   );
 
   useEffect(() => {
-    if (redirected.current) return;
-    if (!status) return;
-    // Only redirect if user landed on root "/" and hasn't logged any session today
-    const nothingLogged = !status.morning && !status.afternoon && !status.endOfDay;
-    if (nothingLogged && location === "/") {
-      redirected.current = true;
-      setLocation("/wwld");
+    // Only show popup on root "/" path and first time today
+    if (dismissed.current || location !== "/") {
+      setVisible(false);
     }
   }, [status, location, setLocation]);
 
-  return null;
+  // Don't show if already dismissed or not on root
+  if (!visible || dismissed.current || location !== "/") return null;
+
+  const handleChoice = (path: string) => {
+    dismissed.current = true;
+    setVisible(false);
+    setLocation(path);
+  };
+
+  const handleDismiss = () => {
+    dismissed.current = true;
+    setVisible(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={handleDismiss}
+    >
+      <div
+        className="bg-card border border-border rounded-2xl shadow-2xl max-w-sm w-full p-8 space-y-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-foreground">Welcome back, Doc</h2>
+          <p className="text-base text-muted-foreground">What are you here to do?</p>
+        </div>
+
+        <div className="space-y-3">
+          <button
+            onClick={() => handleChoice("/today")}
+            className="w-full py-4 px-6 rounded-xl bg-primary text-white text-lg font-bold hover:bg-primary/90 transition-colors shadow-lg flex items-center justify-center gap-3"
+          >
+            ✨ Today's Growth Plan
+          </button>
+          <button
+            onClick={() => handleChoice("/wwld")}
+            className="w-full py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-3"
+          >
+            📊 Log Stats
+          </button>
+        </div>
+
+        <button
+          onClick={handleDismiss}
+          className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Skip — go to dashboard
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function AuthenticatedRouter() {
   return (
     <DashboardLayout>
-      {/* WWLD-first: redirect to /wwld on login if no stats logged today */}
-      <WwldLoginRedirect />
+      {/* Daily action popup — choose Today's Plan or Log Stats */}
+      <DailyActionPopup />
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/curriculum" component={Curriculum} />

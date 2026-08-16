@@ -348,15 +348,23 @@ export default function WWLD() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Period Tabs */}
-        <div className="flex gap-1 bg-muted rounded-xl p-1">
+      {/* Period Tabs */}
+        <div className="flex gap-1 bg-muted rounded-xl p-1 items-center">
           {(["today", "wtd", "mtd", "ytd", "trends"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${period === p ? "bg-[var(--gold)] text-black shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
+                p === "trends"
+                  ? period === p
+                    ? "bg-emerald-500 text-white shadow-md text-sm py-2.5"
+                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 text-sm py-2.5"
+                  : period === p
+                    ? "bg-[var(--gold)] text-black shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              {PERIOD_LABELS[p]}
+              {p === "trends" ? "📈 Trends" : PERIOD_LABELS[p]}
             </button>
           ))}
         </div>
