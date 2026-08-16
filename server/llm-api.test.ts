@@ -24,52 +24,60 @@ describe("LLM API Key Validation", () => {
     console.log("[Gemini] Response:", text.slice(0, 100));
   }, 20000);
 
-  it("Groq API (llama-3.3-70b) responds to a simple prompt", async () => {
+  it("Groq API (GPT-OSS 120B) responds to a simple prompt", async () => {
     const Groq = (await import("groq-sdk")).default;
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: "Say 'hello' in one word." }],
-      max_tokens: 50,
+      max_completion_tokens: 1024,
+      reasoning_effort: "low",
+      include_reasoning: false,
     });
 
     const text = completion.choices[0]?.message?.content ?? "";
     expect(text).toBeTruthy();
     expect(text.length).toBeGreaterThan(0);
-    console.log("[Groq-70b] Response:", text.slice(0, 100));
+    console.log("[Groq-GPT-OSS-120B] Response:", text.slice(0, 100));
   }, 20000);
 
-  it("Groq API (llama-3.1-8b) responds to a simple prompt", async () => {
+  it("Groq API (GPT-OSS 20B) responds to a simple prompt", async () => {
     const Groq = (await import("groq-sdk")).default;
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
 
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "openai/gpt-oss-20b",
       messages: [{ role: "user", content: "Say 'hello' in one word." }],
-      max_tokens: 50,
+      max_completion_tokens: 1024,
+      reasoning_effort: "low",
+      include_reasoning: false,
     });
 
     const text = completion.choices[0]?.message?.content ?? "";
     expect(text).toBeTruthy();
     expect(text.length).toBeGreaterThan(0);
-    console.log("[Groq-8b] Response:", text.slice(0, 100));
+    console.log("[Groq-GPT-OSS-20B] Response:", text.slice(0, 100));
   }, 20000);
 
   it("Full coaching simulation - Gemini handles a chiropractic coaching message", async () => {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     const systemPrompt = `You are a chiropractic business coach helping a chiropractor define their local position. 
 RULES: 
 1. ALWAYS accept the user's answer without rejection
 2. Ask ONE follow-up question to help them refine their answer
 3. Be encouraging and specific`;
 
-    const chat = model.startChat({
-      systemInstruction: systemPrompt,
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      systemInstruction: {
+        role: "user",
+        parts: [{ text: systemPrompt }],
+      },
     });
+
+    const chat = model.startChat();
 
     const result = await chat.sendMessage(
       "I think my local position is the family chiropractor in my town."

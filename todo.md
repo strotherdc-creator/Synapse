@@ -189,3 +189,13 @@
 - [x] Add step-by-step instruction labels (Step 1 / Step 2)
 - [x] Visually separate the two actions so users understand the flow
 - [x] Rename "Confirm & Next Step" to "Save & Continue"
+
+## Isolated Engagement Build and Staged Rollout (August 2026)
+- [x] Validate GitHub repository access and clone the current production source into an isolated workspace
+- [x] Create a dedicated engagement implementation branch
+- [x] Correct the stale Gemini API test configuration and replace the decommissioned Groq 8B fallback in the isolated baseline
+- [x] Record passing TypeScript, 23-test, and production-build baseline results
+- [ ] Write the staging, data-migration, feature-flag, rollback, and acceptance-criteria plan
+- [ ] Build the Today’s Growth Plan, action tracking, content activation, and outcome capture behind feature flags
+- [ ] Build contextual cues, weekly review, re-entry flow, and campaign framework behind feature flags
+- [ ] Run automated tests, staging smoke tests, pilot validation, and production-promotion review
