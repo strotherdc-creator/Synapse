@@ -196,6 +196,7 @@
 - [x] Correct the stale Gemini API test configuration and replace the decommissioned Groq 8B fallback in the isolated baseline
 - [x] Record passing TypeScript, 23-test, and production-build baseline results
 - [x] Write the staging, data-migration, feature-flag, rollback, and acceptance-criteria plan
-- [ ] Build the Today’s Growth Plan, action tracking, content activation, and outcome capture behind feature flags
-- [ ] Build contextual cues, weekly review, re-entry flow, and campaign framework behind feature flags
-- [ ] Run automated tests, staging smoke tests, pilot validation, and production-promotion review
+- [x] Build the Today's Growth Plan, action tracking, content activation, and outcome capture behind feature flags
+- [x] Build contextual cues, weekly review, re-entry flow, and campaign framework behind feature flags
+- [x] Run automated tests, staging smoke tests, pilot validation, and production-promotion review
+- [x] Merge to main and deploy to Railway production

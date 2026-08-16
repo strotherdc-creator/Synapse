@@ -20,7 +20,7 @@ export default function Landing() {
             <span className="text-lg font-bold tracking-tight">Synapse</span>
           </div>
           <SignInButton mode="modal">
-            <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button className="text-lg font-semibold px-6 py-2 rounded-lg bg-white text-black hover:bg-gray-100 transition-colors shadow-md">
               Login
             </button>
           </SignInButton>
