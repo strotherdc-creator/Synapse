@@ -213,7 +213,20 @@ export default function TodaysGrowthPlan() {
       {/* ─── CURRENT ACTION (one at a time) ─── */}
       {currentAction && (
         <div className="space-y-4">
-          {/* Back button */}
+          {/* Topic badge — always visible with the action */}
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-sm">
+              {data?.topic?.label ?? "General Corrective Care"}
+            </span>
+            <button
+              onClick={() => setShowTopicPicker(!showTopicPicker)}
+              className="text-sm text-gray-400 hover:text-white underline"
+            >
+              Change
+            </button>
+          </div>
+
+          {/* Back and refresh buttons */}
           <div className="flex items-center justify-between">
             <button
               onClick={() => cancelMutation.mutate({ actionId: currentAction.id })}
