@@ -268,3 +268,99 @@ export const lyleServedLog = pgTable("lyle_served_log", {
 });
 export type LyleServedLog = typeof lyleServedLog.$inferSelect;
 export type InsertLyleServedLog = typeof lyleServedLog.$inferInsert;
+
+// ─── Engagement: Daily Growth Plans ───────────────────────────────
+// One plan per user per day — the "Today's Growth Plan"
+
+export const dailyGrowthPlans = pgTable(
+  "daily_growth_plans",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    planDate: varchar("plan_date", { length: 10 }).notNull(), // YYYY-MM-DD
+    focus: varchar("focus", { length: 100 }).notNull(), // e.g. "New Patients & Referrals"
+    state: varchar("state", { length: 20 }).notNull().default("active"), // active | completed | skipped
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ([
+    unique().on(table.userId, table.planDate),
+  ])
+);
+export type DailyGrowthPlan = typeof dailyGrowthPlans.$inferSelect;
+export type InsertDailyGrowthPlan = typeof dailyGrowthPlans.$inferInsert;
+
+// ─── Engagement: Growth Actions ──────────────────────────────────
+// Individual recommended or user-selected real-world actions
+
+export const growthActions = pgTable("growth_actions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  planId: integer("plan_id"), // nullable — can exist without a plan
+  source: varchar("source", { length: 50 }).notNull(), // lyle | coaching | content | routine | campaign | manual
+  sourceRef: varchar("source_ref", { length: 100 }), // e.g. lyle content ID, step ID, etc.
+  title: varchar("title", { length: 500 }).notNull(),
+  whyNow: text("why_now"), // brief explanation of relevance
+  script: text("script"), // ready-to-use script/copy if applicable
+  estimateMinutes: integer("estimate_minutes").default(5),
+  pillar: varchar("pillar", { length: 100 }), // growth pillar category
+  sortOrder: integer("sort_order").default(0).notNull(),
+  required: boolean("required").default(false).notNull(), // max 1 required per plan
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending | completed | deferred | skipped
+  actionDate: varchar("action_date", { length: 10 }).notNull(), // YYYY-MM-DD
+  completedAt: timestamp("completed_at"),
+  deferredTo: varchar("deferred_to", { length: 10 }), // YYYY-MM-DD if deferred
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type GrowthAction = typeof growthActions.$inferSelect;
+export type InsertGrowthAction = typeof growthActions.$inferInsert;
+
+// ─── Engagement: Action Outcomes ─────────────────────────────────
+// Optional proof/result following action completion (30-second capture)
+
+export const growthActionOutcomes = pgTable("growth_action_outcomes", {
+  id: serial("id").primaryKey(),
+  actionId: integer("action_id").notNull(),
+  userId: integer("user_id").notNull(),
+  outcomeType: varchar("outcome_type", { length: 50 }).notNull(), // spoke | posted | sent | scheduled | other
+  confidence: integer("confidence"), // 1-5 self-rating
+  note: text("note"), // brief free-text (no patient info)
+  completionSeconds: integer("completion_seconds"), // how long the real-world action took
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type GrowthActionOutcome = typeof growthActionOutcomes.$inferSelect;
+export type InsertGrowthActionOutcome = typeof growthActionOutcomes.$inferInsert;
+
+// ─── Engagement: User Preferences ────────────────────────────────
+// Work anchors, delivery channels, and quiet-day settings
+
+export const userEngagementPreferences = pgTable("user_engagement_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  timezone: varchar("timezone", { length: 50 }).default("America/Chicago"),
+  morningAnchor: varchar("morning_anchor", { length: 5 }).default("07:30"), // HH:MM
+  endOfDayAnchor: varchar("end_of_day_anchor", { length: 5 }).default("17:00"),
+  emailEnabled: boolean("email_enabled").default(true).notNull(),
+  emailAddress: varchar("email_address", { length: 320 }),
+  quietDays: varchar("quiet_days", { length: 50 }).default(""), // comma-separated: "sat,sun"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type UserEngagementPreference = typeof userEngagementPreferences.$inferSelect;
+export type InsertUserEngagementPreference = typeof userEngagementPreferences.$inferInsert;
+
+// ─── Engagement: Events ──────────────────────────────────────────
+// Append-only product telemetry for engagement analytics
+
+export const engagementEvents = pgTable("engagement_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  eventName: varchar("event_name", { length: 100 }).notNull(), // plan_viewed | action_completed | action_deferred | review_opened | email_sent
+  entityType: varchar("entity_type", { length: 50 }), // plan | action | outcome | review
+  entityId: integer("entity_id"),
+  metadata: text("metadata"), // JSON string for flexible context
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type EngagementEvent = typeof engagementEvents.$inferSelect;
+export type InsertEngagementEvent = typeof engagementEvents.$inferInsert;

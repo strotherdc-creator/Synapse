@@ -13,6 +13,7 @@ import { seedCoachingSteps } from "../seed-coaching";
 import { seedLyleAlgorithmContent } from "../seed-lyle";
 import { scheduleWwldBackup } from "../wwld-backup";
 import { runMigrations } from "../db";
+import { ENGAGEMENT_MIGRATIONS } from "../engagement/migrations";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -133,7 +134,7 @@ async function startServer() {
     console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
 
     // Run schema migrations (idempotent — safe on every startup)
-    runMigrations().catch((err) => console.error("[Migrations] Failed:", err));
+    runMigrations(ENGAGEMENT_MIGRATIONS).catch((err) => console.error("[Migrations] Failed:", err));
     // Seed coaching steps (idempotent — only runs if tables are empty)
     seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
     seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));

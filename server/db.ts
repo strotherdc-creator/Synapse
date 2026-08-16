@@ -42,12 +42,13 @@ export async function getDb() {
 }
 
 /** Run idempotent schema migrations — safe to call on every startup. */
-export async function runMigrations() {
+export async function runMigrations(additionalMigrations: string[] = []) {
   await getDb(); // ensure pool is initialized
   if (!_pool) { console.warn("[Migrations] No DB pool available, skipping."); return; }
-  const migrations = [
+  const migrations: string[] = [
     // Add recall column (Aug 2026)
     `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
+    ...additionalMigrations,
   ];
   for (const sql of migrations) {
     try {
