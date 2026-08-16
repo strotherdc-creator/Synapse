@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { CheckCircle2, Flame, Trophy, Target, Copy, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { CheckCircle2, Flame, Trophy, Target, Copy, ExternalLink } from "lucide-react";
 
 export default function TodaysGrowthPlan() {
   const utils = trpc.useUtils();
@@ -40,7 +40,6 @@ export default function TodaysGrowthPlan() {
   // Local state
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [showTopicPicker, setShowTopicPicker] = useState(false);
-  const [expandedAction, setExpandedAction] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const data = planQuery.data;
@@ -258,7 +257,6 @@ export default function TodaysGrowthPlan() {
 
           {data.actions.map((action: any) => {
             const isCompleted = action.status === "completed";
-            const isExpanded = expandedAction === action.id;
 
             return (
               <div
@@ -285,30 +283,18 @@ export default function TodaysGrowthPlan() {
                     <p className={`text-base font-semibold leading-relaxed ${isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
                       {action.title}
                     </p>
-                    {action.whyNow && !isCompleted && (
-                      <p className="text-sm text-muted-foreground mt-1">{action.whyNow}</p>
-                    )}
                   </div>
-
-                  {action.script && (
-                    <button
-                      onClick={() => setExpandedAction(isExpanded ? null : action.id)}
-                      className="shrink-0 p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                    </button>
-                  )}
                 </div>
 
-                {/* Expanded script/content */}
-                {isExpanded && action.script && (
-                  <div className="px-4 pb-4 border-t border-border pt-3">
+                {/* Script/content — always visible, this IS the product */}
+                {action.script && !isCompleted && (
+                  <div className="px-4 pb-4 pt-0">
                     <pre className="whitespace-pre-wrap text-sm text-foreground font-sans leading-relaxed bg-muted/50 rounded-lg p-4">
                       {action.script}
                     </pre>
                     <button
                       onClick={() => handleCopy(action.script!, action.id)}
-                      className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                      className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-white text-base font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <Copy className="h-4 w-4" />
                       {copiedId === action.id ? "Copied!" : "Copy to clipboard"}
