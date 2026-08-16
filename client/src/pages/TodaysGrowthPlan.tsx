@@ -41,7 +41,7 @@ export default function TodaysGrowthPlan() {
       // Optimistic: immediately show the picker by setting plan data to needs_pick
       await utils.engagement.getDailyPlan.cancel();
       const prev = utils.engagement.getDailyPlan.getData();
-      utils.engagement.getDailyPlan.setData(undefined, { status: "needs_pick" as const, actions: [], lyleRecommendation: prev?.lyleRecommendation ?? null, topic: prev?.topic ?? null });
+      utils.engagement.getDailyPlan.setData(undefined, { status: "needs_pick" as const, actions: [], lyleRecommendation: (prev as any)?.lyleRecommendation ?? undefined, topic: (prev as any)?.topic ?? undefined });
       return { prev };
     },
     onSuccess: () => {
