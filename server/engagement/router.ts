@@ -3,6 +3,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { isEngagementEnabled } from "./flags";
 import { TRPCError } from "@trpc/server";
 import * as db from "../db";
+import { getTopicById, getTopicLabels } from "./quick-start-topics";
 import {
   dailyGrowthPlans,
   growthActions,
@@ -13,7 +14,7 @@ import {
   lyleServedLog,
   wwldSessions,
 } from "../../shared/schema";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, isNull } from "drizzle-orm";
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -54,6 +55,15 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
   if (!dbInstance) return [];
 
   const actions: PlanAction[] = [];
+
+  // Get user's selected topic for fallback content
+  const [userPrefs] = await dbInstance
+    .select()
+    .from(userEngagementPreferences)
+    .where(eq(userEngagementPreferences.userId, userId))
+    .limit(1);
+  const selectedTopicId = userPrefs?.selectedTopicId ?? null;
+  const topic = selectedTopicId ? getTopicById(selectedTopicId) : null;
 
   // ── 1. Lyle daily action ──────────────────────────────────────────
   // Check if there's a Lyle recommendation for today that hasn't been acted on
@@ -96,7 +106,10 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
     .orderBy(desc(db.getUserAnswersTable().updatedAt))
     .limit(5);
 
-  if (recentAnswers.length > 0 && actions.length < 3) {
+  // Only use coaching answers if they have meaningful content (not fragments)
+  const usableAnswers = recentAnswers.filter(a => a.answer && a.answer.length > 20);
+
+  if (usableAnswers.length > 0 && actions.length < 3) {
     // Check if any of these answers have already been activated today
     const existingActions = await dbInstance
       .select()
@@ -108,7 +121,7 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
       ));
 
     const activatedRefs = new Set(existingActions.map(a => a.sourceRef));
-    const unactivated = recentAnswers.find(a => !activatedRefs.has(`answer-${a.id}`));
+    const unactivated = usableAnswers.find(a => !activatedRefs.has(`answer-${a.id}`));
 
     if (unactivated) {
       const answerPreview = unactivated.answer.length > 80
@@ -125,6 +138,20 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
         required: false,
       });
     }
+  } else if (topic && actions.length < 3) {
+    // No usable coaching answers — use the quick-start topic instead
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    const liner = topic.tableTalkOneLiners[dayOfYear % topic.tableTalkOneLiners.length];
+    actions.push({
+      source: "coaching",
+      sourceRef: `topic-${topic.id}-liner-${dayOfYear % topic.tableTalkOneLiners.length}`,
+      title: `Say this today: "${liner}"`,
+      whyNow: `This is how patients describe you when you're positioned for ${topic.shortLabel}. Use it at the table or in conversation.`,
+      script: `One-liner to use:\n"${liner}"\n\nReferral trigger:\n"${topic.referralTriggerLine}"\n\nWant a fully customized version? Complete your coaching modules.`,
+      estimateMinutes: 2,
+      pillar: "Communication & Listening",
+      required: false,
+    });
   }
 
   // ── 3. Content Studio activation ──────────────────────────────────
@@ -154,14 +181,34 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
       actions.push({
         source: "content",
         sourceRef: `content-${unactivatedContent.id}`,
-        title: `Post/send your ${typeLabel}`,
-        whyNow: "You created this content — sharing it builds visibility and referrals.",
+        title: `Copy & post your ${typeLabel}`,
+        whyNow: "You created this content — copy it, post it, and build your visibility today.",
         script: unactivatedContent.generatedContent.slice(0, 500),
         estimateMinutes: 2,
         pillar: "Referral & Visibility",
         required: false,
       });
     }
+  } else if (topic && actions.length < 3) {
+    // No content studio items — generate a topic-based social post with visual guidance
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    const postIndex = dayOfYear % topic.socialPostTemplates.length;
+    const videoIndex = dayOfYear % topic.videoTopics.length;
+    const photoIndex = dayOfYear % topic.photoSuggestions.length;
+    const post = topic.socialPostTemplates[postIndex];
+    const videoTopic = topic.videoTopics[videoIndex];
+    const photoSuggestion = topic.photoSuggestions[photoIndex];
+
+    actions.push({
+      source: "content",
+      sourceRef: `topic-${topic.id}-post-${postIndex}`,
+      title: `Post about ${topic.shortLabel} today`,
+      whyNow: `Consistent visibility on ${topic.label} builds your reputation as the go-to doctor for this.`,
+      script: `📋 COPY THIS POST:\n\n${post}\n\n📸 VISUAL OPTIONS:\n\n• Photo idea: ${photoSuggestion}\n• Video idea (30-60 sec): ${videoTopic}\n• AI image prompt (paste into Gemini/ChatGPT):\n  "${topic.imagePromptTemplates[postIndex % topic.imagePromptTemplates.length]}"`,
+      estimateMinutes: 5,
+      pillar: "Referral & Visibility",
+      required: false,
+    });
   }
 
   // ── 4. WWLD stat entry reminder ───────────────────────────────────
@@ -195,6 +242,47 @@ async function buildDailyActions(userId: number, date: string): Promise<PlanActi
 // ─── Engagement Router ──────────────────────────────────────────────
 
 export const engagementRouter = router({
+  // Get available quick-start topics
+  getTopics: protectedProcedure.query(async () => {
+    return { topics: getTopicLabels() };
+  }),
+
+  // Set the user's selected quick-start topic
+  selectTopic: protectedProcedure
+    .input(z.object({ topicId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      // Validate topic exists
+      const topic = getTopicById(input.topicId);
+      if (!topic) throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid topic ID" });
+
+      const [existing] = await dbInstance
+        .select()
+        .from(userEngagementPreferences)
+        .where(eq(userEngagementPreferences.userId, ctx.user.id))
+        .limit(1);
+
+      if (existing) {
+        await dbInstance
+          .update(userEngagementPreferences)
+          .set({ selectedTopicId: input.topicId, updatedAt: new Date() })
+          .where(eq(userEngagementPreferences.userId, ctx.user.id));
+      } else {
+        await dbInstance
+          .insert(userEngagementPreferences)
+          .values({ userId: ctx.user.id, emailAddress: ctx.user.email, selectedTopicId: input.topicId });
+      }
+
+      // Delete today's plan so it regenerates with the new topic
+      const date = todayStr();
+      await dbInstance.delete(growthActions).where(and(eq(growthActions.userId, ctx.user.id), eq(growthActions.actionDate, date)));
+      await dbInstance.delete(dailyGrowthPlans).where(and(eq(dailyGrowthPlans.userId, ctx.user.id), eq(dailyGrowthPlans.planDate, date)));
+
+      return { success: true, topicId: input.topicId, topicLabel: topic.label };
+    }),
+
   // Get or create today's growth plan
   getDailyPlan: protectedProcedure.query(async ({ ctx }) => {
     guardFeature("dailyPlan", ctx.user.clerkId);

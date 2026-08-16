@@ -344,6 +344,7 @@ export const userEngagementPreferences = pgTable("user_engagement_preferences", 
   emailEnabled: boolean("email_enabled").default(true).notNull(),
   emailAddress: varchar("email_address", { length: 320 }),
   quietDays: varchar("quiet_days", { length: 50 }).default(""), // comma-separated: "sat,sun"
+  selectedTopicId: varchar("selected_topic_id", { length: 50 }), // quick-start topic ID
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

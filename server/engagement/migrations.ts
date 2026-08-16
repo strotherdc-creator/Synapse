@@ -70,4 +70,6 @@ export const ENGAGEMENT_MIGRATIONS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_growth_actions_plan ON growth_actions(plan_id)`,
   `CREATE INDEX IF NOT EXISTS idx_daily_growth_plans_user_date ON daily_growth_plans(user_id, plan_date)`,
   `CREATE INDEX IF NOT EXISTS idx_engagement_events_user ON engagement_events(user_id, created_at)`,
+  // Add selectedTopicId column for quick-start topic selection
+  `ALTER TABLE user_engagement_preferences ADD COLUMN IF NOT EXISTS selected_topic_id VARCHAR(50)`,
 ];

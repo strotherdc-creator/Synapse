@@ -89,8 +89,18 @@ function ActionCard({
               {showScript ? "Hide script" : "View script"} <ChevronRight className={`h-4 w-4 transition-transform ${showScript ? "rotate-90" : ""}`} />
             </button>
             {showScript && (
-              <div className="mt-2 p-4 bg-muted/50 rounded-md text-sm text-foreground whitespace-pre-wrap border border-border leading-relaxed">
+              <div className="mt-2 p-4 bg-muted/50 rounded-md text-sm text-foreground whitespace-pre-wrap border border-border leading-relaxed relative">
                 {script}
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(script);
+                    const el = document.activeElement as HTMLElement;
+                    el?.blur();
+                  }}
+                  className="mt-3 w-full py-2.5 rounded-md bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  📋 Copy to Clipboard
+                </button>
               </div>
             )}
           </div>
@@ -138,7 +148,18 @@ function ActionCard({
 }
 
 export default function TodaysGrowthPlan() {
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const utils = trpc.useUtils();
+  const topicsQuery = trpc.engagement.getTopics.useQuery(undefined, { staleTime: 300_000 });
+  const prefsQuery = trpc.engagement.getPreferences.useQuery(undefined, { staleTime: 60_000 });
+  const selectTopicMutation = trpc.engagement.selectTopic.useMutation({
+    onSuccess: () => {
+      utils.engagement.getDailyPlan.invalidate();
+      utils.engagement.getPreferences.invalidate();
+      setShowTopicPicker(false);
+    },
+  });
   const { data, isLoading, error } = trpc.engagement.getDailyPlan.useQuery(undefined, {
     retry: 1,
     staleTime: 30_000,
@@ -231,7 +252,7 @@ export default function TodaysGrowthPlan() {
       </div>
 
       {/* Focus badge */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <span className="text-sm px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
           Focus: {data.plan.focus}
         </span>
@@ -240,7 +261,36 @@ export default function TodaysGrowthPlan() {
             {completedCount}/{data.actions.length} completed
           </span>
         )}
+        <button
+          onClick={() => setShowTopicPicker(!showTopicPicker)}
+          className="text-sm px-3 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+        >
+          {prefsQuery.data?.selectedTopicId ? "Change Topic" : "Pick a Topic"}
+        </button>
       </div>
+
+      {/* Topic picker */}
+      {showTopicPicker && topicsQuery.data && (
+        <Card className="border-primary/20 bg-card">
+          <CardContent className="p-5 space-y-3">
+            <p className="text-base font-semibold text-foreground">Choose your focus condition:</p>
+            <p className="text-sm text-muted-foreground">This shapes your daily one-liners, social posts, and video ideas. Want a topic not on this list? Complete your coaching modules for a fully custom approach.</p>
+            <div className="grid gap-2">
+              {topicsQuery.data.topics.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => selectTopicMutation.mutate({ topicId: t.id })}
+                  disabled={selectTopicMutation.isPending}
+                  className={`text-left p-3 rounded-lg border transition-all ${prefsQuery.data?.selectedTopicId === t.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/40 hover:bg-primary/5"}`}
+                >
+                  <p className="text-base font-medium text-foreground">{t.label}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* All done celebration */}
       {allDone && (
