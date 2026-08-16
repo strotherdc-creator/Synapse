@@ -228,7 +228,7 @@ export default function ModuleCoaching() {
         {
           role: "assistant",
           content:
-            "Sorry, I wasn\u2019t able to respond. Please try again in a moment.",
+            "That didn\u2019t go through \u2014 send your answer again.",
         },
       ]);
     },

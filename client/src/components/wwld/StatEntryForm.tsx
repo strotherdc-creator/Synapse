@@ -56,7 +56,7 @@ export function StatEntryForm({
   const [values, setValues] = useState<StatValues>({
     officeVisits: initialValues?.officeVisits ?? 0,
     newPatients: initialValues?.newPatients ?? 0,
-    recall: (initialValues as any)?.recall ?? 0,
+    recall: initialValues?.recall ?? 0,
     testResults: initialValues?.testResults ?? 0,
     progressExams: initialValues?.progressExams ?? 0,
     performanceReviews: initialValues?.performanceReviews ?? 0,

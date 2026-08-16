@@ -816,7 +816,11 @@ const wwldRouter = router({
           // Deterministic within the week: pick by (userId + weekStart) mod pool.length
           const seed = (userId * 31 + parseInt(thisMondayStr.replace(/-/g, ""), 10)) % pool.length;
           weeklyContent = pool[Math.abs(seed) % pool.length];
-          if (isMonday) {
+          // Only log a new "served" row the first time this content is picked —
+          // getDailyAction is a query and can be refetched by the client at any
+          // time, so re-marking already-served content would grow the served
+          // log unbounded without changing the (deterministic) recommendation.
+          if (isMonday && !servedIds.includes(weeklyContent.contentId)) {
             await db.markContentServed(userId, weeklyContent.contentId);
           }
         }
@@ -837,7 +841,10 @@ const wwldRouter = router({
           const todayStr = endStr.replace(/-/g, "");
           const seed = (userId * 17 + parseInt(todayStr, 10)) % pool.length;
           dailyContent = pool[Math.abs(seed) % pool.length];
-          await db.markContentServed(userId, dailyContent.contentId);
+          // See note above — only log the first time this content is served.
+          if (!servedIds.includes(dailyContent.contentId)) {
+            await db.markContentServed(userId, dailyContent.contentId);
+          }
         }
       }
 

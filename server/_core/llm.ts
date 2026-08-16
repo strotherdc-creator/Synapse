@@ -9,7 +9,7 @@ export type ChatMessage = {
 
 export type LLMResponse = {
   content: string;
-  provider: "gemini" | "groq-gpt-oss-120b" | "groq-qwen-27b" | "groq-8b";
+  provider: "gemini" | "groq-gpt-oss-120b" | "groq-qwen-27b" | "groq-gpt-oss-20b";
 };
 
 // ─── Timeout Utility ───────────────────────────────────────────────
@@ -167,16 +167,16 @@ export async function invokeLLM(messages: ChatMessage[]): Promise<LLMResponse> {
       console.error(`[LLM] ${msg}`);
     }
 
-    // 4. Final fallback to Groq llama-3.1-8b-instant (fastest, highest rate limits)
+    // 4. Final fallback to Groq GPT-OSS 20B (replaces decommissioned llama-3.1-8b-instant)
     try {
       const content = await withTimeout(
-        callGroq(messages, "llama-3.1-8b-instant"),
+        callGroq(messages, "openai/gpt-oss-20b"),
         15000,
-        "Groq-8b"
+        "Groq-GPT-OSS-20B"
       );
-      return { content, provider: "groq-8b" };
+      return { content, provider: "groq-gpt-oss-20b" };
     } catch (error: any) {
-      const msg = `Groq-8b: ${error.message}`;
+      const msg = `Groq-GPT-OSS-20B: ${error.message}`;
       errors.push(msg);
       console.error(`[LLM] ${msg}`);
     }

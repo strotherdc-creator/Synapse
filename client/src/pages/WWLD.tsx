@@ -15,6 +15,7 @@ interface DayData {
   date: string;
   officeVisits: number;
   newPatients: number;
+  recall: number;
   testResults: number;
   progressExams: number;
   performanceReviews: number;
@@ -87,7 +88,7 @@ function fillWeekDays(
   const cur = new Date(startD);
   while (cur <= endD) {
     const dateStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}-${String(cur.getDate()).padStart(2, "0")}`;
-    result.push(byDate[dateStr] ?? { date: dateStr, officeVisits: 0, newPatients: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 });
+    result.push(byDate[dateStr] ?? { date: dateStr, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 });
     cur.setDate(cur.getDate() + 1);
   }
   return result;
@@ -116,13 +117,15 @@ type Insight = {
   text: string;
 };
 
+type PeriodTotals = { officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
+
 type AnalyticsData = {
-  last30Days: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
+  last30Days: Array<{ date: string } & PeriodTotals>;
   dayOfWeekAverages: Array<{ day: string; dow: number; avgOfficeVisits: number; avgNewPatients: number; avgCarePlansSigned: number; dataPoints: number }>;
-  thisWeek: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
-  lastWeek: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
-  thisMonth: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
-  lastMonth: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
+  thisWeek: Array<{ date: string } & PeriodTotals>;
+  lastWeek: Array<{ date: string } & PeriodTotals>;
+  thisMonth: PeriodTotals;
+  lastMonth: PeriodTotals;
 };
 
 function generateInsights(analytics: AnalyticsData): Insight[] {
@@ -367,13 +370,13 @@ export default function WWLD() {
             {/* Stat Grid */}
             {isLoading ? (
               <div className="grid grid-cols-3 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
+                {Array.from({ length: 7 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 <StatCard label="Office Visits" alias="OV" value={totals?.officeVisits ?? 0} highlight={true} />
                 <StatCard label="New Patients" alias="Day 1" value={totals?.newPatients ?? 0} />
-                <StatCard label="Recall" alias="RC" value={(totals as any)?.recall ?? 0} />
+                <StatCard label="Recall" alias="RC" value={totals?.recall ?? 0} />
                 <StatCard label="Test Results" alias="Day 2" value={totals?.testResults ?? 0} />
                 <StatCard label="Progress Exams" alias="PE" value={totals?.progressExams ?? 0} />
                 <StatCard label="Performance Reviews" alias="PR" value={totals?.performanceReviews ?? 0} />
@@ -581,7 +584,7 @@ export default function WWLD() {
                 ? {
                     officeVisits: existingSession.officeVisits,
                     newPatients: existingSession.newPatients,
-                    recall: (existingSession as any).recall ?? 0,
+                    recall: existingSession.recall ?? 0,
                     testResults: existingSession.testResults,
                     progressExams: existingSession.progressExams,
                     performanceReviews: existingSession.performanceReviews,
