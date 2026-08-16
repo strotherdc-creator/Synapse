@@ -1,5 +1,6 @@
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM, type ChatMessage } from "./_core/llm";
@@ -24,6 +25,40 @@ const profileRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await db.updateUserProfile(ctx.user.id, input);
+      return { success: true };
+    }),
+  updatePractice: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100),
+        practiceName: z.string().min(1).max(200),
+        city: z.string().min(1).max(100),
+        state: z.string().min(1).max(50),
+        phone: z.string().max(30).optional(),
+        website: z.string().max(500).optional(),
+        facebookUrl: z.string().max(500).optional(),
+        instagramHandle: z.string().max(100).optional(),
+        tiktokHandle: z.string().max(100).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const dbInstance = await db.getDb();
+      if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { users } = await import("../shared/schema");
+      const { eq } = await import("drizzle-orm");
+      await dbInstance.update(users).set({
+        name: input.name,
+        practiceName: input.practiceName,
+        city: input.city,
+        state: input.state,
+        phone: input.phone || null,
+        website: input.website || null,
+        facebookUrl: input.facebookUrl || null,
+        instagramHandle: input.instagramHandle || null,
+        tiktokHandle: input.tiktokHandle || null,
+        profileComplete: true,
+        updatedAt: new Date(),
+      }).where(eq(users.id, ctx.user.id));
       return { success: true };
     }),
 });

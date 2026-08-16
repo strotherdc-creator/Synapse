@@ -72,4 +72,14 @@ export const ENGAGEMENT_MIGRATIONS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_engagement_events_user ON engagement_events(user_id, created_at)`,
   // Add selectedTopicId column for quick-start topic selection
   `ALTER TABLE user_engagement_preferences ADD COLUMN IF NOT EXISTS selected_topic_id VARCHAR(50)`,
+  // Practice profile fields on users table
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_name TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS state VARCHAR(50)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS website TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS facebook_url TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS instagram_handle VARCHAR(100)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS tiktok_handle VARCHAR(100)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_complete BOOLEAN NOT NULL DEFAULT FALSE`,
 ];

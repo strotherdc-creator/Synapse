@@ -104,24 +104,64 @@ async function ensureUserTopic(dbInstance: any, userId: number, email: string) {
 }
 
 /** Generate expanded content for an action category based on the user's topic */
-function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopicById>, dayOfYear: number) {
+interface UserProfile {
+  name?: string | null;
+  practiceName?: string | null;
+  city?: string | null;
+  state?: string | null;
+  website?: string | null;
+  instagramHandle?: string | null;
+  tiktokHandle?: string | null;
+}
+
+function buildHashtags(topic: ReturnType<typeof getTopicById>, profile: UserProfile): string {
+  const tags: string[] = [];
+  // Condition tags
+  if (topic) {
+    tags.push(`#${topic.shortLabel.replace(/\s+/g, "")}`);
+    tags.push("#CorrectiveCare", "#SpineHealth", "#Chiropractic");
+    if (topic.id !== "general_corrective") {
+      tags.push(`#${topic.topProblems[0].replace(/\s+/g, "")}`);
+    }
+  }
+  // Location tags
+  if (profile.city) {
+    const cityTag = profile.city.replace(/\s+/g, "");
+    tags.push(`#${cityTag}Chiropractor`, `#${cityTag}Health`);
+  }
+  if (profile.state) {
+    tags.push(`#${profile.state.replace(/\s+/g, "")}Chiropractic`);
+  }
+  // General growth tags
+  tags.push("#GetFixed", "#StructuralCorrection", "#ChiropracticCare");
+  return tags.slice(0, 12).join(" ");
+}
+
+function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopicById>, dayOfYear: number, profile: UserProfile = {}) {
   if (!topic) return { title: categoryKey, script: null, visualGuidance: null };
+
+  const drName = profile.name || "Dr. [You]";
+  const practice = profile.practiceName || "[Your Practice]";
+  const location = profile.city && profile.state ? `${profile.city}, ${profile.state}` : "[Your City]";
+  const hashtags = buildHashtags(topic, profile);
+  const linkCta = profile.website ? `🔗 ${profile.website}` : "📍 Link in bio to book.";
 
   switch (categoryKey) {
     case "social_post": {
       const postIdx = dayOfYear % topic.socialPostTemplates.length;
       const photoIdx = dayOfYear % topic.photoSuggestions.length;
       const imgIdx = dayOfYear % topic.imagePromptTemplates.length;
+      const postText = `${topic.socialPostTemplates[postIdx]}\n\n— ${drName}, ${practice} | ${location}\n\n${linkCta}\n\n${hashtags}`;
       return {
         title: `Post about ${topic.shortLabel}`,
-        script: `📋 YOUR POST (copy this):\n\n${topic.socialPostTemplates[postIdx]}\n\n─────────────────────\n\n📸 PHOTO OPTION:\n${topic.photoSuggestions[photoIdx]}\n\n🤖 AI IMAGE OPTION (paste this into Gemini or ChatGPT to generate an image):\n"${topic.imagePromptTemplates[imgIdx]}"`,
+        script: `📋 YOUR POST (copy this):\n\n${postText}\n\n─────────────────────\n\n📸 PHOTO OPTION:\n${topic.photoSuggestions[photoIdx]}\n\n🤖 AI IMAGE OPTION (paste into Gemini or ChatGPT):\n"${topic.imagePromptTemplates[imgIdx]}"`,
         visualGuidance: null,
       };
     }
     case "video": {
       const vidIdx = dayOfYear % topic.videoTopics.length;
       const pillarIdx = dayOfYear % topic.pillarPhrases.length;
-      const captionPost = `${topic.pillarPhrases[pillarIdx]} ${topic.oneSentenceDifference}\n\nIf you're dealing with ${topic.topProblems[0].toLowerCase()}, you don't have to keep living with it. We find the real problem and fix it.\n\n📍 Link in bio to book.\n\n#chiropractic #${topic.shortLabel.toLowerCase().replace(/\s+/g, "")} #correction #getfixed`;
+      const captionPost = `${topic.pillarPhrases[pillarIdx]} ${topic.oneSentenceDifference}\n\nIf you're dealing with ${topic.topProblems[0].toLowerCase()}, you don't have to keep living with it. We find the real problem and fix it.\n\n— ${drName}, ${practice} | ${location}\n${linkCta}\n\n${hashtags}`;
       return {
         title: `Record a video: ${topic.videoTopics[vidIdx]}`,
         script: `🎬 VIDEO SCRIPT: "${topic.videoTopics[vidIdx]}"\n\n⏱️ 30-60 seconds | Film at your desk or adjustment room | Look directly at camera\n\n─────────────────────\n\n🎯 HOOK (first 3 seconds — stop the scroll):\n"If you're dealing with ${topic.topProblems[0].toLowerCase()}... stop. I need to tell you something nobody else is going to say."\n\n📖 THE TEACHING (15-30 seconds):\n"${topic.pillarPhrases[pillarIdx]}"\n\n"Here's what most people don't know: ${topic.topProblems[0].toLowerCase()} isn't the problem. It's the SIGNAL. Something structural is off — and until someone actually finds it and corrects it, you're just managing symptoms."\n\n"${topic.desiredOutcome} — that's what happens when you fix the cause, not just chase the pain."\n\n🔥 THE CLOSE (5-10 seconds):\n"${topic.oneSentenceDifference}"\n\n"If this sounds like you or someone you know — link in bio. Let's find out what's actually going on."\n\n─────────────────────\n\n💡 VIDEO TIPS:\n• First 3 seconds decide if they watch or scroll — start with the problem, not "Hi I'm Dr..."\n• Talk TO one person, not AT an audience\n• Confidence > perfection. One take is fine.\n• End with a clear next step (link in bio, DM me, call us)\n\n─────────────────────\n\n📋 POST CAPTION (copy this to post with your video):\n\n${captionPost}`,
@@ -279,7 +319,7 @@ export const engagementRouter = router({
       for (let i = 0; i < input.actionKeys.length; i++) {
         const key = input.actionKeys[i];
         const category = ACTION_CATEGORIES.find(c => c.key === key)!;
-        const content = getActionContent(key, topic, dayOfYear);
+        const content = getActionContent(key, topic, dayOfYear, ctx.user as UserProfile);
 
         await dbInstance.insert(growthActions).values({
           userId,
@@ -552,7 +592,7 @@ export const engagementRouter = router({
       const topic = await ensureUserTopic(dbInstance, ctx.user.id, ctx.user.email ?? "");
       const baseDayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
       const shiftedDay = baseDayOfYear + Math.floor(Math.random() * 5) + 1;
-      const content = getActionContent(action.sourceRef ?? action.source, topic, shiftedDay);
+      const content = getActionContent(action.sourceRef ?? action.source, topic, shiftedDay, ctx.user as UserProfile);
 
       await dbInstance
         .update(growthActions)

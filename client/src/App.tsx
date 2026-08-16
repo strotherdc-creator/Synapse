@@ -147,8 +147,12 @@ function AppRouter() {
   }
 
   // Require profile completion (name) before accessing the app
-  if (!user.name || user.name.trim() === "") {
-    return <ProfileCompletion />;
+  if (!user.name || user.name.trim() === "" || !(user as any).profileComplete) {
+    return (
+      <DashboardLayout>
+        <Profile />
+      </DashboardLayout>
+    );
   }
 
   return <AuthenticatedRouter />;
