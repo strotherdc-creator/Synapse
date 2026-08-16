@@ -495,9 +495,33 @@ export const engagementRouter = router({
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
+      // Get the action to find its planId
+      const [action] = await dbInstance
+        .select()
+        .from(growthActions)
+        .where(and(eq(growthActions.id, input.actionId), eq(growthActions.userId, ctx.user.id)))
+        .limit(1);
+
+      if (!action) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // Delete the action
       await dbInstance
         .delete(growthActions)
         .where(and(eq(growthActions.id, input.actionId), eq(growthActions.userId, ctx.user.id)));
+
+      // Check if any actions remain for this plan
+      const remaining = await dbInstance
+        .select({ id: growthActions.id })
+        .from(growthActions)
+        .where(and(eq(growthActions.planId, action.planId!), eq(growthActions.userId, ctx.user.id)))
+        .limit(1);
+
+      // If no actions left, delete the plan too so getDailyPlan returns "needs_pick"
+      if (remaining.length === 0 && action.planId) {
+        await dbInstance
+          .delete(dailyGrowthPlans)
+          .where(eq(dailyGrowthPlans.id, action.planId));
+      }
 
       return { success: true };
     }),
