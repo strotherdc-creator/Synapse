@@ -3,6 +3,7 @@ import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM, type ChatMessage } from "./_core/llm";
+import { engagementRouter } from "./engagement/router";
 
 // ─── Auth Router ─────────────────────────────────────────────────────
 
@@ -873,6 +874,7 @@ export const appRouter = router({
   coaching: coachingRouter,
   adminStats: adminStatsRouter,
   wwld: wwldRouter,
+  engagement: engagementRouter,
 });
 
 export type AppRouter = typeof appRouter;

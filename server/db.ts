@@ -21,6 +21,10 @@ import {
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 
+// Table accessors for use by engagement router (avoids circular imports)
+export function getUserAnswersTable() { return userAnswers; }
+export function getContentHistoryTable() { return contentHistory; }
+
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
