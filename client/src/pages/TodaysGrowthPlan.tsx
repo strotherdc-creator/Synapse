@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { CheckCircle2, Flame, Trophy, Target, Copy, ExternalLink, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function TodaysGrowthPlan() {
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
   // Queries
@@ -78,6 +80,15 @@ export default function TodaysGrowthPlan() {
 
   // Pick a single action — creates a plan with just that one action
   const handlePickAction = (key: string) => {
+    // Direct navigation for AI Coach and Curriculum — no action card needed
+    if (key === "ai_coach") {
+      setLocation("/chat");
+      return;
+    }
+    if (key === "curriculum_lesson") {
+      setLocation("/curriculum");
+      return;
+    }
     // If plan already exists, add to it by creating a new plan with existing + new
     const existingKeys = data?.status === "active"
       ? data.actions.map((a: any) => a.sourceRef).filter(Boolean)
