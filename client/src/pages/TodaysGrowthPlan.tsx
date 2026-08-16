@@ -37,10 +37,21 @@ export default function TodaysGrowthPlan() {
     onError: (err: any) => toast.error(err.message),
   });
   const cancelMutation = trpc.engagement.cancelAction.useMutation({
+    onMutate: async () => {
+      // Optimistic: immediately show the picker by setting plan data to needs_pick
+      await utils.engagement.getDailyPlan.cancel();
+      const prev = utils.engagement.getDailyPlan.getData();
+      utils.engagement.getDailyPlan.setData(undefined, { status: "needs_pick" as const, actions: [], lyleRecommendation: prev?.lyleRecommendation ?? null, topic: prev?.topic ?? null });
+      return { prev };
+    },
     onSuccess: () => {
       utils.engagement.getDailyPlan.invalidate();
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any, _vars: any, context: any) => {
+      // Rollback on error
+      if (context?.prev) utils.engagement.getDailyPlan.setData(undefined, context.prev);
+      toast.error(err.message);
+    },
   });
   const refreshMutation = trpc.engagement.refreshAction.useMutation({
     onSuccess: () => {
