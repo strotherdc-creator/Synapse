@@ -43,12 +43,11 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Sparkles, label: "Today's Plan", path: "/today" },
+  { icon: BarChart2, label: "Log Stats", path: "/wwld" },
   { icon: BookOpen, label: "Curriculum", path: "/curriculum" },
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },
-  { icon: BarChart2, label: "WWLD", path: "/wwld" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
@@ -203,6 +202,19 @@ function DashboardLayoutContent({
                   </SidebarMenuItem>
                 );
               })}
+            </SidebarMenu>
+            {/* Logout button — visible, below all nav items */}
+            <SidebarMenu className="px-2 py-1 mt-2 border-t border-border pt-2">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={logout}
+                  tooltip="Log out"
+                  className="h-10 transition-all font-normal text-destructive hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Log Out</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
 
