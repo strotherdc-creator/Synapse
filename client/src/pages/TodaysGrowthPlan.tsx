@@ -47,36 +47,36 @@ function ActionCard({
   };
 
   return (
-    <Card className={`border transition-all ${isDone ? "border-green-500/30 bg-green-500/5 opacity-75" : isDeferred ? "border-muted opacity-60" : required ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-card"}`}>
-      <CardContent className="p-4 space-y-3">
+    <Card className={`border transition-all ${isDone ? "border-green-500/30 bg-green-500/5 opacity-80" : isDeferred ? "border-muted opacity-60" : required ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-card"}`}>
+      <CardContent className="p-5 space-y-4">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${sourceColors[source] ?? "bg-muted text-muted-foreground border-border"}`}>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className={`text-sm px-3 py-1 rounded-full border font-medium ${sourceColors[source] ?? "bg-muted text-muted-foreground border-border"}`}>
                 {sourceLabels[source] ?? source}
               </span>
               {required && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 border border-amber-500/30 font-medium">
+                <span className="text-sm px-3 py-1 rounded-full bg-amber-500/20 text-amber-600 border border-amber-500/30 font-semibold">
                   Priority
                 </span>
               )}
               {estimateMinutes && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> ~{estimateMinutes} min
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-4 w-4" /> ~{estimateMinutes} min
                 </span>
               )}
             </div>
-            <p className={`text-sm font-medium ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
+            <p className={`text-base font-semibold leading-relaxed ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
               {title}
             </p>
           </div>
-          {isDone && <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />}
+          {isDone && <CheckCircle2 className="h-6 w-6 text-green-500 shrink-0" />}
         </div>
 
         {/* Why now */}
         {whyNow && isActive && (
-          <p className="text-xs text-muted-foreground italic">{whyNow}</p>
+          <p className="text-sm text-muted-foreground italic leading-relaxed">{whyNow}</p>
         )}
 
         {/* Script preview */}
@@ -84,12 +84,12 @@ function ActionCard({
           <div>
             <button
               onClick={() => setShowScript(!showScript)}
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
+              className="text-sm text-primary font-medium flex items-center gap-1 hover:underline"
             >
-              {showScript ? "Hide script" : "View script"} <ChevronRight className={`h-3 w-3 transition-transform ${showScript ? "rotate-90" : ""}`} />
+              {showScript ? "Hide script" : "View script"} <ChevronRight className={`h-4 w-4 transition-transform ${showScript ? "rotate-90" : ""}`} />
             </button>
             {showScript && (
-              <div className="mt-2 p-3 bg-muted/50 rounded-md text-xs text-foreground whitespace-pre-wrap border border-border">
+              <div className="mt-2 p-4 bg-muted/50 rounded-md text-sm text-foreground whitespace-pre-wrap border border-border leading-relaxed">
                 {script}
               </div>
             )}
@@ -98,31 +98,31 @@ function ActionCard({
 
         {/* Pillar */}
         {pillar && isActive && (
-          <p className="text-xs text-muted-foreground">
-            <Target className="h-3 w-3 inline mr-1" />{pillar}
+          <p className="text-sm text-muted-foreground">
+            <Target className="h-4 w-4 inline mr-1" />{pillar}
           </p>
         )}
 
         {/* Action buttons */}
         {isActive && (
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-3 pt-2">
             <Button
-              size="sm"
+              size="lg"
               onClick={() => onComplete(id)}
               disabled={isCompleting || isDeferring}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white text-base font-semibold px-6 py-3 h-12"
             >
-              {isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+              {isCompleting ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
               Done
             </Button>
             <Button
-              size="sm"
+              size="lg"
               variant="outline"
               onClick={() => onDefer(id)}
               disabled={isCompleting || isDeferring}
-              className="text-muted-foreground"
+              className="text-muted-foreground text-base px-6 py-3 h-12"
             >
-              {isDeferring ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4 mr-1" />}
+              {isDeferring ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5 mr-2" />}
               Tomorrow
             </Button>
           </div>
@@ -220,10 +220,10 @@ export default function TodaysGrowthPlan() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-amber-500" />
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Today's Growth Plan</h1>
+          <Sparkles className="h-7 w-7 text-amber-500" />
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Today's Growth Plan</h1>
         </div>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-lg text-muted-foreground mt-2">
           {allDone
             ? "All done for today — great work!"
             : `${pendingCount} action${pendingCount !== 1 ? "s" : ""} to grow your practice today`}
@@ -231,12 +231,12 @@ export default function TodaysGrowthPlan() {
       </div>
 
       {/* Focus badge */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+      <div className="flex items-center gap-3">
+        <span className="text-sm px-4 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-semibold">
           Focus: {data.plan.focus}
         </span>
         {completedCount > 0 && (
-          <span className="text-xs text-green-600 font-medium">
+          <span className="text-sm text-green-500 font-semibold">
             {completedCount}/{data.actions.length} completed
           </span>
         )}
@@ -245,10 +245,10 @@ export default function TodaysGrowthPlan() {
       {/* All done celebration */}
       {allDone && (
         <Card className="border-green-500/30 bg-green-500/5">
-          <CardContent className="p-6 text-center space-y-2">
-            <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
-            <p className="text-lg font-semibold text-foreground">Practice growth actions complete</p>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="p-8 text-center space-y-3">
+            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+            <p className="text-xl font-bold text-foreground">Practice growth actions complete</p>
+            <p className="text-base text-muted-foreground leading-relaxed">
               You took {completedCount} step{completedCount !== 1 ? "s" : ""} toward growing your practice today. Come back tomorrow for fresh actions.
             </p>
           </CardContent>
@@ -256,7 +256,7 @@ export default function TodaysGrowthPlan() {
       )}
 
       {/* Action cards */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {data.actions.map((action) => (
           <ActionCard
             key={action.id}
