@@ -172,25 +172,30 @@ export default function TodaysGrowthPlan() {
 
       {/* Topic Picker */}
       {showTopicPicker && (
-        <div className="bg-gray-800 border border-gray-600 rounded-2xl p-5 space-y-3">
-          <p className="text-lg font-bold text-white">Pick your focus condition:</p>
-          <div className="space-y-2">
+        <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 space-y-4">
+          {/* Custom topic CTA — at the very top */}
+          <a
+            href="/curriculum"
+            className="block w-full text-center py-4 px-6 rounded-xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 transition-colors"
+          >
+            🎯 Want a Custom Topic? Complete Your Modules
+          </a>
+
+          <p className="text-xl font-bold text-white">Or pick a pre-built focus:</p>
+          <div className="space-y-3">
             {topicsQuery.data?.topics.map((t: any) => (
               <button
                 key={t.id}
                 onClick={() => { selectTopicMutation.mutate({ topicId: t.id }); setShowTopicPicker(false); }}
-                className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${
+                className={`w-full text-left p-5 rounded-xl border-2 transition-colors ${
                   data?.topic?.id === t.id ? "border-emerald-500 bg-emerald-500/10" : "border-gray-600 hover:border-emerald-500/50"
                 }`}
               >
-                <p className="text-lg font-semibold text-white">{t.label}</p>
-                <p className="text-base text-gray-400 mt-1">{t.description}</p>
+                <p className="text-xl font-bold text-white">{t.label}</p>
+                <p className="text-lg text-gray-300 mt-1">{t.description}</p>
               </button>
             ))}
           </div>
-          <p className="text-base text-gray-500 italic">
-            Want a custom topic? Complete your coaching modules.
-          </p>
         </div>
       )}
 
