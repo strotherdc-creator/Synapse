@@ -21,7 +21,7 @@ export const users = pgTable("users", {
   state: varchar("state", { length: 50 }),
   phone: varchar("phone", { length: 30 }),
   website: text("website"),
-  workDays: varchar("work_days", { length: 20 }).default("mon,tue,wed,thu,fri"), // comma-separated days they work
+  workDays: varchar("work_days", { length: 100 }).default("mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off"), // day:full|half|off
   facebookUrl: text("facebook_url"),
   instagramHandle: varchar("instagram_handle", { length: 100 }),
   tiktokHandle: varchar("tiktok_handle", { length: 100 }),

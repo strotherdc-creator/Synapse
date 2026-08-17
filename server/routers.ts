@@ -39,7 +39,7 @@ const profileRouter = router({
         facebookUrl: z.string().max(500).optional(),
         instagramHandle: z.string().max(100).optional(),
         tiktokHandle: z.string().max(100).optional(),
-        workDays: z.string().max(20).optional(), // comma-separated: "mon,tue,wed,thu"
+        workDays: z.string().max(100).optional(), // format: "mon:full,tue:full,wed:half,thu:full,fri:off,sat:off,sun:off"
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -57,7 +57,7 @@ const profileRouter = router({
         facebookUrl: input.facebookUrl || null,
         instagramHandle: input.instagramHandle || null,
         tiktokHandle: input.tiktokHandle || null,
-        workDays: input.workDays || "mon,tue,wed,thu,fri",
+        workDays: input.workDays || "mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off",
         profileComplete: true,
         updatedAt: new Date(),
       }).where(eq(users.id, ctx.user.id));
@@ -776,11 +776,29 @@ const wwldRouter = router({
 
       // ── 1b. Filter out non-work days ──────────────────────────────
       const DAY_MAP: Record<number, string> = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
-      const userWorkDays = ((ctx.user as any).workDays || "mon,tue,wed,thu,fri").split(",");
+      const workDaysRaw = (ctx.user as any).workDays || "mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off";
+      // Parse schedule: { mon: "full", tue: "half", fri: "off", ... }
+      const schedule: Record<string, string> = {};
+      workDaysRaw.split(",").forEach((entry: string) => {
+        const [day, status] = entry.split(":");
+        if (day) schedule[day] = status || "full";
+      });
+      // Filter: exclude "off" days, keep "full" and "half"
       const workDayBreakdown = dailyBreakdown.filter((d: any) => {
         const date = new Date(d.date + "T12:00:00"); // noon to avoid timezone shift
         const dayName = DAY_MAP[date.getDay()];
-        return userWorkDays.includes(dayName);
+        return schedule[dayName] !== "off";
+      }).map((d: any) => {
+        // Weight half days 2x so they compare fairly to full days
+        const date = new Date(d.date + "T12:00:00");
+        const dayName = DAY_MAP[date.getDay()];
+        const multiplier = schedule[dayName] === "half" ? 2 : 1;
+        return {
+          ...d,
+          officeVisits: d.officeVisits * multiplier,
+          newPatients: d.newPatients * multiplier,
+          carePlansSigned: d.carePlansSigned * multiplier,
+        };
       });
 
       // ── 2. Determine this week's Monday ───────────────────────────

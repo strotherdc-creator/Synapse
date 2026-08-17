@@ -21,7 +21,7 @@ export default function Profile() {
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [tiktokHandle, setTiktokHandle] = useState("");
-  const [workDays, setWorkDays] = useState("mon,tue,wed,thu,fri");
+  const [workDays, setWorkDays] = useState("mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off");
 
   useEffect(() => {
     if (user) {
@@ -35,7 +35,7 @@ export default function Profile() {
       setFacebookUrl((user as any).facebookUrl || "");
       setInstagramHandle((user as any).instagramHandle || "");
       setTiktokHandle((user as any).tiktokHandle || "");
-      setWorkDays((user as any).workDays || "mon,tue,wed,thu,fri");
+      setWorkDays((user as any).workDays || "mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off");
     }
   }, [user]);
 
@@ -139,41 +139,40 @@ export default function Profile() {
 
           <div className="pt-3 border-t border-border">
             <p className="text-sm font-semibold text-foreground mb-3">Practice Schedule (which days do you see patients?)</p>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { key: "mon", label: "Mon" },
-                { key: "tue", label: "Tue" },
-                { key: "wed", label: "Wed" },
-                { key: "thu", label: "Thu" },
-                { key: "fri", label: "Fri" },
-                { key: "sat", label: "Sat" },
-                { key: "sun", label: "Sun" },
-              ] as const).map((day) => {
-                const isActive = workDays.split(",").includes(day.key);
+            <div className="space-y-2">
+              {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
+                const labels: Record<string, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
+                const schedule: Record<string, string> = {};
+                workDays.split(",").forEach((entry) => {
+                  const [d, s] = entry.split(":");
+                  if (d) schedule[d] = s || "full";
+                });
+                const status = schedule[dayKey] || "off";
+                const cycle = () => {
+                  // Tap cycles: full → half → off → full
+                  const next = status === "full" ? "half" : status === "half" ? "off" : "full";
+                  schedule[dayKey] = next;
+                  setWorkDays(Object.entries(schedule).map(([k, v]) => `${k}:${v}`).join(","));
+                };
                 return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => {
-                      const days = workDays.split(",").filter(Boolean);
-                      if (isActive) {
-                        setWorkDays(days.filter((d) => d !== day.key).join(","));
-                      } else {
-                        setWorkDays([...days, day.key].join(","));
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
-                      isActive
-                        ? "bg-emerald-600 text-white"
-                        : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-                    }`}
-                  >
-                    {day.label}
-                  </button>
+                  <div key={dayKey} className="flex items-center justify-between">
+                    <span className="text-base font-semibold text-foreground w-24">{labels[dayKey]}</span>
+                    <button
+                      type="button"
+                      onClick={cycle}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm min-w-[80px] transition-colors ${
+                        status === "full" ? "bg-emerald-600 text-white" :
+                        status === "half" ? "bg-yellow-600 text-white" :
+                        "bg-gray-700 text-gray-400"
+                      }`}
+                    >
+                      {status === "full" ? "Full Day" : status === "half" ? "Half Day" : "Off"}
+                    </button>
+                  </div>
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Days off won't count against your stats trends.</p>
+            <p className="text-xs text-muted-foreground mt-2">Tap to cycle: Full Day → Half Day → Off. Days off are excluded from trends. Half days are weighted 2x.</p>
           </div>
 
           <Button onClick={handleSavePractice} disabled={updatePracticeMutation.isPending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" size="lg">
