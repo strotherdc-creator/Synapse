@@ -239,15 +239,15 @@ export default function TodaysGrowthPlan() {
             <button
               onClick={() => cancelMutation.mutate({ actionId: currentAction.id })}
               disabled={cancelMutation.isPending}
-              className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
+              className="flex items-center gap-1 text-lg text-gray-300 hover:text-white transition-colors font-semibold"
             >
-              <ArrowLeft className="h-5 w-5" />
-              {cancelMutation.isPending ? "..." : "← Back to list"}
+              <ArrowLeft className="h-7 w-7 stroke-[3]" />
+              {cancelMutation.isPending ? "..." : "Back"}
             </button>
             <button
               onClick={() => refreshMutation.mutate({ actionId: currentAction.id })}
               disabled={refreshMutation.isPending}
-              className="flex items-center gap-2 text-base text-gray-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-lg text-gray-300 hover:text-white transition-colors font-semibold"
             >
               <RefreshCw className={`h-5 w-5 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
               {refreshMutation.isPending ? "Loading..." : "Different script"}
@@ -313,10 +313,23 @@ export default function TodaysGrowthPlan() {
                     <p className="text-xl font-bold text-white">{cat.label}</p>
                     <p className="text-base text-gray-400 mt-1">{cat.description}</p>
                   </div>
+                  {completedActions.some((a: any) => a.sourceRef === cat.key) && (
+                    <CheckCircle2 className="h-7 w-7 text-emerald-400 shrink-0" />
+                  )}
                 </div>
               </button>
             ))}
           </div>
+
+          {/* Done for today button — shows after at least 1 completion */}
+          {completedActions.length > 0 && (
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="w-full py-4 rounded-xl bg-gray-700 text-white text-lg font-bold hover:bg-gray-600 transition-colors mt-4"
+            >
+              ✓ Done for Today
+            </button>
+          )}
         </div>
       )}
 
