@@ -45,7 +45,7 @@ function DailyActionPopup() {
 
   const { data: status } = trpc.wwld.getTodayStatus.useQuery(
     { date: today },
-    { staleTime: 60_000, retry: false }
+    { staleTime: 60_000, retry: false, enabled: location === "/" }
   );
 
   useEffect(() => {
@@ -113,7 +113,9 @@ function AuthenticatedRouter() {
   return (
     <DashboardLayout>
       {/* Daily action popup — choose Today's Plan or Log Stats */}
-      <DailyActionPopup />
+      <ErrorBoundary>
+        <DailyActionPopup />
+      </ErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/curriculum" component={Curriculum} />
@@ -147,7 +149,9 @@ function AppRouter() {
   }
 
   // Require profile completion (name) before accessing the app
-  if (!user.name || user.name.trim() === "" || !(user as any).profileComplete) {
+  const profileComplete = (user as any)?.profileComplete === true;
+  const hasName = user?.name && user.name.trim() !== "";
+  if (!hasName || !profileComplete) {
     return (
       <DashboardLayout>
         <Profile />
@@ -155,7 +159,11 @@ function AppRouter() {
     );
   }
 
-  return <AuthenticatedRouter />;
+  return (
+    <ErrorBoundary>
+      <AuthenticatedRouter />
+    </ErrorBoundary>
+  );
 }
 
 function App() {
