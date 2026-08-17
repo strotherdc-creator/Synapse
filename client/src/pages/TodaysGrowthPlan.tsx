@@ -263,19 +263,49 @@ export default function TodaysGrowthPlan() {
 
             {/* The content — large, readable */}
             {currentAction.script && (
-              <div className="px-6 pb-6">
-                <div className="bg-gray-900 rounded-xl p-5 border border-gray-700">
-                  <pre className="whitespace-pre-wrap text-base text-gray-100 font-sans leading-relaxed">
-                    {currentAction.script}
-                  </pre>
-                </div>
-                <button
-                  onClick={() => handleCopy(currentAction.script!, currentAction.id)}
-                  className="mt-4 w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-blue-600 text-white text-lg font-bold hover:bg-blue-700 transition-colors"
-                >
-                  <Copy className="h-5 w-5" />
-                  {copiedId === currentAction.id ? "Copied!" : "Copy to Clipboard"}
-                </button>
+              <div className="px-6 pb-6 space-y-4">
+                {(() => {
+                  // Try to parse as sectioned JSON; fall back to plain text
+                  try {
+                    const parsed = JSON.parse(currentAction.script!);
+                    if (parsed.sections) {
+                      return parsed.sections.map((section: any, idx: number) => (
+                        <div key={idx} className="bg-gray-900 rounded-xl p-5 border border-gray-700">
+                          <p className="text-sm font-bold text-emerald-300 uppercase tracking-wide mb-3">{section.label}</p>
+                          <pre className="whitespace-pre-wrap text-base text-gray-100 font-sans leading-relaxed">
+                            {section.content}
+                          </pre>
+                          {section.copyable && (
+                            <button
+                              onClick={() => handleCopy(section.content, currentAction.id * 100 + idx)}
+                              className="mt-3 w-full flex items-center justify-center gap-3 px-5 py-3 rounded-xl bg-blue-600 text-white text-base font-bold hover:bg-blue-700 transition-colors"
+                            >
+                              <Copy className="h-5 w-5" />
+                              {copiedId === currentAction.id * 100 + idx ? "Copied!" : `Copy ${section.label}`}
+                            </button>
+                          )}
+                        </div>
+                      ));
+                    }
+                  } catch {}
+                  // Plain text fallback (referral, outreach, community, etc.)
+                  return (
+                    <>
+                      <div className="bg-gray-900 rounded-xl p-5 border border-gray-700">
+                        <pre className="whitespace-pre-wrap text-base text-gray-100 font-sans leading-relaxed">
+                          {currentAction.script}
+                        </pre>
+                      </div>
+                      <button
+                        onClick={() => handleCopy(currentAction.script!, currentAction.id)}
+                        className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-blue-600 text-white text-lg font-bold hover:bg-blue-700 transition-colors"
+                      >
+                        <Copy className="h-5 w-5" />
+                        {copiedId === currentAction.id ? "Copied!" : "Copy to Clipboard"}
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             )}
 

@@ -154,7 +154,13 @@ function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopic
       const postText = `${topic.socialPostTemplates[postIdx]}\n\n— ${drName}, ${practice} | ${location}\n\n${linkCta}\n\n${hashtags}`;
       return {
         title: `Post about ${topic.shortLabel}`,
-        script: `📋 YOUR POST (copy this):\n\n${postText}\n\n─────────────────────\n\n📸 PHOTO OPTION:\n${topic.photoSuggestions[photoIdx]}\n\n🤖 AI IMAGE OPTION (paste into Gemini or ChatGPT):\n"${topic.imagePromptTemplates[imgIdx]}"`,
+        script: JSON.stringify({
+          sections: [
+            { label: "Your Post", content: postText, copyable: true },
+            { label: "Photo Idea", content: topic.photoSuggestions[photoIdx], copyable: false },
+            { label: "AI Image Prompt (paste into Gemini)", content: topic.imagePromptTemplates[imgIdx], copyable: true },
+          ]
+        }),
         visualGuidance: null,
       };
     }
@@ -162,9 +168,16 @@ function getActionContent(categoryKey: string, topic: ReturnType<typeof getTopic
       const vidIdx = dayOfYear % topic.videoTopics.length;
       const pillarIdx = dayOfYear % topic.pillarPhrases.length;
       const captionPost = `${topic.pillarPhrases[pillarIdx]} ${topic.oneSentenceDifference}\n\nIf you're dealing with ${topic.topProblems[0].toLowerCase()}, you don't have to keep living with it. We find the real problem and fix it.\n\n— ${drName}, ${practice} | ${location}\n${linkCta}\n\n${hashtags}`;
+      const videoScript = `HOOK (first 3 seconds):\n"If you're dealing with ${topic.topProblems[0].toLowerCase()}... stop. I need to tell you something nobody else is going to say."\n\nTEACHING (15-30 seconds):\n"${topic.pillarPhrases[pillarIdx]}"\n\n"Here's what most people don't know: ${topic.topProblems[0].toLowerCase()} isn't the problem. It's the SIGNAL. Something structural is off — and until someone actually finds it and corrects it, you're just managing symptoms."\n\n"${topic.desiredOutcome} — that's what happens when you fix the cause, not just chase the pain."\n\nCLOSE (5-10 seconds):\n"${topic.oneSentenceDifference}"\n\n"If this sounds like you or someone you know — link in bio. Let's find out what's actually going on."`;
       return {
         title: `Record a video: ${topic.videoTopics[vidIdx]}`,
-        script: `🎬 VIDEO SCRIPT: "${topic.videoTopics[vidIdx]}"\n\n⏱️ 30-60 seconds | Film at your desk or adjustment room | Look directly at camera\n\n─────────────────────\n\n🎯 HOOK (first 3 seconds — stop the scroll):\n"If you're dealing with ${topic.topProblems[0].toLowerCase()}... stop. I need to tell you something nobody else is going to say."\n\n📖 THE TEACHING (15-30 seconds):\n"${topic.pillarPhrases[pillarIdx]}"\n\n"Here's what most people don't know: ${topic.topProblems[0].toLowerCase()} isn't the problem. It's the SIGNAL. Something structural is off — and until someone actually finds it and corrects it, you're just managing symptoms."\n\n"${topic.desiredOutcome} — that's what happens when you fix the cause, not just chase the pain."\n\n🔥 THE CLOSE (5-10 seconds):\n"${topic.oneSentenceDifference}"\n\n"If this sounds like you or someone you know — link in bio. Let's find out what's actually going on."\n\n─────────────────────\n\n💡 VIDEO TIPS:\n• First 3 seconds decide if they watch or scroll — start with the problem, not "Hi I'm Dr..."\n• Talk TO one person, not AT an audience\n• Confidence > perfection. One take is fine.\n• End with a clear next step (link in bio, DM me, call us)\n\n─────────────────────\n\n📋 POST CAPTION (copy this to post with your video):\n\n${captionPost}`,
+        script: JSON.stringify({
+          sections: [
+            { label: "Video Script (30-60 sec)", content: videoScript, copyable: true },
+            { label: "Post Caption (paste with your video)", content: captionPost, copyable: true },
+            { label: "Tips", content: "• First 3 seconds decide if they watch or scroll — start with the problem\n• Talk TO one person, not AT an audience\n• Confidence > perfection. One take is fine.\n• End with a clear next step (link in bio, DM me, call us)", copyable: false },
+          ]
+        }),
         visualGuidance: null,
       };
     }
