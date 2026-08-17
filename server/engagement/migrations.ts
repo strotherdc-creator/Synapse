@@ -82,4 +82,5 @@ export const ENGAGEMENT_MIGRATIONS: string[] = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS instagram_handle VARCHAR(100)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS tiktok_handle VARCHAR(100)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_complete BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS work_days VARCHAR(20) DEFAULT 'mon,tue,wed,thu,fri'`,
 ];

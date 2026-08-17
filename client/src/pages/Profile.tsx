@@ -21,6 +21,7 @@ export default function Profile() {
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [tiktokHandle, setTiktokHandle] = useState("");
+  const [workDays, setWorkDays] = useState("mon,tue,wed,thu,fri");
 
   useEffect(() => {
     if (user) {
@@ -34,6 +35,7 @@ export default function Profile() {
       setFacebookUrl((user as any).facebookUrl || "");
       setInstagramHandle((user as any).instagramHandle || "");
       setTiktokHandle((user as any).tiktokHandle || "");
+      setWorkDays((user as any).workDays || "mon,tue,wed,thu,fri");
     }
   }, [user]);
 
@@ -64,6 +66,7 @@ export default function Profile() {
       facebookUrl: facebookUrl.trim() || undefined,
       instagramHandle: instagramHandle.trim() || undefined,
       tiktokHandle: tiktokHandle.trim() || undefined,
+      workDays: workDays,
     });
   };
 
@@ -132,6 +135,45 @@ export default function Profile() {
                 <Input value={tiktokHandle} onChange={(e) => setTiktokHandle(e.target.value)} placeholder="@yourhandle" />
               </div>
             </div>
+          </div>
+
+          <div className="pt-3 border-t border-border">
+            <p className="text-sm font-semibold text-foreground mb-3">Practice Schedule (which days do you see patients?)</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: "mon", label: "Mon" },
+                { key: "tue", label: "Tue" },
+                { key: "wed", label: "Wed" },
+                { key: "thu", label: "Thu" },
+                { key: "fri", label: "Fri" },
+                { key: "sat", label: "Sat" },
+                { key: "sun", label: "Sun" },
+              ] as const).map((day) => {
+                const isActive = workDays.split(",").includes(day.key);
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    onClick={() => {
+                      const days = workDays.split(",").filter(Boolean);
+                      if (isActive) {
+                        setWorkDays(days.filter((d) => d !== day.key).join(","));
+                      } else {
+                        setWorkDays([...days, day.key].join(","));
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+                      isActive
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                    }`}
+                  >
+                    {day.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Days off won't count against your stats trends.</p>
           </div>
 
           <Button onClick={handleSavePractice} disabled={updatePracticeMutation.isPending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" size="lg">

@@ -39,6 +39,7 @@ const profileRouter = router({
         facebookUrl: z.string().max(500).optional(),
         instagramHandle: z.string().max(100).optional(),
         tiktokHandle: z.string().max(100).optional(),
+        workDays: z.string().max(20).optional(), // comma-separated: "mon,tue,wed,thu"
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -56,6 +57,7 @@ const profileRouter = router({
         facebookUrl: input.facebookUrl || null,
         instagramHandle: input.instagramHandle || null,
         tiktokHandle: input.tiktokHandle || null,
+        workDays: input.workDays || "mon,tue,wed,thu,fri",
         profileComplete: true,
         updatedAt: new Date(),
       }).where(eq(users.id, ctx.user.id));
@@ -772,6 +774,15 @@ const wwldRouter = router({
       const endStr = today.toISOString().split("T")[0];
       const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr);
 
+      // ── 1b. Filter out non-work days ──────────────────────────────
+      const DAY_MAP: Record<number, string> = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
+      const userWorkDays = ((ctx.user as any).workDays || "mon,tue,wed,thu,fri").split(",");
+      const workDayBreakdown = dailyBreakdown.filter((d: any) => {
+        const date = new Date(d.date + "T12:00:00"); // noon to avoid timezone shift
+        const dayName = DAY_MAP[date.getDay()];
+        return userWorkDays.includes(dayName);
+      });
+
       // ── 2. Determine this week's Monday ───────────────────────────
       const todayDay = today.getDay();
       const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
@@ -782,7 +793,7 @@ const wwldRouter = router({
 
       // ── 3. Diagnostic engine ──────────────────────────────────────
       // With < 7 days of data → default to 'breaking' state
-      const uniqueDays = dailyBreakdown.length;
+      const uniqueDays = workDayBreakdown.length;
       const hasEnoughData = uniqueDays >= 7;
 
       type TrendState = "breaking" | "slipping" | "stuck" | "plateaued" | "climbing" | "momentum";
@@ -812,9 +823,9 @@ const wwldRouter = router({
         return "climbing";
       }
 
-      const ovVals = dailyBreakdown.map((d) => d.officeVisits);
-      const npVals = dailyBreakdown.map((d) => d.newPatients);
-      const cpVals = dailyBreakdown.map((d) => d.carePlansSigned);
+      const ovVals = workDayBreakdown.map((d: any) => d.officeVisits);
+      const npVals = workDayBreakdown.map((d: any) => d.newPatients);
+      const cpVals = workDayBreakdown.map((d: any) => d.carePlansSigned);
 
       const ovTrend = computeTrend(ovVals);
       const npTrend = computeTrend(npVals);
