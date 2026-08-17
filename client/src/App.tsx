@@ -45,18 +45,18 @@ function DailyActionPopup() {
 
   const { data: status } = trpc.wwld.getTodayStatus.useQuery(
     { date: today },
-    { staleTime: 60_000, retry: false, enabled: location === "/" }
+    { staleTime: 60_000, retry: false }
   );
 
   useEffect(() => {
-    // Only show popup on root "/" path and first time today
-    if (dismissed.current || location !== "/") {
+    // Hide if already dismissed
+    if (dismissed.current) {
       setVisible(false);
     }
   }, [status, location, setLocation]);
 
-  // Don't show if already dismissed or not on root
-  if (!visible || dismissed.current || location !== "/") return null;
+  // Don't show if already dismissed
+  if (!visible || dismissed.current) return null;
 
   const handleChoice = (path: string) => {
     dismissed.current = true;
