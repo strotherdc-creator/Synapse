@@ -23,12 +23,30 @@ export default function TodaysGrowthPlan() {
     onError: (err: any) => toast.error(err.message),
   });
   const completeMutation = trpc.engagement.completeAction.useMutation({
+    onMutate: async (vars) => {
+      // Optimistic: move the action from pending to completed immediately
+      await utils.engagement.getDailyPlan.cancel();
+      const prev = utils.engagement.getDailyPlan.getData();
+      if (prev && prev.status === "active") {
+        const updated = {
+          ...prev,
+          actions: prev.actions.map((a: any) =>
+            a.id === vars.actionId ? { ...a, status: "completed" } : a
+          ),
+        };
+        utils.engagement.getDailyPlan.setData(undefined, updated as any);
+      }
+      return { prev };
+    },
     onSuccess: () => {
       utils.engagement.getDailyPlan.invalidate();
       utils.routine.getStreak.invalidate();
       toast.success("Done! Pick your next action.");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: any, _vars: any, context: any) => {
+      if (context?.prev) utils.engagement.getDailyPlan.setData(undefined, context.prev);
+      toast.error(err.message);
+    },
   });
   const deferMutation = trpc.engagement.deferAction.useMutation({
     onSuccess: () => {
