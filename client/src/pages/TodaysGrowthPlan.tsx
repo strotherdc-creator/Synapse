@@ -118,14 +118,8 @@ export default function TodaysGrowthPlan() {
       setLocation("/curriculum");
       return;
     }
-    // If plan already exists, add to it by creating a new plan with existing + new
-    const existingKeys = data?.status === "active"
-      ? data.actions.map((a: any) => a.sourceRef).filter(Boolean)
-      : [];
-    const allKeys = [...existingKeys, key];
-    // Need minimum 3 for the server, so pad with the picked one repeated if needed
-    // Actually, let's just send what we have — we'll fix the server to accept 1+
-    pickMutation.mutate({ actionKeys: allKeys.length >= 3 ? allKeys : [key, key, key].slice(0, 3) });
+    // Send just the one action — server accepts 1+
+    pickMutation.mutate({ actionKeys: [key] });
   };
 
   // Loading state
