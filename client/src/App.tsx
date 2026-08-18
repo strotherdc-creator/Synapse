@@ -130,6 +130,7 @@ function AuthenticatedRouter() {
         <Route path="/wwld" component={WWLD} />
         <Route path="/today" component={TodaysGrowthPlan} />
         <Route path="/review" component={WeeklyReview} />
+        <Route path="/communication" component={CommunicationCoach} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>
@@ -181,3 +182,4 @@ function App() {
 }
 
 export default App;
+import CommunicationCoach from "./pages/CommunicationCoach";

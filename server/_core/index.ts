@@ -64,6 +64,8 @@ async function startServer() {
     res.json({ ok: true, timestamp: Date.now() });
   });
 
+  // Communication Coach API — beta module
+  app.use("/api/communication", communicationRouter);
 
   // --- API routes: Clerk middleware + tRPC ---
   // Clerk middleware is ONLY applied to /api/* routes.
@@ -150,3 +152,4 @@ startServer().catch((err) => {
   console.error("[Server] Fatal startup error:", err);
   process.exit(1);
 });
+import { communicationRouter } from "../communication/router";
