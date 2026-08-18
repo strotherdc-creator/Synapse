@@ -111,14 +111,20 @@ export default function CommunicationCoach() {
           const currentIndex = step === "input" ? 0 : step === "context" ? 1 : 2;
           const isActive = i === currentIndex;
           const isComplete = i < currentIndex;
+          const canClick = isComplete || isActive;
+          const handleStepClick = () => {
+            if (i === 0) setStep("input");
+            else if (i === 1 && currentIndex >= 1) setStep("context");
+            else if (i === 2 && result) setStep("output");
+          };
           return (
-            <div key={label} className={`flex-1 py-2 text-center rounded-lg text-sm font-semibold ${
+            <button key={label} onClick={canClick ? handleStepClick : undefined} className={`flex-1 py-2 text-center rounded-lg text-sm font-semibold transition-colors ${
               isActive ? "bg-purple-600 text-white" :
               isComplete ? "bg-emerald-600/30 text-emerald-300" :
               "bg-gray-800 text-gray-500"
-            }`}>
+            } ${canClick ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed"}`}>
               {isComplete ? "✓ " : ""}{label}
-            </div>
+            </button>
           );
         })}
       </div>
