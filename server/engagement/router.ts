@@ -563,19 +563,24 @@ export const engagementRouter = router({
 
       if (!action) throw new TRPCError({ code: "NOT_FOUND" });
 
-      // Delete the action
+      // Only delete if the action is pending — never delete completed actions
+      if (action.status === "completed") {
+        return { success: true };
+      }
+
+      // Delete the pending action
       await dbInstance
         .delete(growthActions)
         .where(and(eq(growthActions.id, input.actionId), eq(growthActions.userId, ctx.user.id)));
 
-      // Check if any actions remain for this plan
+      // Check if any actions remain for this plan (including completed ones)
       const remaining = await dbInstance
         .select({ id: growthActions.id })
         .from(growthActions)
         .where(and(eq(growthActions.planId, action.planId!), eq(growthActions.userId, ctx.user.id)))
         .limit(1);
 
-      // If no actions left, delete the plan too so getDailyPlan returns "needs_pick"
+      // Only delete the plan if truly no actions remain (no completed ones either)
       if (remaining.length === 0 && action.planId) {
         await dbInstance
           .delete(dailyGrowthPlans)

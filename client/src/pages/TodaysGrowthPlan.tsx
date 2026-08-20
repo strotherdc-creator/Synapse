@@ -59,7 +59,22 @@ export default function TodaysGrowthPlan() {
       // Optimistic: immediately show the picker by setting plan data to needs_pick
       await utils.engagement.getDailyPlan.cancel();
       const prev = utils.engagement.getDailyPlan.getData();
-      utils.engagement.getDailyPlan.setData(undefined, { status: "needs_pick" as const, actions: [], lyleRecommendation: (prev as any)?.lyleRecommendation ?? undefined, topic: (prev as any)?.topic ?? undefined });
+      // Preserve completed actions so checkmarks remain visible
+      const completedFromPrev = (prev as any)?.actions?.filter((a: any) => a.status === "completed") ?? [];
+      if (completedFromPrev.length > 0) {
+        // Plan still exists with completed actions — show picker but keep completed list
+        utils.engagement.getDailyPlan.setData(undefined, {
+          status: "active" as const,
+          actions: completedFromPrev,
+          lyleRecommendation: (prev as any)?.lyleRecommendation ?? undefined,
+          topic: (prev as any)?.topic ?? undefined,
+          plan: (prev as any)?.plan,
+          completedCount: completedFromPrev.length,
+          totalCount: completedFromPrev.length,
+        } as any);
+      } else {
+        utils.engagement.getDailyPlan.setData(undefined, { status: "needs_pick" as const, actions: [], lyleRecommendation: (prev as any)?.lyleRecommendation ?? undefined, topic: (prev as any)?.topic ?? undefined });
+      }
       return { prev };
     },
     onSuccess: () => {
