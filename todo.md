@@ -200,3 +200,13 @@
 - [x] Build contextual cues, weekly review, re-entry flow, and campaign framework behind feature flags
 - [x] Run automated tests, staging smoke tests, pilot validation, and production-promotion review
 - [x] Merge to main and deploy to Railway production
+
+## Communication Coach Simplification (August 2026)
+- [x] Rebuild Communication Coach as single-page flow (paste → ask → get response)
+- [x] Remove confusing 3-step wizard (Input / Context / Response)
+- [x] Push updated code to communication-module GitHub repo
+
+## Today's Plan Checkmark Bug Fix (August 2026)
+- [x] Fix: checkmarks on completed Today's Plan items disappearing after picking next action
+- [x] Fix: cancelAction optimistic update preserves completed actions
+- [x] Fix: server-side cancelAction guards against deleting completed actions
