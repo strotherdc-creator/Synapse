@@ -201,7 +201,7 @@ function DashboardLayoutContent({
                       className="h-10 transition-all font-normal"
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
+                        className={`h-4 w-4 ${isActive ? "text-gold" : ""}`}
                       />
                       <span className="flex items-center gap-2">
                       {item.label}

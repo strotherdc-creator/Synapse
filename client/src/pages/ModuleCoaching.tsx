@@ -495,7 +495,7 @@ export default function ModuleCoaching() {
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                     message.role === "user"
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-brand-gold/20 text-gold border border-brand-gold/30"
                       : "bg-muted text-foreground"
                   }`}
                 >

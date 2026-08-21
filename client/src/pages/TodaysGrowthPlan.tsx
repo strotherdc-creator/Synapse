@@ -183,12 +183,12 @@ export default function TodaysGrowthPlan() {
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <Flame className="h-7 w-7 text-orange-400" />
-          <span className="text-2xl font-bold text-white">{streak?.currentStreak ?? 0}</span>
+          <span className="text-2xl font-bold text-gold">{streak?.currentStreak ?? 0}</span>
           <span className="text-base text-gray-400">day streak</span>
         </div>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-emerald-400" />
-          <span className="text-2xl font-bold text-white">{completedActions.length}</span>
+          <span className="text-2xl font-bold text-gold">{completedActions.length}</span>
           <span className="text-base text-gray-400">done today</span>
         </div>
       </div>
@@ -227,7 +227,7 @@ export default function TodaysGrowthPlan() {
             🎯 Want a Custom Topic? Complete Your Modules
           </a>
 
-          <p className="text-xl font-bold text-white">Or pick a pre-built focus:</p>
+          <p className="text-xl font-bold text-gold">Or pick a pre-built focus:</p>
           <div className="space-y-3">
             {topicsQuery.data?.topics.map((t: any) => (
               <button

@@ -27,7 +27,7 @@ export function LyleRecommendationCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-brand-gold/15 bg-card p-5 animate-pulse space-y-3">
+      <div className="rounded-xl border-t-2 border-t-brand-gold/40 border border-brand-gold/15 bg-card p-5 animate-pulse space-y-3">
         <div className="h-4 w-32 bg-muted rounded" />
         <div className="h-3 w-full bg-muted rounded" />
         <div className="h-3 w-3/4 bg-muted rounded" />
@@ -41,7 +41,7 @@ export function LyleRecommendationCard() {
   const { Icon } = cfg;
 
   return (
-    <div className={`rounded-xl border ${cfg.border} ${cfg.bg} p-5 space-y-4`}>
+    <div className={`rounded-xl border-t-2 border-t-brand-gold/40 border ${cfg.border} ${cfg.bg} p-5 space-y-4`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
