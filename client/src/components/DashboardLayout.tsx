@@ -41,6 +41,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
+import { SynapseLogo } from "./SynapseLogo";
 
 const menuItems = [
   { icon: Sparkles, label: "Today's Plan", path: "/today" },
@@ -302,9 +303,16 @@ function DashboardLayoutContent({
                 {activeMenuItem?.label ?? "Synapse"}
               </span>
             </div>
+            <SynapseLogo size="sm" />
           </div>
         )}
-        <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>{children}</main>
+        <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>
+          {children}
+          {/* Footer branding */}
+          <div className="flex justify-center py-6 mt-8 border-t border-border/30">
+            <SynapseLogo size="sm" className="opacity-50" />
+          </div>
+        </main>
       </SidebarInset>
     </>
   );
