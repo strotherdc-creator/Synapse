@@ -172,12 +172,7 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <Zap className="h-5 w-5 text-gold shrink-0" />
-                  <span className="font-bold tracking-tight truncate text-foreground">
-                    Synapse
-                  </span>
-                </div>
+                <SynapseLogo variant="full" size="md" />
               ) : null}
             </div>
           </SidebarHeader>

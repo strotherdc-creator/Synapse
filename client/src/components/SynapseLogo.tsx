@@ -1,20 +1,27 @@
-import { Zap } from "lucide-react";
-
 interface SynapseLogoProps {
-  size?: "sm" | "md";
+  variant?: "full" | "icon";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-export function SynapseLogo({ size = "sm", className = "" }: SynapseLogoProps) {
-  const iconSize = size === "sm" ? "h-4 w-4" : "h-5 w-5";
-  const textSize = size === "sm" ? "text-sm" : "text-base";
+export function SynapseLogo({ variant = "icon", size = "sm", className = "" }: SynapseLogoProps) {
+  const heights: Record<string, string> = {
+    sm: "h-6",
+    md: "h-10",
+    lg: "h-16",
+  };
+
+  const src = variant === "full"
+    ? "/images/synapse-logo-full.png"
+    : "/images/synapse-logo-icon.png";
+
+  const alt = variant === "full" ? "Synapse App" : "Synapse";
 
   return (
-    <div className={`flex items-center gap-1.5 ${className}`}>
-      <Zap className={`${iconSize} text-gold`} />
-      <span className={`${textSize} font-bold tracking-tight text-gold/80`}>
-        Synapse
-      </span>
-    </div>
+    <img
+      src={src}
+      alt={alt}
+      className={`${heights[size]} w-auto object-contain ${className}`}
+    />
   );
 }
