@@ -1,14 +1,15 @@
 interface SynapseLogoProps {
   variant?: "full" | "icon";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }
 
 export function SynapseLogo({ variant = "icon", size = "sm", className = "" }: SynapseLogoProps) {
   const heights: Record<string, string> = {
-    sm: "h-6",
-    md: "h-10",
-    lg: "h-16",
+    sm: "h-8",
+    md: "h-12",
+    lg: "h-20",
+    xl: "h-28",
   };
 
   const src = variant === "full"

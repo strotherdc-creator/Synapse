@@ -172,7 +172,7 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed ? (
-                <SynapseLogo variant="full" size="md" />
+                <SynapseLogo variant="full" size="lg" />
               ) : null}
             </div>
           </SidebarHeader>
@@ -298,14 +298,14 @@ function DashboardLayoutContent({
                 {activeMenuItem?.label ?? "Synapse"}
               </span>
             </div>
-            <SynapseLogo size="sm" />
+            <SynapseLogo size="md" />
           </div>
         )}
         <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>
           {children}
           {/* Footer branding */}
           <div className="flex justify-center py-6 mt-8 border-t border-border/30">
-            <SynapseLogo size="sm" className="opacity-50" />
+            <SynapseLogo size="md" className="opacity-60" />
           </div>
         </main>
       </SidebarInset>

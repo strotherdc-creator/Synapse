@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { SynapseLogo } from "@/components/SynapseLogo";
 import { SignInButton } from "@clerk/clerk-react";
 import {
   ChevronRight,
@@ -6,7 +7,6 @@ import {
   ListChecks,
   BarChart3,
   ShieldCheck,
-  Zap,
 } from "lucide-react";
 
 export default function Landing() {
@@ -15,10 +15,7 @@ export default function Landing() {
       {/* Top Bar — Login only, no nav links */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-gold" />
-            <span className="text-lg font-bold tracking-tight">Synapse</span>
-          </div>
+          <SynapseLogo variant="full" size="md" />
           <SignInButton mode="modal">
             <button className="text-lg font-semibold px-6 py-2 rounded-lg bg-white text-black hover:bg-gray-100 transition-colors shadow-md">
               Login
@@ -305,12 +302,9 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-4 sm:px-6 border-t border-border/30">
-        <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-gold" />
-            <span>Synapse</span>
-          </div>
+      <footer className="py-10 px-4 sm:px-6 border-t border-border/30">
+        <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 text-sm text-muted-foreground">
+          <SynapseLogo variant="full" size="lg" />
           <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
         </div>
       </footer>
