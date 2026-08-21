@@ -119,7 +119,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-brand-gold/15">
             <p className="text-sm font-semibold text-foreground mb-3">Social Media (for hashtags and post formatting)</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -137,7 +137,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-brand-gold/15">
             <p className="text-sm font-semibold text-foreground mb-3">Practice Schedule (which days do you see patients?)</p>
             <div className="space-y-2">
               {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((dayKey) => {
@@ -184,7 +184,7 @@ export default function Profile() {
 
       {/* Bio */}
       {!isOnboarding && (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardHeader><CardTitle className="text-foreground">About You</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself..." maxLength={500} rows={4} />
@@ -198,7 +198,7 @@ export default function Profile() {
 
       {/* Account Details */}
       {!isOnboarding && (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardHeader><CardTitle className="text-foreground">Account Details</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">

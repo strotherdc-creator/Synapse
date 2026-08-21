@@ -228,7 +228,7 @@ export default function AdminModules() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="bg-card border-border animate-pulse">
+            <Card key={i} className="bg-card border-brand-gold/15 animate-pulse">
               <CardContent className="p-4">
                 <div className="h-5 bg-muted rounded w-1/3" />
               </CardContent>
@@ -260,7 +260,7 @@ export default function AdminModules() {
           ))}
         </div>
       ) : (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardContent className="p-8 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
             <p className="text-muted-foreground mb-4">
@@ -503,7 +503,7 @@ function ModuleRow({
   );
 
   return (
-    <Card className="bg-card border-border">
+    <Card className="bg-card border-brand-gold/15">
       <CardContent className="p-0">
         <div className="flex items-center gap-3 p-4">
           <button
@@ -552,7 +552,7 @@ function ModuleRow({
         </div>
 
         {expanded && (
-          <div className="border-t border-border px-4 pb-4 pt-2">
+          <div className="border-t border-brand-gold/15 px-4 pb-4 pt-2">
             {lessons && lessons.length > 0 ? (
               <div className="space-y-1">
                 {lessons.map((lesson, idx) => (

@@ -11,7 +11,7 @@ export function StatCard({ label, alias, value, highlight }: StatCardProps) {
       className={`flex flex-col items-center justify-center rounded-xl border p-4 gap-1 ${
         highlight
           ? "bg-[var(--gold)]/10 border-[var(--gold)]/40"
-          : "bg-card border-border"
+          : "bg-card border-brand-gold/15"
       }`}
     >
       <span

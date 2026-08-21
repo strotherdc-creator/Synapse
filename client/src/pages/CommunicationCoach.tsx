@@ -109,7 +109,7 @@ export default function CommunicationCoach() {
 
       {/* Main Input Section */}
       {!result && (
-        <div className="space-y-5 bg-card rounded-2xl border border-border p-5">
+        <div className="space-y-5 bg-card rounded-2xl border border-brand-gold/15 p-5">
 
           {/* 1. Paste the conversation */}
           <div className="space-y-2">
@@ -238,7 +238,7 @@ export default function CommunicationCoach() {
         <div className="space-y-5">
 
           {/* Situation Read — compact */}
-          <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="bg-card rounded-2xl border border-brand-gold/15 p-4">
             <p className="text-sm font-bold text-purple-400 uppercase tracking-wide mb-1">What's happening</p>
             <p className="text-base text-foreground leading-relaxed">{result.situation_read}</p>
           </div>
@@ -259,7 +259,7 @@ export default function CommunicationCoach() {
 
           {/* What they're protecting */}
           {result.protecting.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-brand-gold/15 p-4">
               <p className="text-sm font-bold text-yellow-400 uppercase tracking-wide mb-2">What they're protecting</p>
               {result.protecting.map((p, i) => (
                 <p key={i} className="text-base text-foreground">• {p}</p>
@@ -268,7 +268,7 @@ export default function CommunicationCoach() {
           )}
 
           {/* Technique */}
-          <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="bg-card rounded-2xl border border-brand-gold/15 p-4">
             <p className="text-sm font-bold text-blue-400 uppercase tracking-wide mb-1">Why this works</p>
             <p className="text-base text-foreground">{result.technique_applied}</p>
           </div>
@@ -284,7 +284,7 @@ export default function CommunicationCoach() {
 
           {/* Follow-up */}
           {result.follow_up_question && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-brand-gold/15 p-4">
               <p className="text-sm font-bold text-orange-400 uppercase tracking-wide mb-1">If they go silent</p>
               <p className="text-base text-foreground">"{result.follow_up_question}"</p>
             </div>

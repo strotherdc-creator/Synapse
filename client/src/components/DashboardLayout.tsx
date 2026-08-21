@@ -223,7 +223,7 @@ function DashboardLayoutContent({
               })}
             </SidebarMenu>
             {/* Logout button — visible, below all nav items */}
-            <SidebarMenu className="px-2 py-1 mt-2 border-t border-border pt-2">
+            <SidebarMenu className="px-2 py-1 mt-2 border-t border-brand-gold/15 pt-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={logout}
@@ -292,7 +292,7 @@ function DashboardLayoutContent({
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleSidebar}
-                className="h-10 w-10 rounded-lg bg-surface border border-border flex items-center justify-center"
+                className="h-10 w-10 rounded-lg bg-surface border border-brand-gold/15 flex items-center justify-center"
               >
                 <Menu className="h-6 w-6 text-foreground" />
               </button>

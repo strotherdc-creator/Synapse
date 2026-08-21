@@ -32,7 +32,7 @@ export default function Curriculum() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="bg-card border-border animate-pulse">
+            <Card key={i} className="bg-card border-brand-gold/15 animate-pulse">
               <CardContent className="p-6">
                 <div className="h-8 bg-muted rounded-lg w-8 mb-4" />
                 <div className="h-4 bg-muted rounded w-3/4 mb-3" />
@@ -55,7 +55,7 @@ export default function Curriculum() {
             return (
               <Card
                 key={mod.id}
-                className={`bg-card border-border transition-all ${
+                className={`bg-card border-brand-gold/15 transition-all ${
                   unlocked
                     ? "cursor-pointer hover:border-primary/50 group"
                     : "opacity-60 cursor-not-allowed"
@@ -117,7 +117,7 @@ export default function Curriculum() {
           })}
         </div>
       ) : (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardContent className="p-12 text-center">
             <BookOpen className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">

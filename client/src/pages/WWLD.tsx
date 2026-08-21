@@ -214,7 +214,7 @@ const GREEN2 = "oklch(0.55 0.10 155)";
 // ─── InsightCard ──────────────────────────────────────────────────────────────
 
 function InsightCard({ insight }: { insight: Insight }) {
-  const border = { positive: "border-green-500/30 bg-green-500/5", warning: "border-yellow-500/30 bg-yellow-500/5", neutral: "border-blue-500/30 bg-blue-500/5", info: "border-border bg-muted/30" }[insight.type];
+  const border = { positive: "border-green-500/30 bg-green-500/5", warning: "border-yellow-500/30 bg-yellow-500/5", neutral: "border-blue-500/30 bg-blue-500/5", info: "border-brand-gold/15 bg-muted/30" }[insight.type];
   const iconColor = { positive: "text-green-400", warning: "text-yellow-400", neutral: "text-blue-400", info: "text-muted-foreground" }[insight.type];
   const Icon = { up: TrendingUp, down: TrendingDown, flat: Minus, capacity: Activity, info: Lightbulb }[insight.icon];
   return (
@@ -324,7 +324,7 @@ export default function WWLD() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-6 h-6 text-[var(--gold)]" />
@@ -396,7 +396,7 @@ export default function WWLD() {
             {period === "wtd" && (
               <>
                 {filledWeekData.length > 0 && (
-                  <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+                  <div className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-4">
                     <h3 className="text-sm font-semibold text-foreground">Daily Breakdown — This Week</h3>
                     <WeekChart data={filledWeekData} metric="officeVisits" label="Office Visits" color="var(--gold)" />
                     <WeekChart data={filledWeekData} metric="newPatients" label="New Patients (Day 1)" color="var(--primary)" />
@@ -405,7 +405,7 @@ export default function WWLD() {
                 )}
                 {/* Week-over-week comparison chart */}
                 {weekCompData.length > 0 && (
-                  <div className="bg-card border border-border rounded-xl p-4">
+                  <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                     <h3 className="text-sm font-semibold text-foreground mb-4">This Week vs Last Week — Office Visits</h3>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={weekCompData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
@@ -425,7 +425,7 @@ export default function WWLD() {
 
             {/* Month: day-of-week averages */}
             {period === "mtd" && analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 2) && (
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-1">Average Office Visits by Day of Week</h3>
                 <p className="text-xs text-muted-foreground mb-4">Based on all historical data</p>
                 <ResponsiveContainer width="100%" height={200}>
@@ -442,7 +442,7 @@ export default function WWLD() {
 
             {/* Year: line chart */}
             {period === "ytd" && periodData && periodData.dailyBreakdown.length > 0 && (
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-4">Office Visits — Year to Date</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={periodData.dailyBreakdown.map((d) => ({ ...d, label: formatDate(d.date) }))} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
@@ -459,13 +459,13 @@ export default function WWLD() {
             )}
 
             {/* Today's Sessions Status */}
-            <div className="bg-card border border-border rounded-xl p-4">
+            <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
               <h3 className="text-sm font-semibold text-foreground mb-3">Today's Sessions</h3>
               <div className="space-y-2">
                 {(["morning", "afternoon", "end_of_day"] as SessionType[]).map((type) => {
                   const logged = type === "morning" ? todayStatus?.morning : type === "afternoon" ? todayStatus?.afternoon : todayStatus?.endOfDay;
                   return (
-                    <div key={type} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div key={type} className="flex items-center justify-between py-2 border-b border-brand-gold/15 last:border-0">
                       <div className="flex items-center gap-2">
                         {logged ? <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" /> : <Circle className="w-4 h-4 text-muted-foreground" />}
                         <span className={`text-sm ${logged ? "text-foreground font-medium" : "text-muted-foreground"}`}>{SESSION_TYPE_LABELS[type]}</span>
@@ -508,7 +508,7 @@ export default function WWLD() {
 
             {/* 30-day trend line */}
             {trendData.length >= 3 ? (
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-1">30-Day Trend</h3>
                 <p className="text-xs text-muted-foreground mb-4">Office visits, new patients, and care plans</p>
                 <ResponsiveContainer width="100%" height={240}>
@@ -526,7 +526,7 @@ export default function WWLD() {
               </div>
             ) : (
               !analyticsQuery.isLoading && (
-                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                <div className="rounded-lg border border-dashed border-brand-gold/15 p-8 text-center">
                   <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <p className="text-muted-foreground text-sm">Log stats for at least 3 days to see trend charts.</p>
                 </div>
@@ -535,7 +535,7 @@ export default function WWLD() {
 
             {/* Day-of-week pattern */}
             {analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 2) && (
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-1">Day-of-Week Patterns</h3>
                 <p className="text-xs text-muted-foreground mb-4">Your average stats by day of week</p>
                 <ResponsiveContainer width="100%" height={220}>
@@ -554,7 +554,7 @@ export default function WWLD() {
 
             {/* Week-over-week comparison */}
             {weekCompData.some((d) => d["This Week"] > 0 || d["Last Week"] > 0) && (
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-4">This Week vs Last Week</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={weekCompData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
@@ -575,7 +575,7 @@ export default function WWLD() {
 
       {/* Log Stats Modal */}
       <Dialog open={logModalOpen} onOpenChange={setLogModalOpen}>
-        <DialogContent className="bg-background border-border max-w-md mx-auto">
+        <DialogContent className="bg-background border-brand-gold/15 max-w-md mx-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {SESSION_TYPE_LABELS[activeSessionType]} — {today}

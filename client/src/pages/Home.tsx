@@ -36,7 +36,7 @@ export default function Home() {
 
       {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Overall Progress
@@ -52,7 +52,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Modules Completed
@@ -73,7 +73,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Steps Completed
@@ -89,7 +89,7 @@ export default function Home() {
         </Card>
 
         <Card
-          className="bg-card border-border cursor-pointer hover:border-primary/50 transition-colors"
+          className="bg-card border-brand-gold/15 cursor-pointer hover:border-primary/50 transition-colors"
           onClick={() => setLocation("/chat")}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -122,7 +122,7 @@ export default function Home() {
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-card border-border animate-pulse">
+              <Card key={i} className="bg-card border-brand-gold/15 animate-pulse">
                 <CardContent className="p-6">
                   <div className="h-4 bg-muted rounded w-3/4 mb-3" />
                   <div className="h-3 bg-muted rounded w-full mb-2" />
@@ -141,7 +141,7 @@ export default function Home() {
               return (
                 <Card
                   key={mod.id}
-                  className="bg-card border-border cursor-pointer hover:border-primary/50 transition-colors group"
+                  className="bg-card border-brand-gold/15 cursor-pointer hover:border-primary/50 transition-colors group"
                   onClick={() => setLocation(`/curriculum/${mod.id}`)}
                 >
                   <CardContent className="p-6">
@@ -175,7 +175,7 @@ export default function Home() {
             })}
           </div>
         ) : (
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-brand-gold/15">
             <CardContent className="p-8 text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground">

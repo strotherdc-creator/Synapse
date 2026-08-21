@@ -55,7 +55,7 @@ export function OutcomeModal({ actionId, actionTitle, onClose, onSuccess }: Outc
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <Card className="w-full max-w-md border-border bg-card shadow-xl">
+      <Card className="w-full max-w-md border-brand-gold/15 bg-card shadow-xl">
         <CardContent className="p-5 space-y-5">
           {/* Header */}
           <div className="flex items-start justify-between">
@@ -72,7 +72,7 @@ export function OutcomeModal({ actionId, actionTitle, onClose, onSuccess }: Outc
           </div>
 
           {/* Action context */}
-          <p className="text-sm text-muted-foreground bg-muted/50 rounded-md p-2 border border-border">
+          <p className="text-sm text-muted-foreground bg-muted/50 rounded-md p-2 border border-brand-gold/15">
             {actionTitle}
           </p>
 
@@ -87,7 +87,7 @@ export function OutcomeModal({ actionId, actionTitle, onClose, onSuccess }: Outc
                   className={`text-left text-xs p-2 rounded-md border transition-all ${
                     outcomeType === type.value
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                      : "border-brand-gold/15 bg-card text-muted-foreground hover:border-primary/40"
                   }`}
                 >
                   <span className="mr-1">{type.emoji}</span> {type.label}
@@ -108,7 +108,7 @@ export function OutcomeModal({ actionId, actionTitle, onClose, onSuccess }: Outc
                     className={`flex-1 text-xs py-2 rounded-md border transition-all ${
                       confidence === level.value
                         ? "border-primary bg-primary/10 text-primary font-medium"
-                        : "border-border text-muted-foreground hover:border-primary/40"
+                        : "border-brand-gold/15 text-muted-foreground hover:border-primary/40"
                     }`}
                   >
                     {level.value}
@@ -130,7 +130,7 @@ export function OutcomeModal({ actionId, actionTitle, onClose, onSuccess }: Outc
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Who did you talk to? What did you say?"
-                className="w-full text-xs p-2 rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full text-xs p-2 rounded-md border border-brand-gold/15 bg-background text-foreground placeholder:text-muted-foreground resize-none h-16 focus:outline-none focus:ring-1 focus:ring-primary"
                 maxLength={500}
               />
               <p className="text-[10px] text-muted-foreground">No patient names — practice behavior only.</p>

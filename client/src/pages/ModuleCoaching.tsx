@@ -331,7 +331,7 @@ export default function ModuleCoaching() {
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Curriculum
         </Button>
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">
               Coaching steps are being prepared for this module. Check back
@@ -411,7 +411,7 @@ export default function ModuleCoaching() {
       </div>
 
       {/* ── Step Title + Description (sticky, always visible) ── */}
-      <div className="shrink-0 rounded-t-lg bg-card border border-border px-4 py-3">
+      <div className="shrink-0 rounded-t-lg bg-card border border-brand-gold/15 px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
@@ -460,7 +460,7 @@ export default function ModuleCoaching() {
       {/* ── Chat Messages (scrollable middle section) ── */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto border-x border-border bg-card/50"
+        className="flex-1 overflow-y-auto border-x border-brand-gold/15 bg-card/50"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         {messages.length === 0 && !chatMutation.isPending ? (
@@ -538,7 +538,7 @@ export default function ModuleCoaching() {
       </div>
 
       {/* ── Input + Confirm (pinned to bottom) ── */}
-      <div className="shrink-0 border border-border rounded-b-lg bg-card">
+      <div className="shrink-0 border border-brand-gold/15 rounded-b-lg bg-card">
 
         {/* Confetti celebration overlay */}
         {showConfetti && <Confetti onComplete={() => setShowConfetti(false)} />}

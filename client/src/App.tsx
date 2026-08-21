@@ -75,7 +75,7 @@ function DailyActionPopup() {
       onClick={handleDismiss}
     >
       <div
-        className="bg-card border border-border rounded-2xl shadow-2xl max-w-sm w-full p-8 space-y-6"
+        className="bg-card border border-brand-gold/30 rounded-2xl shadow-2xl shadow-brand-gold/10 max-w-sm w-full p-8 space-y-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-center space-y-2">

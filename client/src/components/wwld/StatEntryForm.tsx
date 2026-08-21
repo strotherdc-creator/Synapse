@@ -125,7 +125,7 @@ export function StatEntryForm({
         {STAT_FIELDS.map((field) => (
           <div
             key={field.key}
-            className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3"
+            className="flex items-center justify-between bg-card border border-brand-gold/15 rounded-xl px-4 py-3"
           >
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-foreground">
@@ -147,7 +147,7 @@ export function StatEntryForm({
                 max={9999}
                 value={values[field.key]}
                 onChange={(e) => handleDirectInput(field.key, e.target.value)}
-                className="w-14 text-center text-lg font-bold text-foreground bg-transparent border-b border-border focus:outline-none focus:border-[var(--gold)]"
+                className="w-14 text-center text-lg font-bold text-foreground bg-transparent border-b border-brand-gold/15 focus:outline-none focus:border-[var(--gold)]"
               />
               <button
                 onClick={() => adjust(field.key, 1)}

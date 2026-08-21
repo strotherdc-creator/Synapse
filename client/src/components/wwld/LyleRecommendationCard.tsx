@@ -27,7 +27,7 @@ export function LyleRecommendationCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-border bg-card p-5 animate-pulse space-y-3">
+      <div className="rounded-xl border border-brand-gold/15 bg-card p-5 animate-pulse space-y-3">
         <div className="h-4 w-32 bg-muted rounded" />
         <div className="h-3 w-full bg-muted rounded" />
         <div className="h-3 w-3/4 bg-muted rounded" />
@@ -80,7 +80,7 @@ export function LyleRecommendationCard() {
 
       {/* Divider */}
       {data.weeklyTheme && data.dailyAction && (
-        <div className="border-t border-border/50" />
+        <div className="border-t border-brand-gold/15/50" />
       )}
 
       {/* Daily action */}

@@ -146,7 +146,7 @@ function StatRow({
             const v = parseInt(e.target.value, 10);
             if (!isNaN(v) && v >= 0 && v <= 9999) onChange(v);
           }}
-          className="w-14 text-center bg-muted/20 border border-border rounded-md text-foreground text-sm py-1 focus:outline-none focus:ring-1 focus:ring-[var(--gold)]"
+          className="w-14 text-center bg-muted/20 border border-brand-gold/15 rounded-md text-foreground text-sm py-1 focus:outline-none focus:ring-1 focus:ring-[var(--gold)]"
         />
         <button
           onClick={() => onChange(Math.min(9999, value + 1))}
@@ -253,7 +253,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
                   "flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-left",
                   saved
                     ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
-                    : "border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
+                    : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
                 )}
               >
                 <span className="text-sm font-medium text-foreground">{getDayLabel(d)}</span>
@@ -282,7 +282,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
                     "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors text-left",
                     saved
                       ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
-                      : "border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
+                      : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
                   )}
                 >
                   <span className="text-sm text-foreground">{getDayLabel(d)}</span>
@@ -392,7 +392,7 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
                 "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
                 saved
                   ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
-                  : "border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
+                  : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
               )}
             >
               <div>
@@ -506,7 +506,7 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
                 "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
                 saved
                   ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
-                  : "border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
+                  : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
               )}
             >
               <p className="text-sm font-semibold text-foreground">{label}</p>
@@ -534,7 +534,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("by-day")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">By Day</p>
@@ -545,7 +545,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("week-total")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">Weekly Total</p>
@@ -556,7 +556,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("month-total")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-border bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">Monthly Total</p>
@@ -600,7 +600,7 @@ export function BacklogModal() {
           Log Past Stats
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-background border-border">
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-background border-brand-gold/15">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <History className="w-5 h-5 text-[var(--gold)]" />

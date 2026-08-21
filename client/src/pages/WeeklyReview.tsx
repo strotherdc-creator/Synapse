@@ -18,7 +18,7 @@ export default function WeeklyReview() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Weekly Review</h1>
           <p className="text-muted-foreground mt-1">Loading your progress...</p>
         </div>
-        <Card className="border-border bg-card animate-pulse">
+        <Card className="border-brand-gold/15 bg-card animate-pulse">
           <CardContent className="p-6 h-32" />
         </Card>
       </div>
@@ -44,21 +44,21 @@ export default function WeeklyReview() {
 
       {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border bg-card">
+        <Card className="border-brand-gold/15 bg-card">
           <CardContent className="p-4 text-center space-y-1">
             <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto" />
             <p className="text-2xl font-bold text-foreground">{completedCount}</p>
             <p className="text-xs text-muted-foreground">Actions Completed</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-brand-gold/15 bg-card">
           <CardContent className="p-4 text-center space-y-1">
             <Target className="h-6 w-6 text-primary mx-auto" />
             <p className="text-2xl font-bold text-foreground">{totalCount}</p>
             <p className="text-xs text-muted-foreground">Total Actions</p>
           </CardContent>
         </Card>
-        <Card className="border-border bg-card">
+        <Card className="border-brand-gold/15 bg-card">
           <CardContent className="p-4 text-center space-y-1">
             <TrendingUp className="h-6 w-6 text-amber-500 mx-auto" />
             <p className="text-2xl font-bold text-foreground">{rate}%</p>

@@ -122,7 +122,7 @@ export default function LessonView() {
               {lesson.title}
             </h1>
             {lesson.content ? (
-              <Card className="bg-card border-border">
+              <Card className="bg-card border-brand-gold/15">
                 <CardContent className="p-6 prose prose-invert prose-sm max-w-none">
                   <div
                     className="text-foreground leading-relaxed whitespace-pre-wrap"
@@ -133,7 +133,7 @@ export default function LessonView() {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-card border-border">
+              <Card className="bg-card border-brand-gold/15">
                 <CardContent className="p-8 text-center">
                   <p className="text-muted-foreground">
                     Content for this lesson is being prepared.
@@ -166,7 +166,7 @@ export default function LessonView() {
           </div>
         </div>
       ) : (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Lesson not found.</p>
           </CardContent>

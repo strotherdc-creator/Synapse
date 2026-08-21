@@ -56,7 +56,7 @@ export default function ProfileCompletion() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4 bg-card border border-border rounded-xl p-6">
+          <div className="space-y-4 bg-card border border-brand-gold/15 rounded-xl p-6">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground">Email</Label>
               <Input

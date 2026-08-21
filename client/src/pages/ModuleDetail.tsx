@@ -127,7 +127,7 @@ export default function ModuleDetail() {
                 {lessons.map((lesson, index) => (
                   <Card
                     key={lesson.id}
-                    className="bg-card border-border cursor-pointer hover:border-primary/50 transition-colors group"
+                    className="bg-card border-brand-gold/15 cursor-pointer hover:border-primary/50 transition-colors group"
                     onClick={() =>
                       setLocation(`/curriculum/${moduleId}/lesson/${lesson.id}`)
                     }
@@ -166,7 +166,7 @@ export default function ModuleDetail() {
               </div>
             </div>
           ) : (
-            <Card className="bg-card border-border">
+            <Card className="bg-card border-brand-gold/15">
               <CardContent className="p-8 text-center">
                 <BookOpen className="h-12 w-12 text-muted-foreground/20 mx-auto mb-3" />
                 <p className="text-muted-foreground">
@@ -177,7 +177,7 @@ export default function ModuleDetail() {
           )}
         </>
       ) : (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-brand-gold/15">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">Module not found.</p>
           </CardContent>
