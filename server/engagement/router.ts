@@ -310,23 +310,44 @@ export const engagementRouter = router({
       const topic = await ensureUserTopic(dbInstance, userId, ctx.user.email ?? "");
       const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
 
-      // Delete any existing plan for today (allows re-picking)
-      const existingPlan = await dbInstance
+      // Check for existing plan for today
+      const [existingPlan] = await dbInstance
         .select()
         .from(dailyGrowthPlans)
         .where(and(eq(dailyGrowthPlans.userId, userId), eq(dailyGrowthPlans.planDate, date)))
         .limit(1);
 
-      if (existingPlan.length > 0) {
-        await dbInstance.delete(growthActions).where(and(eq(growthActions.userId, userId), eq(growthActions.actionDate, date)));
-        await dbInstance.delete(dailyGrowthPlans).where(eq(dailyGrowthPlans.id, existingPlan[0].id));
+      let planId: number;
+
+      if (existingPlan) {
+        // Reuse existing plan — only delete PENDING actions, keep completed ones
+        planId = existingPlan.id;
+        await dbInstance
+          .delete(growthActions)
+          .where(
+            and(
+              eq(growthActions.userId, userId),
+              eq(growthActions.planId, planId),
+              eq(growthActions.status, "pending")
+            )
+          );
+      } else {
+        // Create new plan
+        const [plan] = await dbInstance
+          .insert(dailyGrowthPlans)
+          .values({ userId, planDate: date, focus: topic.shortLabel, state: "active" })
+          .returning({ id: dailyGrowthPlans.id });
+        planId = plan.id;
       }
 
-      // Create new plan
-      const [plan] = await dbInstance
-        .insert(dailyGrowthPlans)
-        .values({ userId, planDate: date, focus: topic.shortLabel, state: "active" })
-        .returning({ id: dailyGrowthPlans.id });
+      // Figure out the next sort order (after any existing completed actions)
+      const existingActions = await dbInstance
+        .select({ sortOrder: growthActions.sortOrder })
+        .from(growthActions)
+        .where(and(eq(growthActions.userId, userId), eq(growthActions.planId, planId)))
+        .orderBy(desc(growthActions.sortOrder))
+        .limit(1);
+      const nextSortOrder = existingActions.length > 0 ? (existingActions[0].sortOrder ?? 0) + 1 : 0;
 
       // Create actions with expanded content
       for (let i = 0; i < input.actionKeys.length; i++) {
@@ -336,7 +357,7 @@ export const engagementRouter = router({
 
         await dbInstance.insert(growthActions).values({
           userId,
-          planId: plan.id,
+          planId,
           source: "picked",
           sourceRef: key,
           title: content.title,
@@ -348,7 +369,7 @@ export const engagementRouter = router({
                   key === "curriculum_lesson" ? "Personal Growth & Discipline" :
                   key === "social_post" || key === "video" ? "Referral & Visibility" :
                   "Communication & Listening",
-          sortOrder: i,
+          sortOrder: nextSortOrder + i,
           required: i === 0,
           status: "pending",
           actionDate: date,
@@ -360,10 +381,10 @@ export const engagementRouter = router({
         userId,
         eventName: "actions_picked",
         entityType: "plan",
-        entityId: plan.id,
+        entityId: planId,
       });
 
-      return { success: true, planId: plan.id };
+      return { success: true, planId };
     }),
 
   // Get today's plan (returns picked actions or empty if not picked yet)
