@@ -473,7 +473,32 @@ const routineRouter = router({
     }),
 
   getStreak: protectedProcedure.query(async ({ ctx }) => {
-    return db.getUserStreak(ctx.user.id);
+    const streak = await db.getUserStreak(ctx.user.id);
+    // Compute average tasks completed per day (last 30 days)
+    const dbInstance = await db.getDb();
+    let avgTasksPerDay = 0;
+    if (dbInstance) {
+      const { growthActions } = await import("../shared/schema");
+      const { eq, and, sql } = await import("drizzle-orm");
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
+      const result = await dbInstance
+        .select({
+          totalCompleted: sql<number>`count(*)`,
+          distinctDays: sql<number>`count(distinct ${growthActions.actionDate})`,
+        })
+        .from(growthActions)
+        .where(and(
+          eq(growthActions.userId, ctx.user.id),
+          eq(growthActions.status, "completed"),
+          sql`${growthActions.actionDate} >= ${thirtyDaysAgoStr}`
+        ));
+      const total = Number(result[0]?.totalCompleted ?? 0);
+      const days = Number(result[0]?.distinctDays ?? 1);
+      avgTasksPerDay = days > 0 ? Math.round((total / days) * 10) / 10 : 0;
+    }
+    return { ...streak, avgTasksPerDay };
   }),
 });
 

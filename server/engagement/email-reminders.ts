@@ -21,11 +21,14 @@ import { ENV } from "../_core/env";
 import { isEngagementEnabled } from "./flags";
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Use Central Time (America/Chicago) so the day resets at midnight CT
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 }
 
 function getDayOfWeek(): string {
-  return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][new Date().getDay()];
+  // Use Central Time day-of-week
+  const ctDay = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago", weekday: "short" }).toLowerCase().slice(0, 3);
+  return ctDay;
 }
 
 async function sendDailyReminders() {

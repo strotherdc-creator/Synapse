@@ -67,7 +67,8 @@ export const ACTION_CATEGORIES = [
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Use Central Time (America/Chicago) so the day resets at midnight CT
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
 }
 
 function guardFeature(feature: Parameters<typeof isEngagementEnabled>[0], clerkId?: string) {
