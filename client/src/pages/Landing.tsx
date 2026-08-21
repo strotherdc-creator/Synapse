@@ -13,8 +13,8 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar — Login only, no nav links */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-brand-gold/20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <SynapseLogoInline />
           <SignInButton mode="modal">
             <button className="text-lg font-semibold px-6 py-2 rounded-lg bg-white text-black hover:bg-gray-100 transition-colors shadow-md">
@@ -65,7 +65,7 @@ export default function Landing() {
       {/* ============================================================
           SECTION 2: AGITATION
       ============================================================ */}
-      <section className="py-20 px-4 sm:px-6 border-t border-border/30">
+      <section className="py-20 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center leading-tight">
             You didn't go to chiropractic college to become a{" "}
@@ -107,7 +107,7 @@ export default function Landing() {
       {/* ============================================================
           SECTION 3: SOLUTION
       ============================================================ */}
-      <section className="py-20 px-4 sm:px-6 border-t border-border/30">
+      <section className="py-20 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -124,7 +124,7 @@ export default function Landing() {
           </div>
           <div className="grid gap-8 sm:grid-cols-3">
             {/* Pillar 1 */}
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <div className="rounded-xl border border-brand-gold/20 bg-card p-8 text-center">
               <div className="h-14 w-14 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-5">
                 <Crosshair className="h-7 w-7 text-gold" />
               </div>
@@ -138,7 +138,7 @@ export default function Landing() {
               </p>
             </div>
             {/* Pillar 2 */}
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <div className="rounded-xl border border-brand-gold/20 bg-card p-8 text-center">
               <div className="h-14 w-14 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-5">
                 <ListChecks className="h-7 w-7 text-gold" />
               </div>
@@ -151,7 +151,7 @@ export default function Landing() {
               </p>
             </div>
             {/* Pillar 3 */}
-            <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <div className="rounded-xl border border-brand-gold/20 bg-card p-8 text-center">
               <div className="h-14 w-14 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-5">
                 <BarChart3 className="h-7 w-7 text-gold" />
               </div>
@@ -170,7 +170,7 @@ export default function Landing() {
       {/* ============================================================
           SECTION 4: INSIDE THE APP
       ============================================================ */}
-      <section className="py-20 px-4 sm:px-6 border-t border-border/30">
+      <section className="py-20 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Look Over the Shoulder of a{" "}
@@ -180,7 +180,7 @@ export default function Landing() {
             See exactly how our AI breaks down complex marketing strategies into
             single daily actions.
           </p>
-          <div className="mt-12 rounded-xl border border-border overflow-hidden shadow-2xl shadow-gold/5">
+          <div className="mt-12 rounded-xl border border-brand-gold/25 overflow-hidden shadow-2xl shadow-brand-gold/10">
             <img
               src="https://d2xsxph8kpxj0f.cloudfront.net/310419663030573991/FYfVsUdTarsjArAdvcj8n6/app-mockup-CU8M3kSS6idtsRNMGCqWRV.webp"
               alt="Synapse app dashboard showing AI coaching, daily tasks, and progress tracking"
@@ -194,7 +194,7 @@ export default function Landing() {
       {/* ============================================================
           SECTION 5: PRICING
       ============================================================ */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 border-t border-border/30">
+      <section id="pricing" className="py-20 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -204,7 +204,7 @@ export default function Landing() {
           </div>
           <div className="grid gap-8 sm:grid-cols-2 max-w-3xl mx-auto">
             {/* Monthly Plan */}
-            <div className="rounded-xl border border-border bg-card p-8 flex flex-col">
+            <div className="rounded-xl border border-brand-gold/15 bg-card p-8 flex flex-col">
               <h3 className="text-xl font-semibold text-foreground">
                 Monthly Growth
               </h3>
@@ -239,7 +239,7 @@ export default function Landing() {
             </div>
 
             {/* Annual Plan — Highlighted */}
-            <div className="relative rounded-xl border-2 border-gold bg-card p-8 flex flex-col shadow-lg shadow-gold/10">
+            <div className="relative rounded-xl border-2 border-brand-gold/60 bg-card p-8 flex flex-col shadow-lg shadow-brand-gold/15">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gold text-background text-xs font-bold rounded-full uppercase tracking-wider">
                 Best Value
               </div>
@@ -288,7 +288,7 @@ export default function Landing() {
       {/* ============================================================
           SECTION 6: GUARANTEE
       ============================================================ */}
-      <section className="py-20 px-4 sm:px-6 border-t border-border/30">
+      <section className="py-20 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gold/10 mb-6">
             <ShieldCheck className="h-8 w-8 text-gold" />
@@ -306,7 +306,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 sm:px-6 border-t border-border/30">
+      <footer className="py-12 px-4 sm:px-6 border-t border-brand-gold/10">
         <div className="max-w-6xl mx-auto flex flex-col items-center gap-5 text-sm text-muted-foreground">
           <SynapseLogo variant="footer" />
           <span>&copy; {new Date().getFullYear()} All rights reserved.</span>

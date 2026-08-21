@@ -159,7 +159,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r-0"
+          className="border-r border-brand-gold/15"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-16 justify-center">
@@ -180,7 +180,7 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
-            <SidebarMenu className="px-2 py-1">
+            <SidebarMenu className="px-2 py-1 border-t border-brand-gold/10">
             {allItems.map((item) => {
                 const isActive =
                   location === item.path ||
@@ -288,7 +288,7 @@ function DashboardLayoutContent({
 
       <SidebarInset>
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex border-b border-brand-gold/15 h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleSidebar}
@@ -303,7 +303,7 @@ function DashboardLayoutContent({
         <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>
           {children}
           {/* Footer branding */}
-          <div className="flex flex-col items-center gap-2 py-8 mt-10 border-t border-border/20">
+          <div className="flex flex-col items-center gap-2 py-8 mt-10 border-t border-brand-gold/15">
             <SynapseLogo variant="watermark" className="opacity-40" />
             <span className="text-xs text-muted-foreground/40 tracking-widest uppercase">Powered by Synapse</span>
           </div>

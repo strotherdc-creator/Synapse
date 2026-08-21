@@ -41,6 +41,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-gold: var(--gold);
+  --color-brand-gold: var(--brand-gold);
 }
 
 :root {
@@ -69,6 +70,9 @@
   /* Brand accent — warm seafoam that bridges the logo's emerald green and gold */
   /* #8CD7B9 — 9.5:1 contrast on dark bg, AAA accessible */
   --gold: oklch(0.82 0.09 165);
+  /* Logo gold — for borders, subtle glows, premium accents only (not text) */
+  /* #D4B878 — warm metallic gold sampled from the logo */
+  --brand-gold: oklch(0.76 0.10 80);
   /* Charts: alternating green and accent */
   --chart-1: oklch(0.45 0.12 155);
   --chart-2: oklch(0.82 0.09 165);
