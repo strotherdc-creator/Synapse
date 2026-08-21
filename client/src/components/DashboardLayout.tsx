@@ -172,8 +172,10 @@ function DashboardLayoutContent({
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed ? (
-                <SynapseLogo variant="full" size="lg" />
-              ) : null}
+                <SynapseLogoInline />
+              ) : (
+                <SynapseLogo variant="compact" />
+              )}
             </div>
           </SidebarHeader>
 
@@ -294,21 +296,20 @@ function DashboardLayoutContent({
               >
                 <Menu className="h-6 w-6 text-foreground" />
               </button>
-              <span className="font-semibold text-foreground">
-                {activeMenuItem?.label ?? "Synapse"}
-              </span>
+              <SynapseLogoInline />
             </div>
-            <SynapseLogo size="md" />
           </div>
         )}
         <main className={`flex-1 ${location.includes('/coaching') ? 'p-2 md:p-4' : 'p-4 md:p-6'}`}>
           {children}
           {/* Footer branding */}
-          <div className="flex justify-center py-6 mt-8 border-t border-border/30">
-            <SynapseLogo size="md" className="opacity-60" />
+          <div className="flex flex-col items-center gap-2 py-8 mt-10 border-t border-border/20">
+            <SynapseLogo variant="watermark" className="opacity-40" />
+            <span className="text-xs text-muted-foreground/40 tracking-widest uppercase">Powered by Synapse</span>
           </div>
         </main>
       </SidebarInset>
     </>
   );
 }
+import { SynapseLogoInline } from "./SynapseLogo";

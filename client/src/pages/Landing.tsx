@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { SynapseLogo } from "@/components/SynapseLogo";
+import { SynapseLogo, SynapseLogoInline } from "@/components/SynapseLogo";
 import { SignInButton } from "@clerk/clerk-react";
 import {
   ChevronRight,
@@ -15,7 +15,7 @@ export default function Landing() {
       {/* Top Bar — Login only, no nav links */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <SynapseLogo variant="full" size="md" />
+          <SynapseLogoInline />
           <SignInButton mode="modal">
             <button className="text-lg font-semibold px-6 py-2 rounded-lg bg-white text-black hover:bg-gray-100 transition-colors shadow-md">
               Login
@@ -29,6 +29,10 @@ export default function Landing() {
       ============================================================ */}
       <section className="pt-28 pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
+          {/* Hero logo — large and proud */}
+          <div className="flex justify-center mb-8">
+            <SynapseLogo variant="hero" />
+          </div>
           <p className="uppercase text-sm font-semibold tracking-widest text-gold mb-4">
             For chiropractors tired of "tire-kicker" leads
           </p>
@@ -302,9 +306,9 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 px-4 sm:px-6 border-t border-border/30">
-        <div className="max-w-6xl mx-auto flex flex-col items-center gap-4 text-sm text-muted-foreground">
-          <SynapseLogo variant="full" size="lg" />
+      <footer className="py-12 px-4 sm:px-6 border-t border-border/30">
+        <div className="max-w-6xl mx-auto flex flex-col items-center gap-5 text-sm text-muted-foreground">
+          <SynapseLogo variant="footer" />
           <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
         </div>
       </footer>
