@@ -48,7 +48,7 @@ export function SynapseLogoInline({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <SynapseLogo variant="mobile" />
-      <span className="text-lg font-bold tracking-tight text-gold">Synapse</span>
+      <span className="text-lg font-bold tracking-tight text-foreground">Synapse</span>
     </div>
   );
 }

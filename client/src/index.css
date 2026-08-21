@@ -66,13 +66,14 @@
   --border: oklch(0.26 0.02 155);
   --input: oklch(0.26 0.02 155);
   --ring: oklch(0.45 0.12 155);
-  /* Gold accent color */
-  --gold: oklch(0.78 0.14 80);
-  /* Charts: alternating green and gold */
+  /* Brand accent — warm seafoam that bridges the logo's emerald green and gold */
+  /* #8CD7B9 — 9.5:1 contrast on dark bg, AAA accessible */
+  --gold: oklch(0.82 0.09 165);
+  /* Charts: alternating green and accent */
   --chart-1: oklch(0.45 0.12 155);
-  --chart-2: oklch(0.78 0.14 80);
+  --chart-2: oklch(0.82 0.09 165);
   --chart-3: oklch(0.55 0.10 155);
-  --chart-4: oklch(0.70 0.11 85);
+  --chart-4: oklch(0.72 0.08 165);
   --chart-5: oklch(0.38 0.08 155);
   /* Sidebar */
   --sidebar: oklch(0.16 0.018 155);
