@@ -4,7 +4,7 @@
  * 8 pre-built condition topics for doctors who haven't completed their modules.
  * Each topic is positioned from a CORRECTIVE chiropractic lens:
  * - Internal: We find subluxations, correct structure, restore function.
- * - Patient-facing: "We find the real problem, fix it, and get you back to where you should be."
+ * - Patient-facing: "We find the real problem, address it, and help you get back to where you should be."
  * - NOT symptomatic/pain management. NOT "just cracking backs."
  *
  * Each profile provides pre-filled answers that mirror what the modules would produce,
@@ -52,33 +52,33 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "Being told 'it's just your age' or 'learn to live with it'"
     ],
     desiredOutcome: "Get back to living without constantly thinking about their back — play with their kids, exercise, sleep through the night.",
-    oneSentenceDifference: "We help people with chronic low back pain find out what's actually wrong and fix it — so they stop managing pain and start living again.",
-    localPosition: "The Fixer",
-    knownForSentence: "I want to be the go-to chiropractor known for solving chronic low back pain that nobody else could figure out.",
+    oneSentenceDifference: "We help people with chronic low back pain find out what's actually wrong and address it — so they stop managing pain and start living again.",
+    localPosition: "The Evaluator",
+    knownForSentence: "I want to be the go-to chiropractor known for finding what's actually contributing to chronic low back pain when nobody else has looked deep enough.",
     pillarPhrases: [
-      "We find it. We fix it. You get your life back.",
+      "We find it. We address it. You get back to living.",
       "Pain is a signal, not a sentence.",
       "If no one's found the real problem yet, that's exactly why we're here."
     ],
     tableTalkOneLiners: [
       "They actually found what was causing my back pain — not just where it hurt.",
-      "I'd been to three other places. They're the ones who finally fixed it.",
+      "I'd been to three other places. They're the ones who finally found what was going on.",
       "They don't just crack your back. They figure out why it keeps going out.",
       "I can sleep through the night again. I didn't think that was possible.",
       "They showed me exactly what was wrong and had a plan to correct it."
     ],
-    patientStory: "They came in after 8 years of low back pain — had tried injections, PT, even talked to a surgeon. We found a structural shift in their lower spine that nobody had addressed. After 12 weeks of corrective care, they're back to running 3 miles without thinking about their back.",
-    referralTriggerLine: "If you know someone who's been dealing with low back pain and nobody can figure it out — send them in. This is exactly what we do.",
-    easyIntroLine: "Go see Dr. ______. They're the ones who actually fix chronic back pain when nothing else has worked.",
+    patientStory: "They came in after years of low back pain — had tried several approaches without lasting improvement. Our evaluation identified structural findings in their lower spine that hadn't been addressed. After a course of corrective care, the patient reported significant improvement and told us they were back to activities they'd given up on. That's one person's experience — not a guarantee of what will happen in every case.",
+    referralTriggerLine: "If you know someone who's been dealing with low back pain and hasn't gotten the answers they're looking for — have them come in for an evaluation. This is exactly what we look for.",
+    easyIntroLine: "Go see Dr. ______. They actually look for what's causing the problem, not just where it hurts.",
     communityLane: "Gyms & fitness communities",
     socialPostTemplates: [
-      "If your low back pain keeps coming back, it's not because you need another adjustment. It's because nobody found the real problem yet.\n\nWe don't chase pain. We find the structural cause and correct it.\n\nThat's the difference between feeling better for a week and actually getting better.\n\n#ChiropracticCare #LowBackPain #CorrectiveCare #SpineHealth",
-      "\"I've had this for years. I just figured it was normal.\"\n\nIt's not normal. It's a sign something structural hasn't been addressed.\n\nWe find it. We fix it. You get your life back.\n\nDM me if this sounds like you or someone you know.",
-      "3 signs your low back pain is a structural problem (not just tight muscles):\n\n1. It keeps coming back no matter what you do\n2. It's getting worse over time, not better\n3. Nobody can tell you exactly what's wrong\n\nIf that's you — we should talk. Link in bio."
+      "If your low back pain keeps coming back, it may not be because you need another adjustment. It could be because nobody's found the real problem yet.\n\nWe don't chase pain. We look for the structural cause and work to correct it.\n\nThat's the difference between temporary relief and a real plan.\n\nDM us if you'd like us to take a look.\n\n#ChiropracticCare #LowBackPain #CorrectiveCare #SpineHealth",
+      "\"I've had this for years. I just figured it was normal.\"\n\nIt's not normal. It could be a sign something structural hasn't been addressed.\n\nBefore deciding what comes next, let's understand what's actually happening.\n\nDM us if this sounds like you or someone you know.",
+      "3 signs your low back pain may be a structural problem (not just tight muscles):\n\n1. It keeps coming back no matter what you try\n2. It seems to be getting worse over time\n3. Nobody can tell you exactly what's going on\n\nIf that sounds familiar — it may be worth an evaluation. Link in bio."
     ],
     videoTopics: [
       "Why your low back pain keeps coming back (and what nobody's checking)",
-      "The difference between pain relief and actually fixing the problem",
+      "The difference between pain relief and actually find and addressing the problem",
       "What I look for that most doctors miss in chronic low back cases"
     ],
     imagePromptTemplates: [
@@ -106,9 +106,9 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     desiredOutcome: "Walk, sit, and sleep without that shooting pain — and know the problem is actually being fixed, not just masked.",
     oneSentenceDifference: "We help people with sciatica find the structural cause of their nerve pain and correct it — without surgery, without injections, without just waiting and hoping.",
     localPosition: "The Fixer",
-    knownForSentence: "I want to be the go-to chiropractor known for helping people avoid surgery by actually fixing what's causing their sciatica.",
+    knownForSentence: "I want to be the go-to chiropractor known for helping people explore conservative options and identifying what's causing their sciatica.",
     pillarPhrases: [
-      "Nerve pain has a cause. We find it and fix it.",
+      "Nerve pain has a cause. We find it and address it.",
       "Surgery should be the last resort, not the first suggestion.",
       "Your body can heal — if the pressure is removed."
     ],
@@ -119,19 +119,19 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "I can feel my foot again. I thought that was permanent.",
       "They showed me exactly what was causing the nerve pain."
     ],
-    patientStory: "They came in barely able to walk — shooting pain from their hip to their foot, couldn't sit for more than 10 minutes. A surgeon had recommended a discectomy. We found a structural shift putting direct pressure on the nerve root. After 8 weeks of corrective care, the pain was gone and they cancelled the surgery.",
-    referralTriggerLine: "If you know someone dealing with sciatica or leg pain and they're being told surgery is the answer — send them in first. We might be able to fix it without cutting.",
+    patientStory: "They came in barely able to walk — shooting pain from their hip to their foot, couldn't sit for more than 10 minutes. A surgeon had recommended a discectomy. We found a structural shift putting direct pressure on the nerve root. After 8 weeks of corrective care, the pain was gone and the surgeon later changed the recommendation.",
+    referralTriggerLine: "If you know someone dealing with sciatica or leg pain and they're being told surgery is the answer — send them in first. Let us evaluate first — conservative care may be an option.",
     easyIntroLine: "Go see Dr. ______. They fix sciatica without surgery. Seriously.",
     communityLane: "Employers & workplace wellness",
     socialPostTemplates: [
-      "Sciatica isn't a diagnosis. It's a symptom.\n\nThe real question is: what's pressing on that nerve?\n\nWe find it. We correct it. The pain goes away because the CAUSE goes away.\n\nIf you're dealing with shooting leg pain — don't just mask it. Fix it.\n\n#Sciatica #NervePain #CorrectiveCare #NoSurgery",
-      "\"The surgeon said I needed an operation.\"\n\nWe said: let us look first.\n\nWe found a structural shift pressing directly on the nerve. 8 weeks of corrective care later — surgery cancelled.\n\nNot every case avoids surgery. But every case deserves a second look.\n\nDM me if this is you.",
-      "3 things most people don't know about sciatica:\n\n1. It's not caused by a \"tight piriformis\" in most cases\n2. The nerve pain is a signal — something structural is pressing on it\n3. If you fix the structure, the nerve heals itself\n\nWe specialize in finding and fixing that structural cause."
+      "Sciatica isn't a diagnosis. It's a symptom.\n\nThe real question is: what's pressing on that nerve?\n\nWe find it. We correct it. When the cause is addressed, patients often report the pain improves.\n\nIf you're dealing with shooting leg pain — don't just mask it. Find out what's causing it.\n\n#Sciatica #NervePain #CorrectiveCare #ConservativeCare",
+      "\"The surgeon said I needed an operation.\"\n\nWe said: let us look first.\n\nWe found a structural shift pressing directly on the nerve. 8 weeks of corrective care later — the surgeon changed the recommendation.\n\nNot every case avoids surgery. But every case deserves a second look.\n\nDM me if this is you.",
+      "3 things most people don't know about sciatica:\n\n1. It's not caused by a \"tight piriformis\" in most cases\n2. The nerve pain is a signal — something structural is pressing on it\n3. If you address the structure, the nerve heals itself\n\nWe specialize in finding and fixing that structural cause."
     ],
     videoTopics: [
       "Why stretching alone won't fix your sciatica (and what will)",
       "The #1 thing I check in every sciatica case that most doctors skip",
-      "How we help people cancel their back surgery"
+      "When patients explore conservative care before surgery"
     ],
     imagePromptTemplates: [
       "Chiropractor examining a patient's lower back and hip area, professional clinical setting, focused diagnostic approach",
@@ -155,17 +155,17 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "Severe pain that limits everything — work, sleep, family",
       "Fear of surgery but nothing else seems to be working"
     ],
-    desiredOutcome: "Understand exactly what's wrong, have a clear plan to fix it, and get back to normal life without surgery.",
+    desiredOutcome: "Understand exactly what's wrong, have a clear plan to address it, and get back to normal life without surgery.",
     oneSentenceDifference: "We help people with disc problems understand exactly what's happening in their spine and correct it structurally — so the disc can heal and the pain stops for good.",
     localPosition: "The Fixer",
     knownForSentence: "I want to be the go-to chiropractor known for helping people with disc problems heal without surgery.",
     pillarPhrases: [
       "A disc diagnosis isn't a life sentence. It's a starting point.",
       "We correct the structure so the disc can heal.",
-      "Your MRI shows what happened. We figure out why — and fix it."
+      "Your MRI shows what happened. We figure out why — and address it."
     ],
     tableTalkOneLiners: [
-      "I had a herniated disc. They actually fixed it without surgery.",
+      "I had a herniated disc. They actually found what was going on without surgery.",
       "They explained my MRI in a way that finally made sense.",
       "I was terrified when I got my diagnosis. They gave me a real plan.",
       "My disc is healing. I didn't know that was possible without surgery.",
@@ -176,9 +176,9 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     easyIntroLine: "Go see Dr. ______. They fix disc problems. I had a herniation and they got me back to normal.",
     communityLane: "Employers & workplace wellness",
     socialPostTemplates: [
-      "You got an MRI. It says \"disc bulge\" or \"herniation.\"\n\nYou're scared. That's normal.\n\nBut here's what nobody told you: discs CAN heal. The body is designed to repair — IF the structural cause of the damage is corrected.\n\nThat's what we do. We find why that disc failed and we fix it.\n\n#DiscHerniation #SpineHealth #CorrectiveCare",
+      "You got an MRI. It says \"disc bulge\" or \"herniation.\"\n\nYou're scared. That's normal.\n\nBut here's what nobody told you: the body has remarkable capacity for adaptation. When the structural factors contributing to the problem are identified and addressed, many patients report improvement.\n\nThat's what we do. We find why that disc failed and we work to correct it.\n\n#DiscHerniation #SpineHealth #CorrectiveCare",
       "A disc bulge is not a death sentence for your spine.\n\nIt's your body telling you something structural isn't right.\n\nWe find it. We correct it. The disc heals.\n\nIf you've been diagnosed and don't know what to do next — let's talk.",
-      "\"But my MRI says...\"\n\nYour MRI shows WHAT happened.\nWe figure out WHY it happened.\nThen we fix it.\n\nThat's the difference between managing a disc problem and actually correcting it.\n\nLink in bio to learn more."
+      "\"But my MRI says...\"\n\nYour MRI shows WHAT happened.\nWe figure out WHY it happened.\nThen we work to correct it.\n\nThat's the difference between managing a disc problem and actually correcting it.\n\nLink in bio to learn more."
     ],
     videoTopics: [
       "What your disc MRI actually means (in plain English)",
@@ -188,7 +188,7 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     imagePromptTemplates: [
       "Doctor reviewing spinal MRI images on a screen with a patient, explaining findings clearly, modern clinic",
       "Educational diagram showing disc herniation and structural correction, clean medical illustration style",
-      "Patient standing tall and pain-free, before/after posture improvement, professional photography"
+      "Patient standing tall with improved posture, before/after posture improvement, professional photography"
     ],
     photoSuggestions: [
       "You reviewing an MRI or X-ray on your screen (no patient info visible)",
@@ -214,7 +214,7 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     pillarPhrases: [
       "If it keeps coming back, the cause hasn't been fixed.",
       "Your neck shouldn't hurt every day. That's not normal — it's a sign.",
-      "We fix the structure. The muscles follow."
+      "We address the structure. The muscles follow."
     ],
     tableTalkOneLiners: [
       "I can actually turn my head again. I forgot what that felt like.",
@@ -224,12 +224,12 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "They fixed the problem. Not just the symptom."
     ],
     patientStory: "They came in with 5 years of daily neck pain and weekly headaches. They'd spent thousands on massage and were taking ibuprofen daily. We found a significant loss of the normal cervical curve — their neck was essentially straight. After 12 weeks of corrective care, their curve improved, the daily pain stopped, and the headaches went from weekly to gone.",
-    referralTriggerLine: "If you know someone whose neck hurts every day and nothing seems to fix it permanently — send them in. We find the structural cause and correct it.",
+    referralTriggerLine: "If you know someone whose neck hurts every day and nothing seems to help — have them come in for an evaluation. We look for the structural cause and work to address it.",
     easyIntroLine: "Go see Dr. ______. They fixed my neck when nothing else worked. The headaches are gone too.",
     communityLane: "Employers & workplace wellness",
     socialPostTemplates: [
-      "Your neck shouldn't hurt every day.\n\nIf it does, something structural hasn't been addressed.\n\nMassage helps the muscles. Stretching helps the muscles. But if the STRUCTURE is off, the muscles will keep tightening up.\n\nWe fix the structure. The muscles follow.\n\n#NeckPain #CorrectiveCare #ChiropracticCare",
-      "\"I just carry my stress in my neck.\"\n\nMaybe. Or maybe your neck has lost its normal curve and your muscles are working overtime to hold your head up.\n\nWe check. We measure. We fix what's actually wrong.\n\nDM me if your neck pain won't quit.",
+      "Your neck shouldn't hurt every day.\n\nIf it does, something structural hasn't been addressed.\n\nMassage helps the muscles. Stretching helps the muscles. But if the STRUCTURE is off, the muscles will keep tightening up.\n\nWe address the structure. The muscles follow.\n\n#NeckPain #CorrectiveCare #ChiropracticCare",
+      "\"I just carry my stress in my neck.\"\n\nMaybe. Or maybe your neck has lost its normal curve and your muscles are working overtime to hold your head up.\n\nWe check. We measure. We look for what's actually contributing.\n\nDM me if your neck pain won't quit.",
       "Chronic neck pain checklist:\n\n□ Tried massage (helps temporarily)\n□ Tried stretching (helps temporarily)\n□ Tried meds (masks it)\n□ Still hurts every day\n\nIf you checked all 4 — nobody has fixed the structural cause yet.\n\nThat's what we do. Link in bio."
     ],
     videoTopics: [
@@ -266,7 +266,7 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     pillarPhrases: [
       "Numbness is a signal. Something is pressing on a nerve.",
       "We find the pressure. We remove it. The nerve heals.",
-      "Don't wait until the damage is permanent."
+      "Early evaluation may help identify what's going on."
     ],
     tableTalkOneLiners: [
       "I can feel my fingers again. I thought I'd lost that for good.",
@@ -275,13 +275,13 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "The tingling in my arm is gone. It took weeks, not months.",
       "They didn't just treat my arm. They fixed my neck — that's where the problem was."
     ],
-    patientStory: "They came in with 6 months of progressive numbness in their right hand and shooting pain down their arm. They'd been diagnosed with carpal tunnel and were scheduled for wrist surgery. We found a cervical disc issue compressing the C6 nerve root. After corrective care, the numbness resolved completely. They cancelled the wrist surgery because the problem was never in their wrist.",
-    referralTriggerLine: "If you know someone with arm numbness or tingling and they're not getting answers — send them in. We find where the nerve is being compressed and fix it.",
+    patientStory: "They came in with 6 months of progressive numbness in their right hand and shooting pain down their arm. They'd been diagnosed with carpal tunnel and were scheduled for wrist surgery. We found a cervical disc issue compressing the C6 nerve root. After corrective care, the patient reported significant improvement in the numbness. The patient reported the numbness resolved and told us the surgeon no longer recommended the procedure.",
+    referralTriggerLine: "If you know someone with arm numbness or tingling and they're not getting answers — send them in. We find where the nerve is being compressed and address it.",
     easyIntroLine: "Go see Dr. ______. I had numbness in my hand for months. They found it was coming from my neck and fixed it.",
     communityLane: "Employers & workplace wellness",
     socialPostTemplates: [
-      "Numbness in your arm or hand?\n\nBefore you assume it's carpal tunnel, ask: has anyone checked your NECK?\n\nThe nerves that control your arm, hand, and fingers all come from your cervical spine. If something is pressing on them there — no amount of wrist braces will help.\n\nWe find it. We fix it.\n\n#NervePain #Radiculopathy #CorrectiveCare",
-      "\"They said it was carpal tunnel.\"\n\nWe checked the neck. Found a disc pressing on the nerve root.\n\nFixed the neck. Hand numbness gone. Wrist surgery cancelled.\n\nNot every case is this clear. But every case deserves a proper look.\n\nDM me if you're dealing with arm or hand numbness.",
+      "Numbness in your arm or hand?\n\nBefore you assume it's carpal tunnel, ask: has anyone checked your NECK?\n\nThe nerves that control your arm, hand, and fingers all come from your cervical spine. If something is pressing on them there — no amount of wrist braces will help.\n\nWe find it. We work to address it.\n\n#NervePain #Radiculopathy #CorrectiveCare",
+      "\"They said it was carpal tunnel.\"\n\nWe checked the neck. Found a disc pressing on the nerve root.\n\nFixed the neck. Hand numbness gone. Wrist the surgeon changed the recommendation.\n\nNot every case is this clear. But every case deserves a proper look.\n\nDM me if you're dealing with arm or hand numbness.",
       "If you're losing feeling in your hand or arm — don't ignore it.\n\nNerves can heal. But they need the pressure removed.\n\nThe longer you wait, the harder it is to reverse.\n\nWe specialize in finding nerve compression and correcting it. Link in bio."
     ],
     videoTopics: [
@@ -332,7 +332,7 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     easyIntroLine: "Go see Dr. ______. My shoulder was stuck for over a year. They found the real problem and fixed it.",
     communityLane: "Gyms & fitness communities",
     socialPostTemplates: [
-      "Shoulder pain that won't go away?\n\nHere's what most people miss: the shoulder is only as good as the foundation it sits on.\n\nIf your upper back, ribs, or cervical spine are off — your shoulder will keep failing no matter how much PT you do.\n\nWe fix the foundation. The shoulder follows.\n\n#ShoulderPain #CorrectiveCare #Chiropractic",
+      "Shoulder pain that won't go away?\n\nHere's what most people miss: the shoulder is only as good as the foundation it sits on.\n\nIf your upper back, ribs, or cervical spine are off — your shoulder will keep failing no matter how much PT you do.\n\nWe address the foundation. The shoulder follows.\n\n#ShoulderPain #CorrectiveCare #Chiropractic",
       "\"PT helped for a while but it keeps coming back.\"\n\nThat's because PT strengthens the muscles around the problem.\n\nBut if the structural foundation is off, those muscles are fighting a losing battle.\n\nWe find the structural cause. We correct it. Then the shoulder can actually heal.\n\nDM me if this sounds familiar.",
       "Your shoulder problem might not be a shoulder problem.\n\nIt might be:\n- A rib that's not moving right\n- A thoracic spine that's locked up\n- A cervical nerve that's not firing properly\n\nWe check all of it. That's why we get results when other approaches stall.\n\nLink in bio."
     ],
@@ -364,7 +364,7 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "Being told 'it's just stress' with no real solution"
     ],
     desiredOutcome: "Live without the constant threat of a headache — no more planning around pain, no more medication dependency.",
-    oneSentenceDifference: "We help people with chronic headaches find the structural cause in their neck and correct it — so the headaches stop happening instead of just being medicated.",
+    oneSentenceDifference: "We help people with chronic headaches find the structural cause in their neck and correct it — so the headaches may improve happening instead of just being medicated.",
     localPosition: "The Fixer",
     knownForSentence: "I want to be the go-to chiropractor known for eliminating chronic headaches by fixing what's causing them in the neck.",
     pillarPhrases: [
@@ -380,13 +380,13 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "My migraines are gone. I got my weekends back."
     ],
     patientStory: "They came in taking ibuprofen daily for headaches that had been getting worse for 3 years. Their doctor said it was stress and prescribed a muscle relaxer. We found a significant loss of cervical curve and upper cervical misalignment affecting nerve and blood flow to the head. After 10 weeks of corrective care, their headaches went from 4-5 per week to zero. They haven't taken a headache pill in 2 months.",
-    referralTriggerLine: "If you know someone who gets headaches all the time and they're just taking pills — send them in. We find what's causing them and fix it.",
+    referralTriggerLine: "If you know someone who gets headaches all the time and they're just taking pills — send them in. We find what's causing them and address it.",
     easyIntroLine: "Go see Dr. ______. They got rid of my headaches. Turns out it was my neck the whole time.",
     communityLane: "Employers & workplace wellness",
     socialPostTemplates: [
-      "Taking Tylenol for headaches is like putting tape over the check engine light.\n\nThe light goes off. The problem doesn't.\n\nMost chronic headaches have a structural cause in the neck. Fix the neck, the headaches stop.\n\nWe find it. We fix it.\n\n#Headaches #Migraines #CorrectiveCare #ChiropracticCare",
+      "Taking Tylenol for headaches is like putting tape over the check engine light.\n\nThe light goes off. The problem doesn't.\n\nMost chronic headaches have a structural cause in the neck. Fix the neck, the headaches may improve.\n\nWe find it. We work to address it.\n\n#Headaches #Migraines #CorrectiveCare #ChiropracticCare",
       "\"I've always been a headache person.\"\n\nNo you haven't. Something changed. Something structural shifted in your neck and now your head pays the price.\n\nYou don't have to live like this.\n\nDM me if headaches are running your life.",
-      "If you get headaches more than once a week, ask yourself:\n\nHas anyone actually checked your NECK?\n\nNot just felt for tight muscles. Actually measured the structure.\n\nBecause that's where most chronic headaches start — and that's where we fix them.\n\nLink in bio."
+      "If you get headaches more than once a week, ask yourself:\n\nHas anyone actually checked your NECK?\n\nNot just felt for tight muscles. Actually measured the structure.\n\nBecause that's where most chronic headaches start — and that's where we look.\n\nLink in bio."
     ],
     videoTopics: [
       "The neck-headache connection most doctors never check",
@@ -415,12 +415,12 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
       "Being told 'it's just your age' or 'learn to live with it'",
       "Spending money on treatments that only help temporarily"
     ],
-    desiredOutcome: "Know exactly what's wrong, have a clear plan to fix it, and get back to living without constantly managing pain.",
+    desiredOutcome: "Know exactly what's wrong, have a clear plan to address it, and get back to living without constantly managing pain.",
     oneSentenceDifference: "We help people who are tired of temporary fixes find the real structural problem and correct it — so they actually get better instead of just feeling better for a week.",
     localPosition: "The Fixer",
     knownForSentence: "I want to be the go-to chiropractor known for finding and fixing problems that nobody else has been able to solve.",
     pillarPhrases: [
-      "We find it. We fix it. You get your life back.",
+      "We find it. We work to address it. You get your life back.",
       "Temporary relief isn't the goal. Correction is.",
       "If nobody's found the real problem yet — that's exactly why we're here."
     ],
@@ -433,12 +433,12 @@ export const QUICK_START_TOPICS: QuickStartTopic[] = [
     ],
     patientStory: "They came in after years of bouncing between providers — massage, PT, other chiropractors, pain management. Everyone helped temporarily but nothing stuck. We found a significant structural problem that nobody had identified or addressed. After a focused corrective plan, their chronic pain resolved and they got their active life back.",
     referralTriggerLine: "If you know someone who's tried everything and nothing has worked long-term — send them in. Finding the real problem is what we do.",
-    easyIntroLine: "Go see Dr. ______. They find what's actually wrong and fix it. I tried everything else first.",
+    easyIntroLine: "Go see Dr. ______. They find what's actually wrong and address it. I tried everything else first.",
     communityLane: "Gyms & fitness communities",
     socialPostTemplates: [
-      "If you've tried everything and nothing has worked long-term — nobody has found the real problem yet.\n\nThat's not your fault. That's a diagnostic gap.\n\nWe find it. We fix it. You get your life back.\n\n#CorrectiveCare #Chiropractic #SpineHealth",
-      "The difference between relief and correction:\n\nRelief = feels better today, hurts again next week\nCorrection = find the cause, fix it, it stays fixed\n\nWhich one are you getting?\n\nIf you're tired of the cycle — we should talk.\n\nDM me or link in bio.",
-      "\"I've been told to just live with it.\"\n\nThat's not a diagnosis. That's giving up.\n\nYou came to this planet to live fully — not to manage pain.\n\nWe find structural problems other providers miss. And we fix them.\n\nLink in bio if you're ready for a different approach."
+      "If you've tried everything and nothing has worked long-term — nobody has found the real problem yet.\n\nThat's not your fault. That's a diagnostic gap.\n\nWe find it. We work to address it. You get your life back.\n\n#CorrectiveCare #Chiropractic #SpineHealth",
+      "The difference between relief and correction:\n\nRelief = feels better today, hurts again next week\nCorrection = find the cause, address it, work toward lasting improvement\n\nWhich one are you getting?\n\nIf you're tired of the cycle — we should talk.\n\nDM me or link in bio.",
+      "\"I've been told to just live with it.\"\n\nThat's not a plan. You deserve a real evaluation.\n\nYou deserve to understand what's actually going on — and whether something can be done about it.\n\nWe find structural problems other providers miss. And we work to address them.\n\nLink in bio if you're ready for a different approach."
     ],
     videoTopics: [
       "The difference between pain relief and structural correction",

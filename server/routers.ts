@@ -5,6 +5,7 @@ import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM, type ChatMessage } from "./_core/llm";
 import { engagementRouter } from "./engagement/router";
+import { buildComplianceFromProfile } from "./compliance/healthcare-content-rules";
 
 // ─── Auth Router ─────────────────────────────────────────────────────
 
@@ -411,7 +412,7 @@ const contentRouter = router({
       const messages: ChatMessage[] = [
         {
           role: "system",
-          content: `You are a healthcare marketing content specialist. Generate on-brand content for a healthcare practitioner based on their unique positioning and practice philosophy.${practiceContext}`,
+          content: `You are a healthcare marketing content specialist. Generate on-brand content for a healthcare practitioner based on their unique positioning and practice philosophy.\n\n${buildComplianceFromProfile(ctx.user)}${practiceContext}`,
         },
         {
           role: "user",
