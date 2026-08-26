@@ -210,3 +210,11 @@
 - [x] Fix: checkmarks on completed Today's Plan items disappearing after picking next action
 - [x] Fix: cancelAction optimistic update preserves completed actions
 - [x] Fix: server-side cancelAction guards against deleting completed actions
+
+## Real Synapse Mobile Coaching Context Repair (August 2026)
+- [x] Verify the authoritative source is `strotherdc-creator/Synapse` on `main`.
+- [x] Identify forced scroll-to-bottom behavior on input focus and mobile viewport changes as the cause of lost lesson context.
+- [x] Add a persistent Lesson Guide with current context, clarification entry, and saved-answer review.
+- [x] Remove forced focus and keyboard scroll behavior that hides reference material.
+- [x] Add regression coverage and run TypeScript, targeted tests, and the production build in the real repository.
+- [ ] Commit and push the verified real-Synapse fix to GitHub, then confirm Railway deploys that commit.

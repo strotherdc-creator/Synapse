@@ -1,5 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import {
@@ -14,6 +21,7 @@ import {
   Mic,
   MicOff,
   PartyPopper,
+  BookOpen,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -100,6 +108,7 @@ export default function ModuleCoaching() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInitialized, setChatInitialized] = useState(false);
   const [input, setInput] = useState("");
+  const [showLessonGuide, setShowLessonGuide] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -208,10 +217,8 @@ export default function ModuleCoaching() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Also scroll when keyboard opens/closes
-  useEffect(() => {
-    scrollToBottom();
-  }, [viewportHeight, scrollToBottom]);
+  // Preserve the reader's place when the mobile keyboard changes viewport size.
+  // Previously, this effect forced the chat to the bottom and hid lesson context.
 
   // Chat mutation
   const chatMutation = trpc.coaching.chat.useMutation({
@@ -291,6 +298,14 @@ export default function ModuleCoaching() {
   };
 
   const hasAssistantMessage = messages.some((m) => m.role === "assistant");
+  const lessonGuideMessage = messages.find((m) => m.role === "assistant");
+  const savedSteps = steps?.filter((step) => step.completed && step.finalAnswer) ?? [];
+
+  const handleAskAboutLesson = () => {
+    setShowLessonGuide(false);
+    setInput((current) => current || "Could you clarify what this lesson is asking me to do?");
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  };
 
   const handleConfirmAnswer = () => {
     if (!activeStepId || !activeStep) return;
@@ -433,6 +448,16 @@ export default function ModuleCoaching() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLessonGuide(true)}
+              className="h-8 gap-1 px-2 text-xs border-brand-gold/30"
+              title="Review this lesson and your saved answers"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Guide
+            </Button>
             {messages.length > 0 && (
               <Button
                 variant="ghost"
@@ -603,9 +628,6 @@ export default function ModuleCoaching() {
                   value={isListening ? input + (interimText ? " " + interimText : "") : input}
                   onChange={(e) => { if (!isListening) setInput(e.target.value); }}
                   onKeyDown={handleKeyDown}
-                  onFocus={() => {
-                    setTimeout(scrollToBottom, 300);
-                  }}
                   placeholder={isListening ? "Listening..." : "Type your answer here..."}
                   className="flex-1 max-h-28 resize-none min-h-[44px] text-base"
                   rows={1}
@@ -673,6 +695,74 @@ export default function ModuleCoaching() {
           </div>
         )}
       </div>
+
+      <Dialog open={showLessonGuide} onOpenChange={setShowLessonGuide}>
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto border-brand-gold/25 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <BookOpen className="h-5 w-5 text-[var(--gold)]" />
+              Lesson Guide
+            </DialogTitle>
+            <DialogDescription>
+              Keep this open whenever you need to reread the lesson while working on your answer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <section className="rounded-xl border border-brand-gold/20 bg-background/40 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-[var(--gold)]">Current step</p>
+              <h3 className="mt-1 text-base font-semibold text-foreground">{activeStep?.title ?? "Coaching step"}</h3>
+              {activeStep?.description && (
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{activeStep.description}</p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-brand-gold/20 bg-background/40 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-[var(--gold)]">What this lesson is asking</p>
+              {lessonGuideMessage ? (
+                <div className="prose prose-sm dark:prose-invert mt-3 max-w-none [&_p]:leading-relaxed [&_li]:leading-relaxed">
+                  <ReactMarkdown>{lessonGuideMessage.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  The coach is preparing your step guidance. You can return here once it appears.
+                </p>
+              )}
+            </section>
+
+            {activeStep?.finalAnswer && (
+              <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-400">Your saved answer</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">{activeStep.finalAnswer}</p>
+              </section>
+            )}
+
+            {savedSteps.length > 0 && (
+              <section className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Completed answers in this module</p>
+                {savedSteps.map((step) => (
+                  <button
+                    key={step.id}
+                    onClick={() => {
+                      setActiveStepId(step.id);
+                      setShowLessonGuide(false);
+                    }}
+                    className="w-full rounded-lg border border-brand-gold/15 bg-background/40 p-3 text-left hover:border-brand-gold/40"
+                  >
+                    <p className="text-sm font-semibold text-foreground">Step {step.stepNumber}: {step.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{step.finalAnswer}</p>
+                  </button>
+                ))}
+              </section>
+            )}
+
+            <Button onClick={handleAskAboutLesson} className="w-full gap-2 bg-[var(--gold)] text-black hover:bg-[var(--gold)]/90">
+              Ask coach about this lesson
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
