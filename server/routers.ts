@@ -79,16 +79,20 @@ const modulesRouter = router({
         const moduleLessons = await db.listLessons(mod.id, !isAdmin);
         const moduleProgress = progress.filter((p) => p.moduleId === mod.id);
         const completedCount = moduleProgress.filter((p) => p.completed).length;
+        const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;
         // Check coaching completion for this module
         const steps = await db.getModuleSteps(mod.id);
         const stepProgress = await db.getUserStepProgress(ctx.user.id, mod.id);
         const coachingCompletedSteps = stepProgress.filter((p) => p.completed).length;
         const coachingComplete = coachingCompletedSteps >= steps.length && steps.length > 0;
+        const moduleComplete = steps.length > 0 ? coachingComplete : curriculumComplete;
         return {
           ...mod,
           lessonCount: moduleLessons.length,
           completedCount,
+          curriculumComplete,
           coachingComplete,
+          moduleComplete,
           stepCount: steps.length,
           completedStepCount: coachingCompletedSteps,
         };
@@ -456,18 +460,24 @@ const routineRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const serverDate = db.getCentralDateKey();
+      if (input.date !== serverDate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Daily tasks can only be completed for today.",
+        });
+      }
+
       await db.toggleDailyTask(
         ctx.user.id,
-        input.date,
+        serverDate,
         input.taskKey,
         input.completed
       );
 
-      // Check if all tasks for the day are complete to update streak
-      const tasks = await db.getDailyTasks(ctx.user.id, input.date);
-      const allComplete = tasks.length > 0 && tasks.every((t) => t.completed);
-      if (allComplete) {
-        await db.updateStreak(ctx.user.id, input.date);
+      // Synapse's promise is one meaningful action per day, not an all-checklist requirement.
+      if (input.completed) {
+        await db.updateStreak(ctx.user.id, serverDate);
       }
 
       return { success: true };

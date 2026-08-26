@@ -14,8 +14,8 @@ export default function Curriculum() {
   const isModuleUnlocked = (index: number): boolean => {
     if (!modules) return false;
     if (index === 0) return true; // First module always unlocked
-    // Previous module must have coaching complete
-    return modules[index - 1]?.coachingComplete === true;
+    // Use the same completion rule the card presents to the doctor.
+    return modules[index - 1]?.moduleComplete === true;
   };
 
   return (
@@ -46,9 +46,13 @@ export default function Curriculum() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((mod, index) => {
             const unlocked = isModuleUnlocked(index);
+            const usesCoachingSteps = mod.stepCount > 0;
+            const completedItems = usesCoachingSteps ? mod.completedStepCount : mod.completedCount;
+            const totalItems = usesCoachingSteps ? mod.stepCount : mod.lessonCount;
+            const progressLabel = usesCoachingSteps ? "steps" : "lessons";
             const modProgress =
-              mod.lessonCount > 0
-                ? Math.round((mod.completedCount / mod.lessonCount) * 100)
+              totalItems > 0
+                ? Math.round((completedItems / totalItems) * 100)
                 : 0;
             const prevModTitle = index > 0 ? modules[index - 1]?.title : "";
 
@@ -72,7 +76,7 @@ export default function Curriculum() {
                     {!unlocked && (
                       <Lock className="h-5 w-5 text-muted-foreground/60" />
                     )}
-                    {mod.coachingComplete && (
+                    {mod.moduleComplete && (
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--gold)", color: "#1a1a1a" }}>
                         Complete
                       </span>
@@ -97,7 +101,7 @@ export default function Curriculum() {
                     <div className="mt-4 flex items-center gap-3">
                       <Progress value={modProgress} className="h-1.5 flex-1" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {mod.completedCount}/{mod.lessonCount} lessons
+                        {completedItems}/{totalItems} {progressLabel}
                       </span>
                     </div>
                   ) : (

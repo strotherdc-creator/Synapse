@@ -512,16 +512,9 @@ export const engagementRouter = router({
         .set({ status: "completed", completedAt: new Date(), updatedAt: new Date() })
         .where(eq(growthActions.id, input.actionId));
 
-      // Update streak via routine system
+      // One completed growth action counts as daily activity for the streak.
       const date = todayStr();
-      const allActions = await dbInstance
-        .select()
-        .from(growthActions)
-        .where(and(eq(growthActions.userId, ctx.user.id), eq(growthActions.actionDate, date)));
-      const allComplete = allActions.every(a => a.id === input.actionId || a.status === "completed");
-      if (allComplete) {
-        await db.updateStreak(ctx.user.id, date);
-      }
+      await db.updateStreak(ctx.user.id, date);
 
       await dbInstance.insert(engagementEvents).values({
         userId: ctx.user.id,

@@ -218,3 +218,13 @@
 - [x] Remove forced focus and keyboard scroll behavior that hides reference material.
 - [x] Add regression coverage and run TypeScript, targeted tests, and the production build in the real repository.
 - [x] Commit and push the verified real-Synapse fix to GitHub, then confirm Railway deploys that commit.
+
+## Real Synapse Streak, Security, and Integration Audit (August 2026)
+- [x] Diagnose and fix the real Today’s Plan streak behavior against the product’s one-action-per-day workflow.
+- [x] Add real-Synapse regression tests for streak continuation, same-day idempotency, missed days, and Central Time boundaries.
+- [x] Fix curriculum module cards that show Complete while their lesson count remains incomplete.
+- [x] Add regression coverage requiring a Complete badge to match completed lesson counts.
+- [ ] Audit real Synapse authentication, authorization, API inputs, data access, LLM behavior, client storage, dependencies, and deployment configuration.
+- [ ] Verify non-secret Railway environment-variable presence and the actual Clerk, Supabase, PostgreSQL, and Railway data path.
+- [ ] Write a real-repository audit report with confirmed findings, fixes, remaining risks, and configuration evidence.
+- [ ] Run TypeScript, full tests, dependency checks, production build, GitHub push, and Railway deployment verification.

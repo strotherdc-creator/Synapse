@@ -28,6 +28,25 @@ export function getContentHistoryTable() { return contentHistory; }
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
+/** Return the canonical Synapse calendar date in Central Time. */
+export function getCentralDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+/** Move one calendar day backward without depending on the host timezone. */
+export function previousDateKey(dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+  return previous.toISOString().slice(0, 10);
+}
+
 export async function getDb() {
   if (!_db && ENV.databaseUrl) {
     try {
@@ -333,9 +352,7 @@ export async function updateStreak(userId: number, date: string) {
   if (existing.length > 0) {
     const streak = existing[0];
     const lastDate = streak.lastCompletedDate;
-    const yesterday = new Date(date);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const yesterdayStr = previousDateKey(date);
 
     let newCurrent = 1;
     if (lastDate === yesterdayStr) {
