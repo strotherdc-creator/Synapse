@@ -217,4 +217,4 @@
 - [x] Add a persistent Lesson Guide with current context, clarification entry, and saved-answer review.
 - [x] Remove forced focus and keyboard scroll behavior that hides reference material.
 - [x] Add regression coverage and run TypeScript, targeted tests, and the production build in the real repository.
-- [ ] Commit and push the verified real-Synapse fix to GitHub, then confirm Railway deploys that commit.
+- [x] Commit and push the verified real-Synapse fix to GitHub, then confirm Railway deploys that commit.
