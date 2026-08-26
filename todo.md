@@ -224,7 +224,7 @@
 - [x] Add real-Synapse regression tests for streak continuation, same-day idempotency, missed days, and Central Time boundaries.
 - [x] Fix curriculum module cards that show Complete while their lesson count remains incomplete.
 - [x] Add regression coverage requiring a Complete badge to match completed lesson counts.
-- [ ] Audit real Synapse authentication, authorization, API inputs, data access, LLM behavior, client storage, dependencies, and deployment configuration.
+- [x] Audit real Synapse authentication, authorization, API inputs, data access, LLM behavior, client storage, dependencies, and deployment configuration.
 - [ ] Verify non-secret Railway environment-variable presence and the actual Clerk, Supabase, PostgreSQL, and Railway data path.
-- [ ] Write a real-repository audit report with confirmed findings, fixes, remaining risks, and configuration evidence.
+- [x] Write a real-repository audit report with confirmed findings, fixes, remaining risks, and configuration evidence.
 - [ ] Run TypeScript, full tests, dependency checks, production build, GitHub push, and Railway deployment verification.

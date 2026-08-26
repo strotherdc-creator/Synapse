@@ -3,6 +3,7 @@
  * Uses Synapse's existing LLM abstraction (Gemini + Groq fallback).
  */
 import { Router } from "express";
+import { getAuth } from "@clerk/express";
 import { COMMUNICATION_SYSTEM_PROMPT } from "./system-prompt";
 
 // Import Synapse's LLM
@@ -10,12 +11,40 @@ import { invokeLLM } from "../_core/llm";
 
 export const communicationRouter = Router();
 
+const MAX_CONVERSATION_LENGTH = 6000;
+const MAX_CONTEXT_FIELD_LENGTH = 1000;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const requestBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function consumeRequest(userId: string): boolean {
+  const now = Date.now();
+  const bucket = requestBuckets.get(userId);
+  if (!bucket || bucket.resetAt <= now) {
+    requestBuckets.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) return false;
+  bucket.count += 1;
+  return true;
+}
+
 communicationRouter.get("/health", (_req, res) => {
   res.json({ status: "ok", module: "communication-coach", timestamp: new Date().toISOString() });
 });
 
 communicationRouter.post("/generate", async (req, res) => {
   try {
+    const auth = getAuth(req);
+    if (!auth.userId) {
+      res.status(401).json({ error: "Sign in is required to use Communication Coach." });
+      return;
+    }
+    if (!consumeRequest(auth.userId)) {
+      res.status(429).json({ error: "Too many requests. Please wait a minute and try again." });
+      return;
+    }
+
     const { channel, direction, conversation, context, coachMode } = req.body;
 
     // Validate required fields
@@ -31,8 +60,16 @@ communicationRouter.post("/generate", async (req, res) => {
       res.status(400).json({ error: "Conversation text is required" });
       return;
     }
+    if (conversation.length > MAX_CONVERSATION_LENGTH) {
+      res.status(400).json({ error: `Conversation must be ${MAX_CONVERSATION_LENGTH} characters or less.` });
+      return;
+    }
     if (!context?.desired_outcome || context.desired_outcome.trim().length === 0) {
       res.status(400).json({ error: "Desired outcome is required in context" });
+      return;
+    }
+    if (typeof context.desired_outcome !== "string" || context.desired_outcome.length > MAX_CONTEXT_FIELD_LENGTH) {
+      res.status(400).json({ error: "Desired outcome is too long." });
       return;
     }
 
@@ -115,6 +152,6 @@ TASK: Generate a response following the Six-Layer Model. Return ONLY valid JSON 
     }
   } catch (error: any) {
     console.error("[Communication Generate Error]", error.message);
-    res.status(500).json({ error: error.message || "Internal server error" });
+    res.status(500).json({ error: "Unable to generate a response right now. Please try again." });
   }
 });

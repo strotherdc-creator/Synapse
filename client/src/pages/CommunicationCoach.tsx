@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Copy, MessageSquare, Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { useAuth } from "@clerk/clerk-react";
 import { toast } from "sonner";
 
 interface GenerateResult {
@@ -14,6 +15,7 @@ interface GenerateResult {
 }
 
 export default function CommunicationCoach() {
+  const { getToken } = useAuth();
   const [conversation, setConversation] = useState("");
   const [desiredOutcome, setDesiredOutcome] = useState("");
   const [channel, setChannel] = useState<"text" | "email" | "verbal">("text");
@@ -34,9 +36,13 @@ export default function CommunicationCoach() {
     setLoading(true);
     setResult(null);
     try {
+      const token = await getToken();
       const res = await fetch("/api/communication/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           channel,
           direction,
