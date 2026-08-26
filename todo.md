@@ -227,9 +227,9 @@
 - [x] Audit real Synapse authentication, authorization, API inputs, data access, LLM behavior, client storage, dependencies, and deployment configuration.
 - [ ] Verify non-secret Railway environment-variable presence and the actual Clerk, Supabase, PostgreSQL, and Railway data path.
 - [x] Write a real-repository audit report with confirmed findings, fixes, remaining risks, and configuration evidence.
-- [ ] Run TypeScript, full tests, dependency checks, production build, GitHub push, and Railway deployment verification.
+- [x] Run TypeScript, full tests, dependency checks, production build, GitHub push, and Railway deployment verification.
 
 ## Railway Deployment Recovery (August 2026)
 - [x] Replace the invalid `lodash@4.17.24` override that caused Railway’s dependency-install failure.
 - [x] Rebuild and run the real Synapse test suite after correcting the dependency lockfile.
-- [ ] Push the deployment repair and verify Railway serves the protected Communication Coach endpoint.
+- [x] Push the deployment repair and verify Railway serves the protected Communication Coach endpoint.
