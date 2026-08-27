@@ -47,6 +47,20 @@ export function previousDateKey(dateKey: string): string {
   return previous.toISOString().slice(0, 10);
 }
 
+/** Move a YYYY-MM-DD calendar key without depending on the server timezone. */
+export function shiftDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** Return the Monday for the calendar week containing a YYYY-MM-DD key. */
+export function mondayDateKey(dateKey: string): string {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  const day = date.getUTCDay();
+  return shiftDateKey(dateKey, day === 0 ? -6 : 1 - day);
+}
+
 export async function getDb() {
   if (!_db && ENV.databaseUrl) {
     try {
@@ -731,7 +745,8 @@ export async function getWwldTodayStatus(userId: number, date: string) {
 export async function getWwldTotalsForRange(
   userId: number,
   startDate: string,
-  endDate: string
+  endDate: string,
+  excludeBacklogTotals = false
 ) {
   const db = await getDb();
   if (!db) return { totals: { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 }, dailyBreakdown: [] };
@@ -748,8 +763,11 @@ export async function getWwldTotalsForRange(
     )
     .orderBy(wwldSessions.sessionDate);
 
+  const includedSessions = excludeBacklogTotals
+    ? sessions.filter((session) => !isBacklogWwldSession(session.notes))
+    : sessions;
   const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
-  for (const s of sessions) {
+  for (const s of includedSessions) {
     if (!byDay[s.sessionDate]) {
       byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
     }
@@ -776,16 +794,29 @@ export async function getWwldTotalsForRange(
   return { totals, dailyBreakdown };
 }
 
+/** Weekly/monthly backlog totals are valid history, but cannot be interpreted as a single day of activity. */
+export function isBacklogWwldSession(notes: string | null | undefined): boolean {
+  return notes === "Weekly total (backlog entry)" || notes === "Monthly total (backlog entry)";
+}
+
 export async function getWwldAnalytics(userId: number) {
   const db = await getDb();
   const empty = { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
-  if (!db) return { last30Days: [], dayOfWeekAverages: [], thisWeek: [], lastWeek: [], thisMonth: empty, lastMonth: empty };
+  if (!db) {
+    return {
+      last30Days: [],
+      dayOfWeekAverages: [],
+      thisWeek: [],
+      lastWeek: [],
+      thisMonth: empty,
+      lastMonth: empty,
+      lastMonthToDate: empty,
+      dataQuality: { dailyLoggedDays: 0, last30DailyLoggedDays: 0, excludedBacklogSessions: 0 },
+    };
+  }
 
-  const today = new Date();
-  const ninetyDaysAgo = new Date(today);
-  ninetyDaysAgo.setDate(today.getDate() - 89);
-  const startStr = ninetyDaysAgo.toISOString().split("T")[0];
-  const endStr = today.toISOString().split("T")[0];
+  const endStr = getCentralDateKey();
+  const startStr = shiftDateKey(endStr, -89);
 
   const sessions = await db
     .select()
@@ -793,8 +824,9 @@ export async function getWwldAnalytics(userId: number) {
     .where(and(eq(wwldSessions.userId, userId), gte(wwldSessions.sessionDate, startStr), lte(wwldSessions.sessionDate, endStr)))
     .orderBy(wwldSessions.sessionDate);
 
+  const dailySessions = sessions.filter((session) => !isBacklogWwldSession(session.notes));
   const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
-  for (const s of sessions) {
+  for (const s of dailySessions) {
     if (!byDay[s.sessionDate]) byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
     byDay[s.sessionDate].officeVisits += s.officeVisits;
     byDay[s.sessionDate].newPatients += s.newPatients;
@@ -806,15 +838,13 @@ export async function getWwldAnalytics(userId: number) {
   }
   const allDays = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date));
 
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(today.getDate() - 29);
-  const thirtyStr = thirtyDaysAgo.toISOString().split("T")[0];
+  const thirtyStr = shiftDateKey(endStr, -29);
   const last30Days = allDays.filter((d) => d.date >= thirtyStr);
 
   const dowSums: Record<number, { sum: number; count: number; newPatients: number; carePlansSigned: number }> = {};
   for (let i = 0; i < 7; i++) dowSums[i] = { sum: 0, count: 0, newPatients: 0, carePlansSigned: 0 };
-  for (const d of allDays) {
-    const dow = new Date(d.date + "T00:00:00").getDay();
+  for (const d of last30Days) {
+    const dow = new Date(`${d.date}T00:00:00Z`).getUTCDay();
     dowSums[dow].sum += d.officeVisits;
     dowSums[dow].newPatients += d.newPatients;
     dowSums[dow].carePlansSigned += d.carePlansSigned;
@@ -830,22 +860,22 @@ export async function getWwldAnalytics(userId: number) {
     dataPoints: dowSums[dow].count,
   }));
 
-  const todayDay = today.getDay();
-  const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
-  const thisMonday = new Date(today);
-  thisMonday.setDate(today.getDate() + mondayOffset);
-  const thisMondayStr = thisMonday.toISOString().split("T")[0];
-  const lastMonday = new Date(thisMonday);
-  lastMonday.setDate(thisMonday.getDate() - 7);
-  const lastMondayStr = lastMonday.toISOString().split("T")[0];
-  const lastSundayStr = new Date(thisMonday.getTime() - 86400000).toISOString().split("T")[0];
+  const thisMondayStr = mondayDateKey(endStr);
+  const lastMondayStr = shiftDateKey(thisMondayStr, -7);
+  const lastWeekThroughSameWeekdayStr = shiftDateKey(endStr, -7);
 
   const thisWeek = allDays.filter((d) => d.date >= thisMondayStr && d.date <= endStr);
-  const lastWeek = allDays.filter((d) => d.date >= lastMondayStr && d.date <= lastSundayStr);
+  const lastWeek = allDays.filter((d) => d.date >= lastMondayStr && d.date <= lastWeekThroughSameWeekdayStr);
 
-  const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split("T")[0];
-  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split("T")[0];
+  const [year, month, day] = endStr.split("-").map(Number);
+  const thisMonthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const previousMonth = new Date(Date.UTC(year, month - 2, 1));
+  const lastMonthYear = previousMonth.getUTCFullYear();
+  const lastMonthNumber = previousMonth.getUTCMonth() + 1;
+  const lastMonthStart = `${lastMonthYear}-${String(lastMonthNumber).padStart(2, "0")}-01`;
+  const lastMonthEnd = new Date(Date.UTC(year, month - 1, 0)).toISOString().slice(0, 10);
+  const daysInLastMonth = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
+  const lastMonthToDateEnd = `${lastMonthYear}-${String(lastMonthNumber).padStart(2, "0")}-${String(Math.min(day, daysInLastMonth)).padStart(2, "0")}`;
   const sumDays = (days: typeof allDays) => ({
     officeVisits: days.reduce((s, d) => s + d.officeVisits, 0),
     newPatients: days.reduce((s, d) => s + d.newPatients, 0),
@@ -857,8 +887,22 @@ export async function getWwldAnalytics(userId: number) {
   });
   const thisMonth = sumDays(allDays.filter((d) => d.date >= thisMonthStart));
   const lastMonth = sumDays(allDays.filter((d) => d.date >= lastMonthStart && d.date <= lastMonthEnd));
+  const lastMonthToDate = sumDays(allDays.filter((d) => d.date >= lastMonthStart && d.date <= lastMonthToDateEnd));
 
-  return { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonth };
+  return {
+    last30Days,
+    dayOfWeekAverages,
+    thisWeek,
+    lastWeek,
+    thisMonth,
+    lastMonth,
+    lastMonthToDate,
+    dataQuality: {
+      dailyLoggedDays: allDays.length,
+      last30DailyLoggedDays: last30Days.length,
+      excludedBacklogSessions: sessions.length - dailySessions.length,
+    },
+  };
 }
 
 // ─── Lyle Algorithm ───────────────────────────────────────────────────────────

@@ -233,3 +233,16 @@
 - [x] Replace the invalid `lodash@4.17.24` override that caused Railway’s dependency-install failure.
 - [x] Rebuild and run the real Synapse test suite after correcting the dependency lockfile.
 - [x] Push the deployment repair and verify Railway serves the protected Communication Coach endpoint.
+
+## WWLD Trigger Value Investigation (August 2026)
+- [ ] Trace the “this week” recommendation-card number to its WWLD data source and aggregation logic.
+- [ ] Confirm whether the number is an accurate week-to-date total for the selected trigger statistic.
+- [ ] Correct misleading aggregation or display behavior and add regression coverage.
+- [ ] Run checks, push the real Synapse fix, verify Railway, and document the number’s meaning.
+
+## WWLD Insight Validity Repair (August 2026)
+- [ ] Inspect the actual current WWLD session records and aggregation results behind live insights.
+- [ ] Confirm every “this week,” “this month,” and weekday-average claim has a valid denominator and current date range.
+- [ ] Suppress insights and recommendations when data is incomplete, stale, or internally inconsistent.
+- [ ] Correct the live client/server calculations and add regression tests for sparse and stale data.
+- [ ] Push and verify the real Synapse repair on Railway before calling the WWLD insights trustworthy.

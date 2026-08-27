@@ -803,12 +803,9 @@ const wwldRouter = router({
       const userId = ctx.user.id;
 
       // ── 1. Fetch last 4 weeks of sessions ──────────────────────────
-      const today = new Date();
-      const fourWeeksAgo = new Date(today);
-      fourWeeksAgo.setDate(today.getDate() - 28);
-      const startStr = fourWeeksAgo.toISOString().split("T")[0];
-      const endStr = today.toISOString().split("T")[0];
-      const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr);
+      const endStr = db.getCentralDateKey();
+      const startStr = db.shiftDateKey(endStr, -28);
+      const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr, true);
 
       // ── 1b. Filter out non-work days ──────────────────────────────
       const DAY_MAP: Record<number, string> = { 0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat" };
@@ -838,12 +835,10 @@ const wwldRouter = router({
       });
 
       // ── 2. Determine this week's Monday ───────────────────────────
-      const todayDay = today.getDay();
-      const mondayOffset = todayDay === 0 ? -6 : 1 - todayDay;
-      const thisMonday = new Date(today);
-      thisMonday.setDate(today.getDate() + mondayOffset);
-      const thisMondayStr = thisMonday.toISOString().split("T")[0];
+      const todayDay = new Date(`${endStr}T00:00:00Z`).getUTCDay();
+      const thisMondayStr = db.mondayDateKey(endStr);
       const isMonday = todayDay === 1;
+      const currentWeekDaily = dailyBreakdown.filter((day: any) => day.date >= thisMondayStr && day.date <= endStr);
 
       // ── 3. Diagnostic engine ──────────────────────────────────────
       // With < 7 days of data → default to 'breaking' state
@@ -891,9 +886,9 @@ const wwldRouter = router({
       type MetricDiag = { metric: string; pillar: string; metricTrigger: string; trendState: TrendState; value: number };
 
       const diagnostics: MetricDiag[] = [
-        { metric: "office_visits", pillar: "Personal Growth & Discipline", metricTrigger: "plateaued_stats", trendState: ovTrend, value: ovVals.slice(-7).reduce((a, b) => a + b, 0) },
-        { metric: "new_patients",  pillar: "Referral & Visibility",         metricTrigger: "low_new_patients", trendState: npTrend, value: npVals.slice(-7).reduce((a, b) => a + b, 0) },
-        { metric: "care_plans",    pillar: "Closing & Sales Skill",          metricTrigger: "low_conversion",   trendState: cpTrend, value: cpVals.slice(-7).reduce((a, b) => a + b, 0) },
+        { metric: "office_visits", pillar: "Personal Growth & Discipline", metricTrigger: "plateaued_stats", trendState: ovTrend, value: currentWeekDaily.reduce((sum: number, day: any) => sum + day.officeVisits, 0) },
+        { metric: "new_patients",  pillar: "Referral & Visibility",         metricTrigger: "low_new_patients", trendState: npTrend, value: currentWeekDaily.reduce((sum: number, day: any) => sum + day.newPatients, 0) },
+        { metric: "care_plans",    pillar: "Closing & Sales Skill",          metricTrigger: "low_conversion",   trendState: cpTrend, value: currentWeekDaily.reduce((sum: number, day: any) => sum + day.carePlansSigned, 0) },
       ];
 
       diagnostics.sort((a, b) => PRIORITY.indexOf(a.trendState) - PRIORITY.indexOf(b.trendState));

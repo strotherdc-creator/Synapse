@@ -63,7 +63,10 @@ export function LyleRecommendationCard() {
           {" — "}
           {METRIC_LABELS[data.triggerMetric] ?? data.triggerMetric}
           {data.triggerValue > 0 && (
-            <span className={`ml-1 font-bold ${cfg.color}`}>({data.triggerValue} this week)</span>
+            <span className={`ml-1 font-bold ${cfg.color}`}>({data.triggerValue} week to date)</span>
+          )}
+          {data.triggerValue === 0 && (
+            <span className="ml-1 text-muted-foreground">(no separately logged daily stats this week)</span>
           )}
         </p>
       </div>

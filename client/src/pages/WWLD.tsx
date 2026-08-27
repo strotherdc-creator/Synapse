@@ -123,54 +123,43 @@ type AnalyticsData = {
   lastWeek: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
   thisMonth: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
   lastMonth: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
+  lastMonthToDate: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
+  dataQuality: { dailyLoggedDays: number; last30DailyLoggedDays: number; excludedBacklogSessions: number };
 };
 
 function generateInsights(analytics: AnalyticsData): Insight[] {
   const insights: Insight[] = [];
-  const { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonth } = analytics;
+  const { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonthToDate } = analytics;
 
-  if (last30Days.length < 5) {
-    return [{ type: "info", icon: "info", text: "Log stats for at least 5 days to unlock trend insights." }];
+  if (last30Days.length < 15) {
+    return [{ type: "info", icon: "info", text: "Daily trend insights need at least 15 separately logged days in the last 30 days. Weekly or monthly backlog totals are not used as daily activity." }];
   }
 
-  // Week-over-week office visits
+  // Compare the current week through today with the same calendar days last week.
   const thisWeekOV = thisWeek.reduce((s, d) => s + d.officeVisits, 0);
   const lastWeekOV = lastWeek.reduce((s, d) => s + d.officeVisits, 0);
   const wowPct = pctChange(thisWeekOV, lastWeekOV);
-  if (wowPct !== null && Math.abs(wowPct) >= 5) {
-    if (wowPct > 0) insights.push({ type: "positive", icon: "up", text: `Office visits are up ${wowPct}% this week vs last week. You're building momentum.` });
-    else insights.push({ type: "warning", icon: "down", text: `Office visits are down ${Math.abs(wowPct)}% this week vs last week. Review your schedule.` });
+  if (thisWeek.length >= 2 && lastWeek.length >= 2 && wowPct !== null && Math.abs(wowPct) >= 10) {
+    if (wowPct > 0) insights.push({ type: "positive", icon: "up", text: `Office visits are up ${wowPct}% versus the same days last week.` });
+    else insights.push({ type: "warning", icon: "down", text: `Office visits are down ${Math.abs(wowPct)}% versus the same days last week.` });
   }
 
-  // Month-over-month new patients
-  const momPct = pctChange(thisMonth.newPatients, lastMonth.newPatients);
+  // Compare month-to-date against the same point in the prior month.
+  const momPct = pctChange(thisMonth.newPatients, lastMonthToDate.newPatients);
   if (momPct !== null) {
-    if (momPct >= 10) insights.push({ type: "positive", icon: "up", text: `New patients are up ${momPct}% vs last month — strong growth in your pipeline.` });
-    else if (momPct <= -10) insights.push({ type: "warning", icon: "down", text: `New patients are down ${Math.abs(momPct)}% vs last month. Consider increasing referral outreach.` });
+    if (momPct >= 10) insights.push({ type: "positive", icon: "up", text: `New patients are up ${momPct}% versus the same point last month.` });
+    else if (momPct <= -10) insights.push({ type: "warning", icon: "down", text: `New patients are down ${Math.abs(momPct)}% versus the same point last month.` });
   }
 
-  // Plateau detection (last 4 weeks within 5%)
-  if (last30Days.length >= 20) {
-    const weeks: number[] = [];
-    for (let w = 0; w < 4; w++) {
-      const slice = last30Days.slice(Math.max(0, last30Days.length - (w + 1) * 7), last30Days.length - w * 7);
-      weeks.unshift(slice.reduce((s, d) => s + d.officeVisits, 0));
-    }
-    const avg = weeks.reduce((a, b) => a + b, 0) / weeks.length;
-    if (avg > 0 && weeks.every((w) => Math.abs((w - avg) / avg) <= 0.05)) {
-      insights.push({ type: "neutral", icon: "flat", text: `Your office visits have been flat for 4 weeks (avg ${Math.round(avg)}/week). You may be at a capacity plateau — time to add a new patient acquisition strategy.` });
-    }
-  }
-
-  // Day-of-week patterns
-  const daysWithData = dayOfWeekAverages.filter((d) => d.dataPoints >= 2);
+  // Require four distinct days of the week before identifying a recurring pattern.
+  const daysWithData = dayOfWeekAverages.filter((d) => d.dataPoints >= 4);
   if (daysWithData.length >= 3) {
     const sorted = [...daysWithData].sort((a, b) => a.avgOfficeVisits - b.avgOfficeVisits);
     const lowest = sorted[0];
     const highest = sorted[sorted.length - 1];
     if (lowest.avgOfficeVisits > 0 && highest.avgOfficeVisits / lowest.avgOfficeVisits >= 1.3) {
-      insights.push({ type: "info", icon: "capacity", text: `${lowest.day}s average ${lowest.avgOfficeVisits} visits — your lightest day. You have capacity to add patients.` });
-      insights.push({ type: "info", icon: "capacity", text: `${highest.day}s average ${highest.avgOfficeVisits} visits — your busiest day. Protect that schedule.` });
+      insights.push({ type: "info", icon: "capacity", text: `Across at least four separately logged ${lowest.day}s, the average is ${lowest.avgOfficeVisits} visits — your lightest recurring day.` });
+      insights.push({ type: "info", icon: "capacity", text: `Across at least four separately logged ${highest.day}s, the average is ${highest.avgOfficeVisits} visits — your busiest recurring day.` });
     }
   }
 
@@ -179,8 +168,8 @@ function generateInsights(analytics: AnalyticsData): Insight[] {
   const totalCarePlans30 = last30Days.reduce((s, d) => s + d.carePlansSigned, 0);
   if (totalNewPts30 >= 5) {
     const ratio = totalCarePlans30 / totalNewPts30;
-    if (ratio >= 0.8) insights.push({ type: "positive", icon: "up", text: `Strong care plan conversion — ${Math.round(ratio * 100)}% of new patients signed a care plan this month.` });
-    else if (ratio < 0.5) insights.push({ type: "warning", icon: "down", text: `Care plan conversion is ${Math.round(ratio * 100)}%. Consider reviewing your report of findings presentation.` });
+    if (ratio >= 0.8) insights.push({ type: "positive", icon: "up", text: `Care plan conversion over the last 30 logged days is ${Math.round(ratio * 100)}%.` });
+    else if (ratio < 0.5) insights.push({ type: "warning", icon: "down", text: `Care plan conversion over the last 30 logged days is ${Math.round(ratio * 100)}%. Consider reviewing your report of findings presentation.` });
   }
 
   // Day 2 trend
@@ -424,10 +413,10 @@ export default function WWLD() {
             )}
 
             {/* Month: day-of-week averages */}
-            {period === "mtd" && analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 2) && (
+            {period === "mtd" && analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 4) && (
               <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-1">Average Office Visits by Day of Week</h3>
-                <p className="text-xs text-muted-foreground mb-4">Based on all historical data</p>
+                <p className="text-xs text-muted-foreground mb-4">Based on separately logged daily stats from the last 30 days</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={analytics.dayOfWeekAverages} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
@@ -502,7 +491,14 @@ export default function WWLD() {
               {analyticsQuery.isLoading ? (
                 <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />)}</div>
               ) : (
-                insights.map((insight, i) => <InsightCard key={i} insight={insight} />)
+                <>
+                  {analytics?.dataQuality.excludedBacklogSessions ? (
+                    <p className="rounded-lg border border-brand-gold/15 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      Weekly and monthly backlog totals are excluded from daily trends and weekday insights.
+                    </p>
+                  ) : null}
+                  {insights.map((insight, i) => <InsightCard key={i} insight={insight} />)}
+                </>
               )}
             </div>
 
@@ -534,10 +530,10 @@ export default function WWLD() {
             )}
 
             {/* Day-of-week pattern */}
-            {analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 2) && (
+            {analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 4) && (
               <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-1">Day-of-Week Patterns</h3>
-                <p className="text-xs text-muted-foreground mb-4">Your average stats by day of week</p>
+                <p className="text-xs text-muted-foreground mb-4">Based on at least four separately logged days in the last 30 days</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={analytics.dayOfWeekAverages} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
