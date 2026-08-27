@@ -10,11 +10,9 @@ import {
   growthActionOutcomes,
   userEngagementPreferences,
   engagementEvents,
-  lyleContent,
-  lyleServedLog,
   wwldSessions,
 } from "../../shared/schema";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -410,7 +408,7 @@ export const engagementRouter = router({
     if (!existing) {
       // No plan yet — doctor needs to pick actions
       // Also get the Lyle recommendation for display
-      const lyleAction = await getLyleRecommendation(dbInstance, userId, date);
+      const lyleAction = await getLyleRecommendation(userId, date);
       return {
         status: "needs_pick" as const,
         topic: { id: topic.id, label: topic.label, shortLabel: topic.shortLabel },
@@ -426,7 +424,7 @@ export const engagementRouter = router({
       .where(and(eq(growthActions.planId, existing.id), eq(growthActions.userId, userId)))
       .orderBy(asc(growthActions.sortOrder));
 
-    const lyleAction = await getLyleRecommendation(dbInstance, userId, date);
+    const lyleAction = await getLyleRecommendation(userId, date);
 
     const completedCount = actions.filter(a => a.status === "completed").length;
 
@@ -737,24 +735,8 @@ export const engagementRouter = router({
 
 // ─── Lyle Recommendation Helper ────────────────────────────────────
 
-async function getLyleRecommendation(dbInstance: any, userId: number, date: string) {
-  const servedToday = await dbInstance
-    .select()
-    .from(lyleServedLog)
-    .where(and(
-      eq(lyleServedLog.userId, userId),
-      sql`${lyleServedLog.servedAt}::date = ${date}::date`
-    ))
-    .limit(1);
-
-  if (servedToday.length === 0) return null;
-
-  const [contentRow] = await dbInstance
-    .select()
-    .from(lyleContent)
-    .where(eq(lyleContent.contentId, servedToday[0].contentId))
-    .limit(1);
-
+async function getLyleRecommendation(userId: number, date: string) {
+  const contentRow = await db.getOrCreateDailyLyleQuote(userId, date);
   if (!contentRow) return null;
 
   return {

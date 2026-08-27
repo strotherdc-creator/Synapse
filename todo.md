@@ -246,3 +246,9 @@
 - [x] Suppress insights and recommendations when data is incomplete, stale, or internally inconsistent.
 - [x] Correct the live client/server calculations and add regression tests for sparse and stale data.
 - [x] Push and verify the real Synapse repair on Railway before calling the WWLD insights trustworthy.
+
+## Today’s Plan Daily Lyle Quote Rotation (August 2026)
+- [x] Trace the live Today’s Plan quote lookup and served-log date logic.
+- [x] Deliver exactly one stable quote per Central Time calendar day.
+- [x] Prevent a doctor from receiving the same daily quote again within 12 months.
+- [ ] Add regression coverage, run checks, push the real Synapse fix, and verify Railway.

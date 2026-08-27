@@ -9,7 +9,11 @@ export default function TodaysGrowthPlan() {
   const utils = trpc.useUtils();
 
   // Queries
-  const planQuery = trpc.engagement.getDailyPlan.useQuery(undefined, { retry: 1 });
+  const planQuery = trpc.engagement.getDailyPlan.useQuery(undefined, {
+    retry: 1,
+    refetchInterval: 1000 * 60 * 5,
+    refetchOnWindowFocus: true,
+  });
   const categoriesQuery = trpc.engagement.getActionCategories.useQuery();
   const topicsQuery = trpc.engagement.getTopics.useQuery();
   const curriculumQuery = trpc.engagement.getCurriculumReminder.useQuery();

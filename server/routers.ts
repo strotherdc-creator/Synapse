@@ -918,24 +918,10 @@ const wwldRouter = router({
         }
       }
 
-      // ── 6. Pick daily action ──────────────────────────────────────
-      let dailyContent: Awaited<ReturnType<typeof db.getLyleContentByPillarAndState>>[0] | null = null;
-      {
-        let pool = await db.getLyleContentByPillarAndState(topDiag.pillar, "daily", topDiag.trendState, servedIds);
-        if (pool.length === 0) pool = await db.getLyleContentByPillar(topDiag.pillar, "daily", servedIds);
-        if (pool.length === 0) pool = await db.getLyleContent(topDiag.trendState, "daily", servedIds);
-        if (pool.length === 0) {
-          const allDaily = await db.getLyleContent(topDiag.trendState, "daily", []);
-          pool = allDaily;
-        }
-        if (pool.length > 0) {
-          // Deterministic within the day: pick by (userId + date) mod pool.length
-          const todayStr = endStr.replace(/-/g, "");
-          const seed = (userId * 17 + parseInt(todayStr, 10)) % pool.length;
-          dailyContent = pool[Math.abs(seed) % pool.length];
-          await db.markContentServed(userId, dailyContent.contentId);
-        }
-      }
+      // ── 6. One shared, stable daily quote ─────────────────────────
+      // Today’s Plan and the WWLD card use the same Central Time daily record.
+      // This prevents query refreshes from changing the quote mid-day.
+      const dailyContent = await db.getOrCreateDailyLyleQuote(userId, endStr);
 
       return {
         hasEnoughData,

@@ -1007,6 +1007,71 @@ export async function markContentServed(userId: number, contentId: string) {
   await db.insert(lyleServedLog).values({ userId, contentId });
 }
 
+/**
+ * Return the daily Lyle content already assigned to a doctor for one Central
+ * Time calendar day. This keeps Today’s Plan and WWLD on the same daily quote.
+ */
+export async function getDailyLyleQuoteForCentralDate(userId: number, dateKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const [row] = await db
+    .select({
+      contentId: lyleContent.contentId,
+      cadence: lyleContent.cadence,
+      pillar: lyleContent.pillar,
+      metricTrigger: lyleContent.metricTrigger,
+      trendState: lyleContent.trendState,
+      tone: lyleContent.tone,
+      actionText: lyleContent.actionText,
+    })
+    .from(lyleServedLog)
+    .innerJoin(lyleContent, eq(lyleContent.contentId, lyleServedLog.contentId))
+    .where(and(
+      eq(lyleServedLog.userId, userId),
+      eq(lyleContent.cadence, "daily"),
+      // Railway/Postgres stores timestamp values in UTC. Convert to CT before
+      // deriving the calendar date so a late-night quote cannot persist tomorrow.
+      sql`(((${lyleServedLog.servedAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Chicago')::date) = ${dateKey}::date`,
+    ))
+    .orderBy(desc(lyleServedLog.servedAt))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Assign one daily Lyle quote per doctor per Central Time day. The selected
+ * content is recorded immediately and excluded from that doctor's next 12
+ * months of daily quotes. Calling this repeatedly on the same day is stable.
+ */
+export async function getOrCreateDailyLyleQuote(userId: number, dateKey: string) {
+  const existing = await getDailyLyleQuoteForCentralDate(userId, dateKey);
+  if (existing) return existing;
+
+  const db = await getDb();
+  if (!db) return null;
+
+  const servedIds = await getServedContentIds(userId);
+  const dailyRows = await db
+    .select()
+    .from(lyleContent)
+    .where(eq(lyleContent.cadence, "daily"));
+  const eligible = dailyRows.filter((row) => !servedIds.includes(row.contentId));
+
+  // The current daily content bank is finite. If it is exhausted inside the
+  // 12-month deduplication window, return no quote rather than silently
+  // repeating a line; add approved content before this path is reached.
+  if (eligible.length === 0) return null;
+
+  const dateSeed = Number.parseInt(dateKey.replace(/-/g, ""), 10);
+  const index = Math.abs((userId * 17) + dateSeed) % eligible.length;
+  const quote = eligible[index];
+  await markContentServed(userId, quote.contentId);
+
+  return quote;
+}
+
 /** Return all lyle_content rows (for fallback/full pool access). */
 export async function getAllLyleContent() {
   const db = await getDb();
