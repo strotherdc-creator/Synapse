@@ -99,7 +99,7 @@ export default function DailyRoutine() {
           <CardContent className="pt-4 pb-3 px-4 text-center">
             <Flame className="h-6 w-6 text-orange-500 mx-auto mb-1" />
             <p className="text-2xl font-bold">{streak?.currentStreak ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Current Streak</p>
+            <p className="text-xs text-muted-foreground">Check-in Streak</p>
           </CardContent>
         </Card>
         <Card>
@@ -208,7 +208,7 @@ export default function DailyRoutine() {
             <p className="text-sm text-muted-foreground mt-1">
               Great work today. Your streak is now{" "}
               <span className="font-bold text-primary">
-                {streak?.currentStreak ?? 1}
+                {streak?.currentStreak ?? 0}
               </span>{" "}
               days!
             </p>

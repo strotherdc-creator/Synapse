@@ -252,3 +252,9 @@
 - [x] Deliver exactly one stable quote per Central Time calendar day.
 - [x] Prevent a doctor from receiving the same daily quote again within 12 months.
 - [x] Add regression coverage, run checks, push the real Synapse fix, and verify Railway.
+
+## Real-World Daily Streak Failure (August 2026)
+- [x] Trace the actual authenticated user’s completed actions, streak row, user ID, and displayed streak source without exposing personal data.
+- [x] Identify why daily use has not advanced the stored current streak beyond one day.
+- [x] Correct the real source-of-truth logic; prior streak counts cannot be reconstructed from the available aggregate-only history.
+- [ ] Add regression coverage based on the verified failure mode and confirm the live behavior across the next Central Time day boundary.

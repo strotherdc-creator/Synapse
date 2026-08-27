@@ -188,7 +188,7 @@ export default function TodaysGrowthPlan() {
         <div className="flex items-center gap-2">
           <Flame className="h-7 w-7 text-orange-400" />
           <span className="text-2xl font-bold text-gold">{streak?.currentStreak ?? 0}</span>
-          <span className="text-base text-gray-400">day streak</span>
+          <span className="text-base text-gray-400">check-in streak</span>
         </div>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-emerald-400" />

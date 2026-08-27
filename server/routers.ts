@@ -445,6 +445,14 @@ const contentRouter = router({
 // ─── Daily Routine & Streaks Router ─────────────────────────────────
 
 const routineRouter = router({
+  // Opening the authenticated app counts as one daily check-in. This is
+  // intentionally separate from the number of actions completed that day.
+  recordDailyCheckIn: protectedProcedure.mutation(async ({ ctx }) => {
+    const serverDate = db.getCentralDateKey();
+    await db.updateStreak(ctx.user.id, serverDate);
+    return { success: true, date: serverDate };
+  }),
+
   getTasks: protectedProcedure
     .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
     .query(async ({ ctx, input }) => {

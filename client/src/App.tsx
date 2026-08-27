@@ -42,6 +42,12 @@ function DailyActionPopup() {
   const dismissed = useRef(false);
   const [visible, setVisible] = useState(true);
   const today = getTodayDate();
+  const utils = trpc.useUtils();
+  const { mutate: recordDailyCheckIn } = trpc.routine.recordDailyCheckIn.useMutation({
+    onSuccess: () => {
+      utils.routine.getStreak.invalidate();
+    },
+  });
 
   const { data: status } = trpc.wwld.getTodayStatus.useQuery(
     { date: today },
@@ -54,6 +60,12 @@ function DailyActionPopup() {
       setVisible(false);
     }
   }, [status, location, setLocation]);
+
+  useEffect(() => {
+    // A streak represents an authenticated daily check-in. The server uses the
+    // Central Time date and makes repeated visits on the same day idempotent.
+    recordDailyCheckIn();
+  }, [recordDailyCheckIn]);
 
   // Don't show if already dismissed
   if (!visible || dismissed.current) return null;
