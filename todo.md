@@ -251,4 +251,4 @@
 - [x] Trace the live Today’s Plan quote lookup and served-log date logic.
 - [x] Deliver exactly one stable quote per Central Time calendar day.
 - [x] Prevent a doctor from receiving the same daily quote again within 12 months.
-- [ ] Add regression coverage, run checks, push the real Synapse fix, and verify Railway.
+- [x] Add regression coverage, run checks, push the real Synapse fix, and verify Railway.
