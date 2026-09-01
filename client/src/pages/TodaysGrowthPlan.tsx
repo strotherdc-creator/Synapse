@@ -201,7 +201,7 @@ export default function TodaysGrowthPlan() {
       {data?.lyleRecommendation && (
         <div className="bg-amber-900/30 border border-amber-500/40 rounded-xl px-4 py-3">
           <p className="text-xs font-bold text-amber-300 uppercase tracking-wide">💡 Lyle says</p>
-          <p className="text-base font-semibold text-white mt-1 line-clamp-2">
+          <p className="text-base font-semibold text-white mt-1 leading-relaxed break-words">
             {data.lyleRecommendation.actionText}
           </p>
         </div>

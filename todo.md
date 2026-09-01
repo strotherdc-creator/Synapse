@@ -258,3 +258,8 @@
 - [x] Identify why daily use has not advanced the stored current streak beyond one day.
 - [x] Correct the real source-of-truth logic; prior streak counts cannot be reconstructed from the available aggregate-only history.
 - [ ] Add regression coverage based on the verified failure mode and confirm the live behavior across the next Central Time day boundary.
+
+## Today’s Plan Lyle Quote Readability (September 2026)
+- [ ] Remove mobile truncation so the full daily Lyle quote can be read.
+- [ ] Preserve a compact card with an optional explicit collapse/expand control for unusually long quotes.
+- [ ] Add regression coverage, run checks, push the real Synapse change, and verify Railway.
