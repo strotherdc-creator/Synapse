@@ -263,3 +263,10 @@
 - [x] Remove mobile truncation so the full daily Lyle quote can be read.
 - [x] Preserve a compact card by allowing the card to grow naturally for the full instruction.
 - [x] Add regression coverage, run checks, push the real Synapse change, and verify Railway.
+
+## Schedule-Aware WWLD Trends (September 2026)
+- [x] Verify the installed clinic schedule and identify half-day versus full-day comparison groups.
+- [x] Compare Tuesday and Saturday only against their own historical half-day values.
+- [x] Compare full-day performance using full-day benchmarks and same-weekday history.
+- [x] Remove “slowest/lightest day” claims that merely reflect a shorter scheduled session.
+- [ ] Add regression coverage, run checks, push, and verify Railway.

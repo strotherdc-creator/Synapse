@@ -118,7 +118,9 @@ type Insight = {
 
 type AnalyticsData = {
   last30Days: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
-  dayOfWeekAverages: Array<{ day: string; dow: number; avgOfficeVisits: number; avgNewPatients: number; avgCarePlansSigned: number; dataPoints: number }>;
+  dayOfWeekAverages: Array<{ day: string; dow: number; scheduleType: "full" | "half" | "off"; avgOfficeVisits: number; avgNewPatients: number; avgCarePlansSigned: number; dataPoints: number }>;
+  fullDayOfficeVisitAverage: number | null;
+  fullDayDataPoints: number;
   thisWeek: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
   lastWeek: Array<{ date: string; officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }>;
   thisMonth: { officeVisits: number; newPatients: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number };
@@ -129,7 +131,7 @@ type AnalyticsData = {
 
 function generateInsights(analytics: AnalyticsData): Insight[] {
   const insights: Insight[] = [];
-  const { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonthToDate } = analytics;
+  const { last30Days, dayOfWeekAverages, thisWeek, lastWeek, thisMonth, lastMonthToDate, fullDayOfficeVisitAverage, fullDayDataPoints } = analytics;
 
   if (last30Days.length < 15) {
     return [{ type: "info", icon: "info", text: "Daily trend insights need at least 15 separately logged days in the last 30 days. Weekly or monthly backlog totals are not used as daily activity." }];
@@ -151,16 +153,19 @@ function generateInsights(analytics: AnalyticsData): Insight[] {
     else if (momPct <= -10) insights.push({ type: "warning", icon: "down", text: `New patients are down ${Math.abs(momPct)}% versus the same point last month.` });
   }
 
-  // Require four distinct days of the week before identifying a recurring pattern.
-  const daysWithData = dayOfWeekAverages.filter((d) => d.dataPoints >= 4);
-  if (daysWithData.length >= 3) {
-    const sorted = [...daysWithData].sort((a, b) => a.avgOfficeVisits - b.avgOfficeVisits);
-    const lowest = sorted[0];
-    const highest = sorted[sorted.length - 1];
-    if (lowest.avgOfficeVisits > 0 && highest.avgOfficeVisits / lowest.avgOfficeVisits >= 1.3) {
-      insights.push({ type: "info", icon: "capacity", text: `Across at least four separately logged ${lowest.day}s, the average is ${lowest.avgOfficeVisits} visits — your lightest recurring day.` });
-      insights.push({ type: "info", icon: "capacity", text: `Across at least four separately logged ${highest.day}s, the average is ${highest.avgOfficeVisits} visits — your busiest recurring day.` });
-    }
+  // A shorter scheduled session is not a performance deficit. Half-days use
+  // only their own weekday history; full days also have a full-day baseline.
+  const comparableDays = dayOfWeekAverages.filter((d) => d.dataPoints >= 4);
+  const halfDayBenchmarks = comparableDays.filter((d) => d.scheduleType === "half");
+  const fullDayBenchmarks = comparableDays.filter((d) => d.scheduleType === "full");
+  if (halfDayBenchmarks.length > 0 || (fullDayBenchmarks.length > 0 && fullDayDataPoints >= 4)) {
+    const fullDayText = fullDayOfficeVisitAverage === null
+      ? "Full clinic days are compared against their own weekday history."
+      : `Full clinic days use a ${fullDayOfficeVisitAverage}-visit full-day baseline and their own weekday history.`;
+    const halfDayText = halfDayBenchmarks.length > 0
+      ? ` Half-day sessions (${halfDayBenchmarks.map((day) => day.day).join(", ")}) are compared only with the same weekday.`
+      : "";
+    insights.push({ type: "info", icon: "info", text: `Schedule-aware benchmarks: ${fullDayText}${halfDayText}` });
   }
 
   // Care plan conversion rate
@@ -529,15 +534,18 @@ export default function WWLD() {
               )
             )}
 
-            {/* Day-of-week pattern */}
+            {/* Schedule-aware day pattern */}
             {analytics && analytics.dayOfWeekAverages.some((d) => d.dataPoints >= 4) && (
               <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Day-of-Week Patterns</h3>
-                <p className="text-xs text-muted-foreground mb-4">Based on at least four separately logged days in the last 30 days</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Schedule-Aware Day Patterns</h3>
+                <p className="text-xs text-muted-foreground mb-4">Full clinic days use full-day and weekday benchmarks. Half-days are compared only with the same weekday.</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={analytics.dayOfWeekAverages} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    <XAxis dataKey="day" tickFormatter={(day, index) => {
+                      const item = analytics.dayOfWeekAverages[index];
+                      return item?.scheduleType === "half" ? `${day} · ½` : day;
+                    }} tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
                     <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: number) => [val.toFixed(1)]} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />

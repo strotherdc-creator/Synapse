@@ -803,7 +803,7 @@ const wwldRouter = router({
     }),
   getAnalytics: protectedProcedure
     .query(async ({ ctx }) => {
-      return db.getWwldAnalytics(ctx.user.id);
+      return db.getWwldAnalytics(ctx.user.id, (ctx.user as any).workDays);
     }),
 
   getDailyAction: protectedProcedure
@@ -824,22 +824,12 @@ const wwldRouter = router({
         const [day, status] = entry.split(":");
         if (day) schedule[day] = status || "full";
       });
-      // Filter: exclude "off" days, keep "full" and "half"
+      // Exclude scheduled off-days. Do not inflate half-day numbers: a half-day
+      // is only comparable to its own historical weekday, not a full session.
       const workDayBreakdown = dailyBreakdown.filter((d: any) => {
         const date = new Date(d.date + "T12:00:00"); // noon to avoid timezone shift
         const dayName = DAY_MAP[date.getDay()];
         return schedule[dayName] !== "off";
-      }).map((d: any) => {
-        // Weight half days 2x so they compare fairly to full days
-        const date = new Date(d.date + "T12:00:00");
-        const dayName = DAY_MAP[date.getDay()];
-        const multiplier = schedule[dayName] === "half" ? 2 : 1;
-        return {
-          ...d,
-          officeVisits: d.officeVisits * multiplier,
-          newPatients: d.newPatients * multiplier,
-          carePlansSigned: d.carePlansSigned * multiplier,
-        };
       });
 
       // ── 2. Determine this week's Monday ───────────────────────────

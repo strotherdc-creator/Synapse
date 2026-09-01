@@ -61,6 +61,35 @@ export function mondayDateKey(dateKey: string): string {
   return shiftDateKey(dateKey, day === 0 ? -6 : 1 - day);
 }
 
+export type WorkDayType = "full" | "half" | "off";
+
+const WORKDAY_KEYS: Record<number, string> = {
+  0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat",
+};
+
+const DEFAULT_WORK_SCHEDULE = "mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off";
+
+/** Parse the practice schedule saved on the user profile into day classifications. */
+export function parseWorkSchedule(workDaysRaw = DEFAULT_WORK_SCHEDULE): Record<string, WorkDayType> {
+  const schedule: Record<string, WorkDayType> = {
+    mon: "off", tue: "off", wed: "off", thu: "off", fri: "off", sat: "off", sun: "off",
+  };
+
+  workDaysRaw.split(",").forEach((entry) => {
+    const [day, rawStatus] = entry.trim().split(":");
+    if (!day || !(day in schedule)) return;
+    schedule[day] = rawStatus === "half" || rawStatus === "off" ? rawStatus : "full";
+  });
+
+  return schedule;
+}
+
+/** Classify a stored YYYY-MM-DD stat date using the doctor's configured work schedule. */
+export function getScheduledDayType(dateKey: string, schedule: Record<string, WorkDayType>): WorkDayType {
+  const dow = new Date(`${dateKey}T12:00:00Z`).getUTCDay();
+  return schedule[WORKDAY_KEYS[dow]] ?? "off";
+}
+
 export async function getDb() {
   if (!_db && ENV.databaseUrl) {
     try {
@@ -799,13 +828,16 @@ export function isBacklogWwldSession(notes: string | null | undefined): boolean 
   return notes === "Weekly total (backlog entry)" || notes === "Monthly total (backlog entry)";
 }
 
-export async function getWwldAnalytics(userId: number) {
+export async function getWwldAnalytics(userId: number, workDaysRaw?: string) {
   const db = await getDb();
   const empty = { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
+  const workSchedule = parseWorkSchedule(workDaysRaw);
   if (!db) {
     return {
       last30Days: [],
       dayOfWeekAverages: [],
+      fullDayOfficeVisitAverage: null,
+      fullDayDataPoints: 0,
       thisWeek: [],
       lastWeek: [],
       thisMonth: empty,
@@ -854,11 +886,18 @@ export async function getWwldAnalytics(userId: number) {
   const dayOfWeekAverages = [1, 2, 3, 4, 5, 6, 0].map((dow) => ({
     day: DAY_NAMES[dow],
     dow,
+    scheduleType: workSchedule[WORKDAY_KEYS[dow]] ?? "off",
     avgOfficeVisits: dowSums[dow].count > 0 ? Math.round((dowSums[dow].sum / dowSums[dow].count) * 10) / 10 : 0,
     avgNewPatients: dowSums[dow].count > 0 ? Math.round((dowSums[dow].newPatients / dowSums[dow].count) * 10) / 10 : 0,
     avgCarePlansSigned: dowSums[dow].count > 0 ? Math.round((dowSums[dow].carePlansSigned / dowSums[dow].count) * 10) / 10 : 0,
     dataPoints: dowSums[dow].count,
-  }));
+  })).filter((day) => day.scheduleType !== "off");
+
+  const fullDayRecords = last30Days.filter((day) => getScheduledDayType(day.date, workSchedule) === "full");
+  const fullDayDataPoints = fullDayRecords.length;
+  const fullDayOfficeVisitAverage = fullDayDataPoints > 0
+    ? Math.round((fullDayRecords.reduce((sum, day) => sum + day.officeVisits, 0) / fullDayDataPoints) * 10) / 10
+    : null;
 
   const thisMondayStr = mondayDateKey(endStr);
   const lastMondayStr = shiftDateKey(thisMondayStr, -7);
@@ -891,7 +930,9 @@ export async function getWwldAnalytics(userId: number) {
 
   return {
     last30Days,
-    dayOfWeekAverages,
+      dayOfWeekAverages,
+      fullDayOfficeVisitAverage,
+      fullDayDataPoints,
     thisWeek,
     lastWeek,
     thisMonth,
