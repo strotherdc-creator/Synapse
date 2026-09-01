@@ -269,4 +269,4 @@
 - [x] Compare Tuesday and Saturday only against their own historical half-day values.
 - [x] Compare full-day performance using full-day benchmarks and same-weekday history.
 - [x] Remove “slowest/lightest day” claims that merely reflect a shorter scheduled session.
-- [ ] Add regression coverage, run checks, push, and verify Railway.
+- [x] Add regression coverage, run checks, push, and verify Railway.
