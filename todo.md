@@ -260,6 +260,6 @@
 - [ ] Add regression coverage based on the verified failure mode and confirm the live behavior across the next Central Time day boundary.
 
 ## Today’s Plan Lyle Quote Readability (September 2026)
-- [ ] Remove mobile truncation so the full daily Lyle quote can be read.
-- [ ] Preserve a compact card with an optional explicit collapse/expand control for unusually long quotes.
-- [ ] Add regression coverage, run checks, push the real Synapse change, and verify Railway.
+- [x] Remove mobile truncation so the full daily Lyle quote can be read.
+- [x] Preserve a compact card by allowing the card to grow naturally for the full instruction.
+- [x] Add regression coverage, run checks, push the real Synapse change, and verify Railway.
