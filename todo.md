@@ -275,4 +275,4 @@
 - [x] Load existing statistics when a previously logged day is selected.
 - [x] Let the doctor amend only the incorrect values without reentering the entire day.
 - [x] Clearly distinguish a new entry from an update to a saved day.
-- [ ] Add regression coverage, run checks, push, and verify Railway.
+- [x] Add regression coverage, run checks, push, and verify Railway.
