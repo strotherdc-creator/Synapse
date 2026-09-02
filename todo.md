@@ -270,3 +270,9 @@
 - [x] Compare full-day performance using full-day benchmarks and same-weekday history.
 - [x] Remove “slowest/lightest day” claims that merely reflect a shorter scheduled session.
 - [x] Add regression coverage, run checks, push, and verify Railway.
+
+## Past-Day WWLD Stat Editing (September 2026)
+- [x] Load existing statistics when a previously logged day is selected.
+- [x] Let the doctor amend only the incorrect values without reentering the entire day.
+- [x] Clearly distinguish a new entry from an update to a saved day.
+- [ ] Add regression coverage, run checks, push, and verify Railway.

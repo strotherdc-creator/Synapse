@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Dialog,
@@ -35,6 +35,18 @@ const EMPTY_STATS: StatValues = {
   performanceReviews: 0,
   carePlansSigned: 0,
 };
+
+function sessionToStats(session: Partial<StatValues>): StatValues {
+  return {
+    officeVisits: session.officeVisits ?? 0,
+    newPatients: session.newPatients ?? 0,
+    recall: session.recall ?? 0,
+    testResults: session.testResults ?? 0,
+    progressExams: session.progressExams ?? 0,
+    performanceReviews: session.performanceReviews ?? 0,
+    carePlansSigned: session.carePlansSigned ?? 0,
+  };
+}
 
 const STAT_LABELS: { key: keyof StatValues; label: string; short: string }[] = [
   { key: "officeVisits", label: "Office Visits", short: "Visits" },
@@ -170,6 +182,25 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
   const [saving, setSaving] = useState(false);
 
   const utils = trpc.useUtils();
+  const selectedDate = selectedDay ? formatDate(selectedDay) : "2000-01-01";
+  const selectedDayQuery = trpc.wwld.getToday.useQuery(
+    { date: selectedDate },
+    { enabled: Boolean(selectedDay), staleTime: 0 },
+  );
+  const existingEndOfDay = selectedDayQuery.data?.sessions.find((session) => session.sessionType === "end_of_day");
+  const isEditingSavedDay = Boolean(existingEndOfDay);
+
+  useEffect(() => {
+    if (selectedDay && existingEndOfDay) {
+      setStats(sessionToStats(existingEndOfDay));
+    }
+  }, [selectedDay, existingEndOfDay]);
+
+  const selectDay = useCallback((day: Date) => {
+    setStats({ ...EMPTY_STATS });
+    setSelectedDay(day);
+  }, []);
+
   const logSession = trpc.wwld.logSession.useMutation({
     onSuccess: () => {
       utils.wwld.getToday.invalidate();
@@ -184,17 +215,17 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
     setSaving(true);
     try {
       await logSession.mutateAsync({
-        sessionDate: formatDate(selectedDay),
+        sessionDate: selectedDate,
         sessionType: "end_of_day" as SessionType,
         ...stats,
       });
-      setSavedDays((prev) => new Set(prev).add(formatDate(selectedDay)));
+      setSavedDays((prev) => new Set(prev).add(selectedDate));
       setSelectedDay(null);
       setStats({ ...EMPTY_STATS });
     } finally {
       setSaving(false);
     }
-  }, [selectedDay, stats, logSession]);
+  }, [selectedDay, selectedDate, stats, logSession]);
 
   if (selectedDay) {
     return (
@@ -207,7 +238,13 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
         </button>
         <div className="text-center">
           <p className="text-base font-semibold text-foreground">{getDayLabel(selectedDay)}</p>
-          <p className="text-xs text-muted-foreground">Enter totals for the full day</p>
+          <p className="text-xs text-muted-foreground">
+            {selectedDayQuery.isLoading
+              ? "Loading saved totals..."
+              : isEditingSavedDay
+                ? "Edit saved totals — change only the number that is wrong"
+                : "Enter totals for the full day"}
+          </p>
         </div>
         <div className="divide-y divide-border">
           {STAT_LABELS.map(({ key, label }) => (
@@ -221,11 +258,11 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
         </div>
         <Button
           onClick={handleSaveDay}
-          disabled={saving}
+          disabled={saving || selectedDayQuery.isLoading}
           className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-          Save {getDayLabel(selectedDay)}
+          {isEditingSavedDay ? "Save changes to" : "Save"} {getDayLabel(selectedDay)}
         </Button>
       </div>
     );
@@ -248,7 +285,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
             return (
               <button
                 key={key}
-                onClick={() => { setSelectedDay(d); setStats({ ...EMPTY_STATS }); }}
+                onClick={() => selectDay(d)}
                 className={cn(
                   "flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-left",
                   saved
@@ -277,7 +314,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
               return (
                 <button
                   key={key}
-                  onClick={() => { setSelectedDay(d); setStats({ ...EMPTY_STATS }); }}
+                  onClick={() => selectDay(d)}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors text-left",
                     saved
