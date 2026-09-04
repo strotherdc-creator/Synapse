@@ -35,13 +35,14 @@ import {
   Settings,
   Sparkles,
   User,
+  Target,
   Zap,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
-import { SynapseLogo } from "./SynapseLogo";
+import { SynapseLogo, SynapseLogoInline } from "./SynapseLogo";
 
 const menuItems = [
   { icon: Sparkles, label: "Today's Plan", path: "/today" },
@@ -50,6 +51,7 @@ const menuItems = [
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },
   { icon: Zap, label: "Communication Coach", path: "/communication", badge: "BETA" },
+  { icon: Target, label: "WWLD Coach", path: "/wwld-coach", badge: "BETA" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
 
@@ -312,4 +314,3 @@ function DashboardLayoutContent({
     </>
   );
 }
-import { SynapseLogoInline } from "./SynapseLogo";
