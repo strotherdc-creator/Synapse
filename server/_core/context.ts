@@ -58,12 +58,20 @@ export async function createContext(
             // Non-critical, continue with existing user
           }
         } else {
-          // Email exists, just update lastSignedIn (this also triggers admin check)
-          db.upsertUser({
-            clerkId: auth.userId,
-            email,
-            lastSignedIn: new Date(),
-          }).catch(() => {});
+          // Email exists — refresh lastSignedIn (also re-checks admin promotion),
+          // but only when it's actually stale. Every tRPC request creates a new
+          // context, and pages fire several parallel calls per navigation, so
+          // writing on every request would mean two DB round trips (select +
+          // update) just to bump a timestamp that barely changed.
+          const staleMs = 5 * 60 * 1000; // 5 minutes
+          const lastSignedIn = user.lastSignedIn ? new Date(user.lastSignedIn).getTime() : 0;
+          if (Date.now() - lastSignedIn > staleMs) {
+            db.upsertUser({
+              clerkId: auth.userId,
+              email,
+              lastSignedIn: new Date(),
+            }).catch(() => {});
+          }
         }
       }
     }
