@@ -5,7 +5,8 @@ import * as db from "./db";
 // ─── Module Step Definitions ──────────────────────────────────────
 // Primary curriculum path is Bridge the Gap coaching (these steps).
 // server/seed.ts may also insert reference lessons under different titles —
-// coaching seed must resolve modules by title/sortOrder, never by assuming IDs 1–6.
+// coaching seed ensures the 6 BTG modules exist, matches by strict title with
+// claim-exclusion, and only seeds empty modules (never assumes IDs 1–6).
 // Each module has structured coaching steps from the master prompts
 
 const MODULE_STEPS: Record<number, Array<{
@@ -881,38 +882,191 @@ RULES:
   ],
 };
 
-// Bridge the Gap coaching modules — resolve by title (preferred) or sortOrder rank.
-// Do NOT hard-bind to numeric module IDs: admin recreate / seed.ts lesson modules
-// can leave coaching steps on the wrong rows (or none).
+// Bridge the Gap coaching modules — resolve by STRICT title match with claim-exclusion.
+// Never bind to numeric IDs 1–6. Never let two metas claim the same moduleId.
+// If a Bridge-the-Gap module is missing, create (or rename Referral Identity candidates).
+// Do NOT fall back to bare sortOrder rank — that steals lesson-seed titles like
+// "Messaging & Positioning" for Local Positioning / Messaging.
 const COACHING_MODULE_META: Array<{
   key: number;
   sortOrder: number;
   label: string;
-  titleMatchers: string[];
+  canonicalTitle: string;
+  description: string;
+  iconEmoji: string;
+  /** All must match (includes). Use for AND constraints. */
+  titleIncludesAll: string[];
+  /** If any match, reject (includes). */
+  titleExcludesAny: string[];
 }> = [
-  { key: 1, sortOrder: 1, label: "Differentiation", titleMatchers: ["differentiation"] },
-  { key: 2, sortOrder: 2, label: "Local Positioning", titleMatchers: ["local positioning"] },
-  { key: 3, sortOrder: 3, label: "Messaging", titleMatchers: ["messaging"] },
-  { key: 4, sortOrder: 4, label: "Trust & Referral Generation", titleMatchers: ["trust"] },
-  { key: 5, sortOrder: 5, label: "Visibility", titleMatchers: ["visibility"] },
-  { key: 6, sortOrder: 6, label: "Referral Identity", titleMatchers: ["referral identity"] },
+  {
+    key: 1,
+    sortOrder: 1,
+    label: "Differentiation",
+    canonicalTitle: "Differentiation",
+    description: "Identify who you serve best and craft your one-sentence difference.",
+    iconEmoji: "🎯",
+    titleIncludesAll: ["differentiation"],
+    titleExcludesAny: [],
+  },
+  {
+    key: 2,
+    sortOrder: 2,
+    label: "Local Positioning",
+    canonicalTitle: "Local Positioning",
+    description: "Own one category in your community and build your Known For sentence.",
+    iconEmoji: "📍",
+    titleIncludesAll: ["local positioning"],
+    titleExcludesAny: [],
+  },
+  {
+    key: 3,
+    sortOrder: 3,
+    label: "Messaging",
+    canonicalTitle: "Messaging",
+    description: "Build table-talk one-liners, patient stories, and FAQs.",
+    iconEmoji: "💬",
+    // Require "messaging" but reject lesson-seed "Messaging & Positioning"
+    titleIncludesAll: ["messaging"],
+    titleExcludesAny: ["positioning"],
+  },
+  {
+    key: 4,
+    sortOrder: 4,
+    label: "Trust & Referral Generation",
+    canonicalTitle: "Trust & Referral Generation",
+    description: "Capture proof, reviews, and natural referral activation.",
+    iconEmoji: "🤝",
+    titleIncludesAll: ["trust"],
+    titleExcludesAny: [],
+  },
+  {
+    key: 5,
+    sortOrder: 5,
+    label: "Visibility",
+    canonicalTitle: "Visibility — Weekly Rhythm",
+    description: "Commit to a weekly visibility rhythm in one community lane.",
+    iconEmoji: "👀",
+    titleIncludesAll: ["visibility"],
+    titleExcludesAny: [],
+  },
+  {
+    key: 6,
+    sortOrder: 6,
+    label: "Referral Identity",
+    canonicalTitle: "Referral Identity",
+    description: "Make it easy for patients to introduce you with a clear referral identity.",
+    iconEmoji: "🔗",
+    titleIncludesAll: ["referral identity"],
+    titleExcludesAny: [],
+  },
 ];
 
-function resolveCoachingModuleId(
-  allModules: Array<{ id: number; title: string; sortOrder: number }>,
-  meta: (typeof COACHING_MODULE_META)[number]
-): number | null {
-  const titleHit = allModules.find((m) => {
-    const title = m.title.toLowerCase();
-    return meta.titleMatchers.some((needle) => title.includes(needle.toLowerCase()));
-  });
-  if (titleHit) return titleHit.id;
+type ModuleRow = { id: number; title: string; sortOrder: number; status?: string };
 
-  const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
-  return sorted[meta.sortOrder - 1]?.id ?? null;
+function titleMatchesMeta(title: string, meta: (typeof COACHING_MODULE_META)[number]): boolean {
+  const t = title.toLowerCase();
+  if (meta.titleExcludesAny.some((ex) => t.includes(ex.toLowerCase()))) return false;
+  return meta.titleIncludesAll.every((inc) => t.includes(inc.toLowerCase()));
 }
 
-// ─── Auto-seed function ──────────────────────────────────────────
+function resolveCoachingModuleId(
+  allModules: ModuleRow[],
+  meta: (typeof COACHING_MODULE_META)[number],
+  claimedIds: Set<number>
+): number | null {
+  const titleHit = allModules.find(
+    (m) => !claimedIds.has(m.id) && titleMatchesMeta(m.title, meta)
+  );
+  return titleHit?.id ?? null;
+}
+
+/** Prefer renaming a near-miss Referral module over creating a duplicate. */
+function findReferralIdentityRenameCandidate(
+  allModules: ModuleRow[],
+  claimedIds: Set<number>
+): ModuleRow | null {
+  return (
+    allModules.find((m) => {
+      if (claimedIds.has(m.id)) return false;
+      const t = m.title.toLowerCase();
+      if (t.includes("trust")) return false;
+      if (t.includes("referral identity")) return false;
+      // "Referral" alone / "Referral Engine" style — not Trust module
+      return t.includes("referral") && !t.includes("generation");
+    }) ?? null
+  );
+}
+
+async function ensureBridgeTheGapModules(): Promise<Map<number, number>> {
+  const keyToModuleId = new Map<number, number>();
+  const claimedIds = new Set<number>();
+
+  for (const meta of COACHING_MODULE_META) {
+    let allModules = (await db.listModules(false)) as ModuleRow[];
+    let moduleId = resolveCoachingModuleId(allModules, meta, claimedIds);
+
+    if (moduleId == null && meta.key === 6) {
+      const candidate = findReferralIdentityRenameCandidate(allModules, claimedIds);
+      if (candidate) {
+        await db.updateModule(candidate.id, {
+          title: meta.canonicalTitle,
+          description: meta.description,
+          iconEmoji: meta.iconEmoji,
+          sortOrder: meta.sortOrder,
+          status: "published",
+        });
+        moduleId = candidate.id;
+        console.log(
+          `[Seed] Renamed module ${candidate.id} "${candidate.title}" → "${meta.canonicalTitle}"`
+        );
+        allModules = (await db.listModules(false)) as ModuleRow[];
+      }
+    }
+
+    if (moduleId == null) {
+      const exact = allModules.find(
+        (m) =>
+          !claimedIds.has(m.id) &&
+          m.title.trim().toLowerCase() === meta.canonicalTitle.toLowerCase()
+      );
+      if (exact) moduleId = exact.id;
+    }
+
+    if (moduleId == null) {
+      const created = await db.createModule({
+        title: meta.canonicalTitle,
+        description: meta.description,
+        iconEmoji: meta.iconEmoji,
+        sortOrder: meta.sortOrder,
+        status: "published",
+      });
+      moduleId = created.id;
+      console.log(`[Seed] Created Bridge-the-Gap module ${moduleId} (${meta.canonicalTitle})`);
+    } else {
+      // Keep canonical ordering/title for matched BTG rows
+      const current = allModules.find((m) => m.id === moduleId);
+      if (
+        current &&
+        (current.title !== meta.canonicalTitle || current.sortOrder !== meta.sortOrder)
+      ) {
+        await db.updateModule(moduleId, {
+          title: meta.canonicalTitle,
+          sortOrder: meta.sortOrder,
+          status: "published",
+        });
+        console.log(
+          `[Seed] Normalized module ${moduleId} → "${meta.canonicalTitle}" (sortOrder ${meta.sortOrder})`
+        );
+      }
+    }
+
+    claimedIds.add(moduleId);
+    keyToModuleId.set(meta.key, moduleId);
+  }
+
+  return keyToModuleId;
+}
 
 export async function seedCoachingSteps() {
   const database = await getDb();
@@ -962,17 +1116,16 @@ export async function seedCoachingSteps() {
       )
     `);
 
-    // Per-module heal: attach steps to modules resolved by title/sortOrder.
-    // Never assume module IDs are 1–6; never skip seeding empty modules just
-    // because unrelated module_steps rows already exist.
-    const allModules = await db.listModules(false);
+    // Ensure the 6 Bridge-the-Gap modules exist (create/rename), then seed
+    // steps only onto modules that still have zero steps.
+    const keyToModuleId = await ensureBridgeTheGapModules();
     let totalSeeded = 0;
     let modulesTouched = 0;
 
     for (const meta of COACHING_MODULE_META) {
-      const moduleId = resolveCoachingModuleId(allModules, meta);
+      const moduleId = keyToModuleId.get(meta.key);
       if (moduleId == null) {
-        console.warn(`[Seed] No module found for ${meta.label}; skipping`);
+        console.warn(`[Seed] No module resolved for ${meta.label}; skipping`);
         continue;
       }
 
@@ -1007,6 +1160,9 @@ export async function seedCoachingSteps() {
 
     console.log(
       `[Seed] Coaching seed finished: ${totalSeeded} new steps across ${modulesTouched} modules`
+    );
+    console.log(
+      "[Seed] If lesson-seed modules still hold orphan steps on wrong IDs, see docs/curriculum-orphan-cleanup.md"
     );
   } catch (error) {
     console.error("[Seed] Error seeding coaching steps:", error);

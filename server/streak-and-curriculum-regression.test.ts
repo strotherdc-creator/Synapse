@@ -53,7 +53,18 @@ describe("Synapse curriculum completion badge", () => {
     const seedCoaching = source("server/seed-coaching.ts");
     expect(seedCoaching).toContain("COACHING_MODULE_META");
     expect(seedCoaching).toContain("resolveCoachingModuleId");
+    expect(seedCoaching).toContain("ensureBridgeTheGapModules");
+    expect(seedCoaching).toContain("claimedIds");
+    expect(seedCoaching).toContain('titleExcludesAny: ["positioning"]');
+    expect(seedCoaching).toContain("findReferralIdentityRenameCandidate");
     expect(seedCoaching).not.toContain("Module steps already exist (${count} steps), skipping seed");
+  });
+
+  it("documents one-time orphan cleanup for mis-attached coaching steps", () => {
+    const cleanupDoc = source("docs/curriculum-orphan-cleanup.md");
+    expect(cleanupDoc).toContain("one-time");
+    expect(cleanupDoc).toContain("module_steps");
+    expect(cleanupDoc).toContain("Referral Identity");
   });
 
   it("cascades coaching rows when a module is deleted", () => {

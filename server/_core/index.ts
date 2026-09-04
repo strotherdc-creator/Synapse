@@ -151,7 +151,7 @@ async function startServer() {
 
     // Run schema migrations (idempotent — safe on every startup)
     runMigrations(ENGAGEMENT_MIGRATIONS).catch((err) => console.error("[Migrations] Failed:", err));
-    // Seed coaching steps (idempotent — only runs if tables are empty)
+    // Seed coaching steps (ensures 6 BTG modules; seeds only empty modules)
     seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
     seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
     // Schedule weekly WWLD data backup (production only, requires SMTP_USER + SMTP_PASS)
