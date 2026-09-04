@@ -52,7 +52,8 @@ export default function ModuleCoaching() {
     const currentIdx = sorted.findIndex((m) => m.id === moduleId);
     if (currentIdx <= 0) return; // First module or not found — allow
     const prevModule = sorted[currentIdx - 1];
-    if (!prevModule?.coachingComplete) {
+    // Must match Curriculum unlock: moduleComplete (coaching when steps exist, else lessons)
+    if (!prevModule?.moduleComplete) {
       setLocation("/curriculum");
     }
   }, [allModules, moduleId, setLocation]);

@@ -213,6 +213,16 @@ export async function updateModule(id: number, data: Partial<InsertModule>) {
 export async function deleteModule(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  // Cascade coaching data so orphaned steps/progress cannot break unlock math
+  const steps = await db
+    .select({ id: moduleSteps.id })
+    .from(moduleSteps)
+    .where(eq(moduleSteps.moduleId, id));
+  for (const step of steps) {
+    await db.delete(stepChatMessages).where(eq(stepChatMessages.stepId, step.id));
+  }
+  await db.delete(userStepProgress).where(eq(userStepProgress.moduleId, id));
+  await db.delete(moduleSteps).where(eq(moduleSteps.moduleId, id));
   await db.delete(lessons).where(eq(lessons.moduleId, id));
   await db.delete(modules).where(eq(modules.id, id));
 }

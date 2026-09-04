@@ -3,6 +3,9 @@ import { getDb } from "./db";
 import * as db from "./db";
 
 // ─── Module Step Definitions ──────────────────────────────────────
+// Primary curriculum path is Bridge the Gap coaching (these steps).
+// server/seed.ts may also insert reference lessons under different titles —
+// coaching seed must resolve modules by title/sortOrder, never by assuming IDs 1–6.
 // Each module has structured coaching steps from the master prompts
 
 const MODULE_STEPS: Record<number, Array<{
@@ -878,6 +881,37 @@ RULES:
   ],
 };
 
+// Bridge the Gap coaching modules — resolve by title (preferred) or sortOrder rank.
+// Do NOT hard-bind to numeric module IDs: admin recreate / seed.ts lesson modules
+// can leave coaching steps on the wrong rows (or none).
+const COACHING_MODULE_META: Array<{
+  key: number;
+  sortOrder: number;
+  label: string;
+  titleMatchers: string[];
+}> = [
+  { key: 1, sortOrder: 1, label: "Differentiation", titleMatchers: ["differentiation"] },
+  { key: 2, sortOrder: 2, label: "Local Positioning", titleMatchers: ["local positioning"] },
+  { key: 3, sortOrder: 3, label: "Messaging", titleMatchers: ["messaging"] },
+  { key: 4, sortOrder: 4, label: "Trust & Referral Generation", titleMatchers: ["trust"] },
+  { key: 5, sortOrder: 5, label: "Visibility", titleMatchers: ["visibility"] },
+  { key: 6, sortOrder: 6, label: "Referral Identity", titleMatchers: ["referral identity"] },
+];
+
+function resolveCoachingModuleId(
+  allModules: Array<{ id: number; title: string; sortOrder: number }>,
+  meta: (typeof COACHING_MODULE_META)[number]
+): number | null {
+  const titleHit = allModules.find((m) => {
+    const title = m.title.toLowerCase();
+    return meta.titleMatchers.some((needle) => title.includes(needle.toLowerCase()));
+  });
+  if (titleHit) return titleHit.id;
+
+  const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
+  return sorted[meta.sortOrder - 1]?.id ?? null;
+}
+
 // ─── Auto-seed function ──────────────────────────────────────────
 
 export async function seedCoachingSteps() {
@@ -928,24 +962,34 @@ export async function seedCoachingSteps() {
       )
     `);
 
-    // Check if steps already exist
-    const existingSteps = await database.select().from(
-      sql`module_steps`
-    );
-
-    // Use raw query to check count
-    const countResult = await database.execute(sql`SELECT COUNT(*) as count FROM module_steps`);
-    const count = Number((countResult as any).rows?.[0]?.count ?? (countResult as any)[0]?.count ?? 0);
-
-    if (count > 0) {
-      console.log(`[Seed] Module steps already exist (${count} steps), skipping seed`);
-      return;
-    }
-
-    // Seed all module steps
+    // Per-module heal: attach steps to modules resolved by title/sortOrder.
+    // Never assume module IDs are 1–6; never skip seeding empty modules just
+    // because unrelated module_steps rows already exist.
+    const allModules = await db.listModules(false);
     let totalSeeded = 0;
-    for (const [moduleIdStr, steps] of Object.entries(MODULE_STEPS)) {
-      const moduleId = parseInt(moduleIdStr);
+    let modulesTouched = 0;
+
+    for (const meta of COACHING_MODULE_META) {
+      const moduleId = resolveCoachingModuleId(allModules, meta);
+      if (moduleId == null) {
+        console.warn(`[Seed] No module found for ${meta.label}; skipping`);
+        continue;
+      }
+
+      const existing = await db.getModuleSteps(moduleId);
+      if (existing.length > 0) {
+        console.log(
+          `[Seed] Module ${moduleId} (${meta.label}) already has ${existing.length} steps, skipping`
+        );
+        continue;
+      }
+
+      const steps = MODULE_STEPS[meta.key];
+      if (!steps?.length) {
+        console.warn(`[Seed] No step definitions for ${meta.label}`);
+        continue;
+      }
+
       for (const step of steps) {
         await db.createModuleStep({
           moduleId,
@@ -957,9 +1001,13 @@ export async function seedCoachingSteps() {
         });
         totalSeeded++;
       }
+      modulesTouched++;
+      console.log(`[Seed] Seeded ${steps.length} steps onto module ${moduleId} (${meta.label})`);
     }
 
-    console.log(`[Seed] Successfully seeded ${totalSeeded} coaching steps across 6 modules`);
+    console.log(
+      `[Seed] Coaching seed finished: ${totalSeeded} new steps across ${modulesTouched} modules`
+    );
   } catch (error) {
     console.error("[Seed] Error seeding coaching steps:", error);
   }
