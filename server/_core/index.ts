@@ -15,6 +15,8 @@ import { scheduleWwldBackup } from "../wwld-backup";
 import { runMigrations } from "../db";
 import { ENGAGEMENT_MIGRATIONS } from "../engagement/migrations";
 import { scheduleEngagementEmails } from "../engagement/email-reminders";
+import { communicationRouter } from "../communication/router";
+import { wwldCoachRouter } from "../wwld-coach/router";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -103,6 +105,9 @@ async function startServer() {
   // Communication Coach is authenticated like every other user-facing API.
   app.use("/api/communication", communicationRouter);
 
+  // WWLD Coach — WWLD/Lyle-context-only Q&A (parallel to Communication Coach).
+  app.use("/api/wwld-coach", wwldCoachRouter);
+
   // tRPC API
   app.use(
     "/api/trpc",
@@ -160,4 +165,3 @@ startServer().catch((err) => {
   console.error("[Server] Fatal startup error:", err);
   process.exit(1);
 });
-import { communicationRouter } from "../communication/router";
