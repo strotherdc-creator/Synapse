@@ -2,7 +2,6 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
-import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { clerkMiddleware } from "@clerk/express";
 import { appRouter } from "../routers";
@@ -15,24 +14,45 @@ import { scheduleWwldBackup } from "../wwld-backup";
 import { runMigrations } from "../db";
 import { ENGAGEMENT_MIGRATIONS } from "../engagement/migrations";
 import { scheduleEngagementEmails } from "../engagement/email-reminders";
+import { communicationRouter } from "../communication/router";
 
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
-    });
-    server.on("error", () => resolve(false));
+/**
+ * Bind `server` starting at `startPort`, retrying on the next port when one
+ * is already in use. Binds directly instead of probing-then-listening —
+ * a separate "is this port free" check followed by a later listen() leaves a
+ * window where another process can grab the port in between.
+ */
+function listenOnAvailablePort(
+  server: ReturnType<typeof createServer>,
+  startPort: number,
+  maxAttempts = 20
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let port = startPort;
+    let attempts = 0;
+
+    const tryListen = () => {
+      const onError = (err: NodeJS.ErrnoException) => {
+        server.removeListener("listening", onListening);
+        if (err.code === "EADDRINUSE" && attempts < maxAttempts) {
+          attempts++;
+          port++;
+          tryListen();
+        } else {
+          reject(err);
+        }
+      };
+      const onListening = () => {
+        server.removeListener("error", onError);
+        resolve(port);
+      };
+      server.once("error", onError);
+      server.once("listening", onListening);
+      server.listen(port, "0.0.0.0");
+    };
+
+    tryListen();
   });
-}
-
-async function findAvailablePort(startPort: number = 3001): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
-  }
-  throw new Error(`No available port found starting from ${startPort}`);
 }
 
 async function startServer() {
@@ -55,7 +75,7 @@ async function startServer() {
   // CORS — Railway serves both frontend and backend from the same origin.
   const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : "https://synapse-production-daae.up.railway.app";
+    : process.env.PRODUCTION_URL || "https://synapse-production-daae.up.railway.app";
 
   const allowedOrigins = ENV.isProduction
     ? [railwayUrl, process.env.CLIENT_URL].filter(Boolean) as string[]
@@ -131,33 +151,30 @@ async function startServer() {
   });
 
   const preferredPort = ENV.port;
-  const port = await findAvailablePort(preferredPort);
+  const port = await listenOnAvailablePort(server, preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${port}/`);
-    console.log(`Environment: ${ENV.isProduction ? "production" : "development"}`);
-    console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured (/api only)" : "NOT configured"}`);
-    console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
-    console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
+  console.log(`Server running on http://0.0.0.0:${port}/`);
+  console.log(`Environment: ${ENV.isProduction ? "production" : "development"}`);
+  console.log(`Clerk: ${ENV.clerkSecretKey && publishableKey ? "configured (/api only)" : "NOT configured"}`);
+  console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
+  console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
 
-    // Run schema migrations (idempotent — safe on every startup)
-    runMigrations(ENGAGEMENT_MIGRATIONS).catch((err) => console.error("[Migrations] Failed:", err));
-    // Seed coaching steps (idempotent — only runs if tables are empty)
-    seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
-    seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
-    // Schedule weekly WWLD data backup (production only, requires SMTP_USER + SMTP_PASS)
-    scheduleWwldBackup();
-    // Schedule engagement email reminders (daily + weekly review)
-    scheduleEngagementEmails();
-  });
+  // Run schema migrations (idempotent — safe on every startup)
+  runMigrations(ENGAGEMENT_MIGRATIONS).catch((err) => console.error("[Migrations] Failed:", err));
+  // Seed coaching steps (idempotent — only runs if tables are empty)
+  seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
+  seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
+  // Schedule weekly WWLD data backup (production only, requires SMTP_USER + SMTP_PASS)
+  scheduleWwldBackup();
+  // Schedule engagement email reminders (daily + weekly review)
+  scheduleEngagementEmails();
 }
 
 startServer().catch((err) => {
   console.error("[Server] Fatal startup error:", err);
   process.exit(1);
 });
-import { communicationRouter } from "../communication/router";
