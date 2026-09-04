@@ -29,6 +29,9 @@ describe("Synapse curriculum completion badge", () => {
   it("uses the same active curriculum metric for the Complete badge, progress count, and module unlock", () => {
     const router = source("server/routers.ts");
     const curriculum = source("client/src/pages/Curriculum.tsx");
+    const moduleDetail = source("client/src/pages/ModuleDetail.tsx");
+    const moduleCoaching = source("client/src/pages/ModuleCoaching.tsx");
+    const home = source("client/src/pages/Home.tsx");
 
     expect(router).toContain("const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;");
     expect(router).toContain("const moduleComplete = steps.length > 0 ? coachingComplete : curriculumComplete;");
@@ -36,5 +39,26 @@ describe("Synapse curriculum completion badge", () => {
     expect(curriculum).toContain("{mod.moduleComplete && (");
     expect(curriculum).toContain("{completedItems}/{totalItems} {progressLabel}");
     expect(curriculum).toContain("modules[index - 1]?.moduleComplete === true");
+
+    // Detail / coaching / home must use the same unlock/complete metric as Curriculum
+    expect(moduleDetail).toContain("if (!prevModule?.moduleComplete)");
+    expect(moduleCoaching).toContain("if (!prevModule?.moduleComplete)");
+    expect(home).toContain("modules?.filter((m) => m.moduleComplete)");
+    expect(home).toContain("{mod.moduleComplete && (");
+    expect(moduleDetail).not.toContain("if (!prevModule?.coachingComplete)");
+    expect(moduleCoaching).not.toContain("if (!prevModule?.coachingComplete)");
+  });
+
+  it("seeds coaching steps by title/sortOrder instead of hardcoded module IDs", () => {
+    const seedCoaching = source("server/seed-coaching.ts");
+    expect(seedCoaching).toContain("COACHING_MODULE_META");
+    expect(seedCoaching).toContain("resolveCoachingModuleId");
+    expect(seedCoaching).not.toContain("Module steps already exist (${count} steps), skipping seed");
+  });
+
+  it("cascades coaching rows when a module is deleted", () => {
+    const dbSource = source("server/db.ts");
+    expect(dbSource).toContain("await db.delete(moduleSteps).where(eq(moduleSteps.moduleId, id));");
+    expect(dbSource).toContain("await db.delete(userStepProgress).where(eq(userStepProgress.moduleId, id));");
   });
 });

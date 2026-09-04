@@ -15,6 +15,10 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
+// Dual curriculum note:
+// This script seeds REFERENCE LESSONS (legacy/support content). The primary
+// learner path is Bridge the Gap coaching steps in server/seed-coaching.ts.
+// Module titles here may not match coaching modules — do not assume IDs align.
 const CURRICULUM = [
   {
     title: "Bridge the Gap: Foundation",

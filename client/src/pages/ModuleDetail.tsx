@@ -17,11 +17,12 @@ export default function ModuleDetail() {
   // Guard: redirect to curriculum if this module is locked
   useEffect(() => {
     if (!allModules || allModules.length === 0) return;
-    const sortedModules = [...allModules];
+    const sortedModules = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
     const currentIndex = sortedModules.findIndex((m) => m.id === moduleId);
     if (currentIndex <= 0) return; // First module or not found — allow access
     const prevModule = sortedModules[currentIndex - 1];
-    if (!prevModule?.coachingComplete) {
+    // Must match Curriculum unlock: moduleComplete (coaching when steps exist, else lessons)
+    if (!prevModule?.moduleComplete) {
       setLocation("/curriculum");
     }
   }, [allModules, moduleId, setLocation]);

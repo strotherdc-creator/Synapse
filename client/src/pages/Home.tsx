@@ -17,7 +17,7 @@ export default function Home() {
   const stepProgressPercent = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   // Module completion count
-  const completedModules = modules?.filter((m) => m.coachingComplete).length ?? 0;
+  const completedModules = modules?.filter((m) => m.moduleComplete).length ?? 0;
   const totalModules = modules?.length ?? 0;
 
   return (
@@ -134,9 +134,13 @@ export default function Home() {
         ) : modules && modules.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {modules.map((mod) => {
+              const usesCoachingSteps = mod.stepCount > 0;
+              const completedItems = usesCoachingSteps ? mod.completedStepCount : mod.completedCount;
+              const totalItems = usesCoachingSteps ? mod.stepCount : mod.lessonCount;
+              const progressLabel = usesCoachingSteps ? "steps" : "lessons";
               const modProgress =
-                mod.stepCount > 0
-                  ? Math.round((mod.completedStepCount / mod.stepCount) * 100)
+                totalItems > 0
+                  ? Math.round((completedItems / totalItems) * 100)
                   : 0;
               return (
                 <Card
@@ -152,7 +156,7 @@ export default function Home() {
                           <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
                             {mod.title}
                           </h3>
-                          {mod.coachingComplete && (
+                          {mod.moduleComplete && (
                             <CheckCircle2 className="h-4 w-4 text-gold flex-shrink-0" />
                           )}
                         </div>
@@ -166,7 +170,7 @@ export default function Home() {
                     <div className="flex items-center gap-2">
                       <Progress value={modProgress} className="h-1.5 flex-1" />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {mod.completedStepCount}/{mod.stepCount} steps
+                        {completedItems}/{totalItems} {progressLabel}
                       </span>
                     </div>
                   </CardContent>
