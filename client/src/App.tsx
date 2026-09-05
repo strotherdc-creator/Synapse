@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
@@ -39,11 +39,30 @@ function getTodayDate(): string {
  * 2. Log Stats (end of day)
  * Dismisses after choice or if user taps outside.
  */
+function dailyPopupStorageKey(date: string) {
+  return `synapse.dailyActionPopup.dismissed.${date}`;
+}
+
+function wasDailyPopupDismissed(date: string): boolean {
+  try {
+    return localStorage.getItem(dailyPopupStorageKey(date)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function persistDailyPopupDismissed(date: string) {
+  try {
+    localStorage.setItem(dailyPopupStorageKey(date), "1");
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 function DailyActionPopup() {
   const [location, setLocation] = useLocation();
-  const dismissed = useRef(false);
-  const [visible, setVisible] = useState(true);
   const today = getTodayDate();
+  const [visible, setVisible] = useState(() => !wasDailyPopupDismissed(today));
   const utils = trpc.useUtils();
   const { mutate: recordDailyCheckIn } = trpc.routine.recordDailyCheckIn.useMutation({
     onSuccess: () => {
@@ -51,17 +70,26 @@ function DailyActionPopup() {
     },
   });
 
-  const { data: status } = trpc.wwld.getTodayStatus.useQuery(
-    { date: today },
-    { staleTime: 60_000, retry: false }
-  );
+  // Full page reloads (e.g. raw <a href>) remount the app — persist dismiss for the day.
+  // Also never overlay the destinations this popup sends people to, or deep curriculum work.
+  const suppressOnRoute =
+    location === "/today" ||
+    location === "/wwld" ||
+    location.startsWith("/curriculum");
 
   useEffect(() => {
-    // Hide if already dismissed
-    if (dismissed.current) {
+    if (wasDailyPopupDismissed(today)) {
       setVisible(false);
     }
-  }, [status, location, setLocation]);
+  }, [today, location]);
+
+  useEffect(() => {
+    // Visiting plan / stats / curriculum counts as "already chose" for today
+    if (suppressOnRoute) {
+      persistDailyPopupDismissed(today);
+      setVisible(false);
+    }
+  }, [suppressOnRoute, today]);
 
   useEffect(() => {
     // A streak represents an authenticated daily check-in. The server uses the
@@ -69,17 +97,16 @@ function DailyActionPopup() {
     recordDailyCheckIn();
   }, [recordDailyCheckIn]);
 
-  // Don't show if already dismissed
-  if (!visible || dismissed.current) return null;
+  if (!visible || suppressOnRoute) return null;
 
   const handleChoice = (path: string) => {
-    dismissed.current = true;
+    persistDailyPopupDismissed(today);
     setVisible(false);
     setLocation(path);
   };
 
   const handleDismiss = () => {
-    dismissed.current = true;
+    persistDailyPopupDismissed(today);
     setVisible(false);
   };
 

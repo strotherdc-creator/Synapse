@@ -224,12 +224,13 @@ export default function TodaysGrowthPlan() {
       {showTopicPicker && (
         <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 space-y-4">
           {/* Custom topic CTA — at the very top */}
-          <a
-            href="/curriculum"
+          <button
+            type="button"
+            onClick={() => setLocation("/curriculum")}
             className="block w-full text-center py-4 px-6 rounded-xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 transition-colors"
           >
             🎯 Want a Custom Topic? Complete Your Modules
-          </a>
+          </button>
 
           <p className="text-xl font-bold text-gold">Or pick a pre-built focus:</p>
           <div className="space-y-3">
@@ -419,42 +420,53 @@ export default function TodaysGrowthPlan() {
       {/* ─── CURRICULUM REMINDER ─── */}
       {curriculum && !curriculum.allComplete && (
         <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 space-y-4">
-          <a
-            href={`/curriculum/${curriculum.incompleteModules[0]?.id}/coaching`}
+          <button
+            type="button"
+            onClick={() => {
+              const nextId = curriculum.nextModuleId ?? curriculum.incompleteModules[0]?.id;
+              if (nextId) setLocation(`/curriculum/${nextId}`);
+              else setLocation("/curriculum");
+            }}
             className="flex items-center justify-center w-full py-4 px-6 rounded-xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 transition-colors"
           >
             📚 Continue Curriculum
-          </a>
+          </button>
           <p className="text-base text-gray-400">
             Complete your modules to unlock fully customized scripts and positioning.
           </p>
           <div className="space-y-2">
             {curriculum.incompleteModules.map((mod: any) => (
-              <a
+              <button
+                type="button"
                 key={mod.id}
-                href={`/curriculum/${mod.id}/coaching`}
-                className="flex items-center gap-3 p-4 rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors"
+                onClick={() => setLocation(mod.unlocked ? `/curriculum/${mod.id}` : "/curriculum")}
+                className="flex items-center gap-3 p-4 rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors w-full text-left"
               >
                 <div className="flex-1">
                   <p className="text-base font-semibold text-white">{mod.title}</p>
-                  <p className="text-sm text-gray-400">{mod.completedSteps}/{mod.totalSteps} steps</p>
+                  <p className="text-sm text-gray-400">
+                    {mod.unlocked
+                      ? `${mod.completedSteps}/${mod.totalSteps} steps`
+                      : "Locked — finish the previous module first"}
+                  </p>
                 </div>
                 <div className="w-20 bg-gray-700 rounded-full h-2.5">
                   <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${mod.percentComplete}%` }} />
                 </div>
-              </a>
+              </button>
             ))}
           </div>
         </div>
       )}
 
       {/* AI Coach */}
-      <a
-        href="/chat"
+      <button
+        type="button"
+        onClick={() => setLocation("/chat")}
         className="block w-full text-center py-4 rounded-2xl border-2 border-gray-600 hover:border-blue-500 text-xl font-bold text-gray-300 hover:text-white transition-colors"
       >
         💬 Ask the AI Coach
-      </a>
+      </button>
     </div>
   );
 }
