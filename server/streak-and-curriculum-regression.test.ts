@@ -73,3 +73,22 @@ describe("Synapse curriculum completion badge", () => {
     expect(dbSource).toContain("await db.delete(userStepProgress).where(eq(userStepProgress.moduleId, id));");
   });
 });
+
+
+describe("Synapse daily action popup", () => {
+  it("persists dismiss for the day and does not overlay curriculum/today routes", () => {
+    const app = source("client/src/App.tsx");
+    expect(app).toContain("synapse.dailyActionPopup.dismissed.");
+    expect(app).toContain("persistDailyPopupDismissed");
+    expect(app).toContain('location.startsWith("/curriculum")');
+    expect(app).toContain('location === "/today"');
+  });
+
+  it("uses SPA navigation from Today\'s Plan to curriculum (no full reload hrefs)", () => {
+    const plan = source("client/src/pages/TodaysGrowthPlan.tsx");
+    expect(plan).toContain('setLocation("/curriculum")');
+    expect(plan).toContain("setLocation(`/curriculum/${nextId}`)");
+    expect(plan).not.toContain('href={`/curriculum/${curriculum.incompleteModules[0]?.id}/coaching`}');
+    expect(plan).not.toContain('href="/curriculum"');
+  });
+});

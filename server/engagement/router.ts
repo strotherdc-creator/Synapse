@@ -457,8 +457,7 @@ export const engagementRouter = router({
 
   // Get curriculum progress for the reminder section
   getCurriculumReminder: protectedProcedure.query(async ({ ctx }) => {
-    const modules = await db.listModules(true); // published only
-    const progress = await db.getUserProgress(ctx.user.id);
+    const modules = await db.listModules(true); // published only, sortOrder asc
 
     const modulesWithProgress = await Promise.all(
       modules.map(async (mod) => {
@@ -466,26 +465,53 @@ export const engagementRouter = router({
         const stepProgress = await db.getUserStepProgress(ctx.user.id, mod.id);
         const completedSteps = stepProgress.filter(p => p.completed).length;
         const totalSteps = steps.length;
-        const isComplete = completedSteps >= totalSteps && totalSteps > 0;
+        // Match modules.list: coaching steps win when present, else lessons
+        const lessons = await db.listLessons(mod.id, true);
+        const lessonProgress = await db.getUserModuleProgress(ctx.user.id, mod.id);
+        const lessonsCompleted = lessonProgress.filter((p) => p.completed).length;
+        const curriculumComplete = lessons.length > 0 && lessonsCompleted >= lessons.length;
+        const coachingComplete = completedSteps >= totalSteps && totalSteps > 0;
+        const moduleComplete = totalSteps > 0 ? coachingComplete : curriculumComplete;
         return {
           id: mod.id,
           title: mod.title,
-          completedSteps,
-          totalSteps,
-          isComplete,
-          percentComplete: totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
+          sortOrder: mod.sortOrder,
+          completedSteps: totalSteps > 0 ? completedSteps : lessonsCompleted,
+          totalSteps: totalSteps > 0 ? totalSteps : lessons.length,
+          isComplete: moduleComplete,
+          percentComplete:
+            (totalSteps > 0 ? totalSteps : lessons.length) > 0
+              ? Math.round(
+                  ((totalSteps > 0 ? completedSteps : lessonsCompleted) /
+                    (totalSteps > 0 ? totalSteps : lessons.length)) *
+                    100
+                )
+              : 0,
         };
       })
     );
 
-    const incomplete = modulesWithProgress.filter(m => !m.isComplete);
+    // Stable order: sortOrder then id (avoids duplicate sortOrder races)
+    const ordered = [...modulesWithProgress].sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.id - b.id
+    );
+
+    // Sequential unlock: module i unlocked iff all previous are complete
+    const withUnlock = ordered.map((mod, index) => {
+      const unlocked = index === 0 || ordered.slice(0, index).every((m) => m.isComplete);
+      return { ...mod, unlocked };
+    });
+
+    const incomplete = withUnlock.filter((m) => !m.isComplete);
+    const next = incomplete.find((m) => m.unlocked) ?? incomplete[0] ?? null;
     const allComplete = incomplete.length === 0;
 
     return {
       allComplete,
+      nextModuleId: next?.id ?? null,
       incompleteModules: incomplete,
-      totalModules: modulesWithProgress.length,
-      completedModules: modulesWithProgress.filter(m => m.isComplete).length,
+      totalModules: withUnlock.length,
+      completedModules: withUnlock.filter((m) => m.isComplete).length,
     };
   }),
 
