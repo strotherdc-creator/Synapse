@@ -69,6 +69,7 @@ async function runBackup() {
         sessionType: wwldSessions.sessionType,
         officeVisits: wwldSessions.officeVisits,
         newPatients: wwldSessions.newPatients,
+        recall: wwldSessions.recall,
         testResults: wwldSessions.testResults,
         progressExams: wwldSessions.progressExams,
         performanceReviews: wwldSessions.performanceReviews,

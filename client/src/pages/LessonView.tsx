@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { ArrowLeft, CheckCircle2, Circle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "wouter";
+import ReactMarkdown from "react-markdown";
 
 export default function LessonView() {
   const params = useParams<{ moduleId: string; lessonId: string }>();
@@ -123,13 +124,8 @@ export default function LessonView() {
             </h1>
             {lesson.content ? (
               <Card className="bg-card border-brand-gold/15">
-                <CardContent className="p-6 prose prose-invert prose-sm max-w-none">
-                  <div
-                    className="text-foreground leading-relaxed whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{
-                      __html: lesson.content.replace(/\n/g, "<br />"),
-                    }}
-                  />
+                <CardContent className="p-6 prose prose-invert prose-sm max-w-none [&_p]:leading-relaxed">
+                  <ReactMarkdown>{lesson.content}</ReactMarkdown>
                 </CardContent>
               </Card>
             ) : (
