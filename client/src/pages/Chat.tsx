@@ -1,6 +1,7 @@
 import { AIChatBox, Message } from "@/components/AIChatBox";
 import { trpc } from "@/lib/trpc";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function Chat() {
   const { data: chatHistory } = trpc.ai.history.useQuery({ lessonId: null });
@@ -24,6 +25,15 @@ export default function Chat() {
         ...prev,
         { role: "assistant", content: response.content },
       ]);
+    },
+    onError: () => {
+      toast.error("Unable to get a response right now. Please try again.");
+      setMessages((prev) => {
+        if (prev.length === 0) return prev;
+        const last = prev[prev.length - 1];
+        if (last.role === "user") return prev.slice(0, -1);
+        return prev;
+      });
     },
   });
 

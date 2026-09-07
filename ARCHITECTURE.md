@@ -59,8 +59,8 @@ The Dockerfile copies both outputs into a `node:22-slim` production image. Railw
 | Database | PostgreSQL (Railway managed) | Connection via `DATABASE_URL` env var |
 | LLM (primary) | Google Gemini 2.5 Flash | `GEMINI_API_KEY` env var |
 | LLM (fallback 1) | Groq — `openai/gpt-oss-120b` | `GROQ_API_KEY` env var |
-| LLM (fallback 2) | Groq — `qwen-qwq-32b` | Same key |
-| LLM (fallback 3) | Groq — `llama-3.1-8b-instant` | Last resort |
+| LLM (fallback 2) | Groq — `qwen/qwen3.6-27b` | Same key |
+| LLM (fallback 3) | Groq — `openai/gpt-oss-20b` | Last resort |
 | Scheduled jobs | `node-cron` | Weekly WWLD backup job |
 | Email | Nodemailer (Gmail SMTP) | Weekly CSV backup delivery |
 | Payments | Stripe | Coupon/discount system |
@@ -275,12 +275,12 @@ Located at `client/src/components/wwld/LyleRecommendationCard.tsx`. Renders belo
 
 ## 9. LLM Abstraction
 
-All AI calls go through `server/_core/llm.ts` via `invokeLLM(messages)`. The function implements a **3-deep fallback chain with retry and timeout**:
+All AI calls go through `server/_core/llm.ts` via `invokeLLM(messages)`. The function implements a **4-deep fallback chain with retry and timeout**:
 
 1. **Gemini 2.5 Flash** — 2 retries, 1s exponential backoff, 15s timeout
 2. **Groq `openai/gpt-oss-120b`** — 15s timeout
-3. **Groq `qwen-qwq-32b`** — 15s timeout
-4. **Groq `llama-3.1-8b-instant`** — last resort
+3. **Groq `qwen/qwen3.6-27b`** — 15s timeout
+4. **Groq `openai/gpt-oss-20b`** — 15s timeout (final)
 
 Auth errors (401/403) are not retried. The response includes a `provider` field indicating which model answered. Features using LLM: AI coaching chat, content studio generation, general chat.
 

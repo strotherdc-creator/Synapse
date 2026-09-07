@@ -8,26 +8,12 @@ import { COMMUNICATION_SYSTEM_PROMPT } from "./system-prompt";
 
 // Import Synapse's LLM
 import { invokeLLM } from "../_core/llm";
+import { consumeRateLimit, RATE_LIMIT_MAX_REQUESTS } from "../_core/rateLimit";
 
 export const communicationRouter = Router();
 
 const MAX_CONVERSATION_LENGTH = 6000;
 const MAX_CONTEXT_FIELD_LENGTH = 1000;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 10;
-const requestBuckets = new Map<string, { count: number; resetAt: number }>();
-
-function consumeRequest(userId: string): boolean {
-  const now = Date.now();
-  const bucket = requestBuckets.get(userId);
-  if (!bucket || bucket.resetAt <= now) {
-    requestBuckets.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) return false;
-  bucket.count += 1;
-  return true;
-}
 
 communicationRouter.get("/health", (_req, res) => {
   res.json({ status: "ok", module: "communication-coach", timestamp: new Date().toISOString() });
@@ -40,7 +26,7 @@ communicationRouter.post("/generate", async (req, res) => {
       res.status(401).json({ error: "Sign in is required to use Communication Coach." });
       return;
     }
-    if (!consumeRequest(auth.userId)) {
+    if (!consumeRateLimit(`communication:${auth.userId}`, RATE_LIMIT_MAX_REQUESTS)) {
       res.status(429).json({ error: "Too many requests. Please wait a minute and try again." });
       return;
     }
@@ -71,6 +57,13 @@ communicationRouter.post("/generate", async (req, res) => {
     if (typeof context.desired_outcome !== "string" || context.desired_outcome.length > MAX_CONTEXT_FIELD_LENGTH) {
       res.status(400).json({ error: "Desired outcome is too long." });
       return;
+    }
+    for (const field of ["emotional_tone", "relationship_stage", "known_obstacles", "urgency"] as const) {
+      const value = context?.[field];
+      if (value != null && (typeof value !== "string" || value.length > MAX_CONTEXT_FIELD_LENGTH)) {
+        res.status(400).json({ error: `${field} is too long.` });
+        return;
+      }
     }
 
     const directionLabel =

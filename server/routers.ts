@@ -4,8 +4,77 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import { invokeLLM, type ChatMessage } from "./_core/llm";
+import { assertRateLimit } from "./_core/rateLimit";
 import { engagementRouter } from "./engagement/router";
 import { buildComplianceFromProfile } from "./compliance/healthcare-content-rules";
+
+const MAX_ANSWER_LENGTH = 8000;
+const GENERIC_LLM_ERROR = "Unable to generate a response right now. Please try again.";
+
+async function computeModuleComplete(userId: number, moduleId: number): Promise<boolean> {
+  const moduleLessons = await db.listLessons(moduleId, true);
+  const progress = await db.getUserModuleProgress(userId, moduleId);
+  const completedCount = progress.filter((p) => p.completed).length;
+  const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;
+  const steps = await db.getModuleSteps(moduleId);
+  const stepProgress = await db.getUserStepProgress(userId, moduleId);
+  const coachingCompletedSteps = stepProgress.filter((p) => p.completed).length;
+  const coachingComplete = coachingCompletedSteps >= steps.length && steps.length > 0;
+  return steps.length > 0 ? coachingComplete : curriculumComplete;
+}
+
+/** Enforce sequential curriculum unlock (mirrors client Curriculum / ModuleCoaching). */
+async function assertModuleUnlocked(userId: number, moduleId: number, isAdmin: boolean): Promise<void> {
+  if (isAdmin) return;
+  const published = await db.listModules(true);
+  const sorted = [...published].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+  const idx = sorted.findIndex((m) => m.id === moduleId);
+  if (idx < 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Module not found" });
+  }
+  for (let i = 0; i < idx; i++) {
+    const prevComplete = await computeModuleComplete(userId, sorted[i].id);
+    if (!prevComplete) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Complete previous modules to unlock this content.",
+      });
+    }
+  }
+}
+
+async function assertPreviousStepsComplete(
+  userId: number,
+  moduleId: number,
+  stepId: number,
+  isAdmin: boolean
+): Promise<void> {
+  if (isAdmin) return;
+  const steps = await db.getModuleSteps(moduleId);
+  const target = steps.find((s) => s.id === stepId);
+  if (!target) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
+  }
+  const progress = await db.getUserStepProgress(userId, moduleId);
+  for (const step of steps) {
+    if (step.stepNumber >= target.stepNumber) continue;
+    const done = progress.some((p) => p.stepId === step.id && p.completed);
+    if (!done) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Complete previous steps before continuing.",
+      });
+    }
+  }
+}
+
+function mapLlmError(error: unknown): never {
+  console.error("[LLM route]", error instanceof Error ? error.message : error);
+  throw new TRPCError({
+    code: "INTERNAL_SERVER_ERROR",
+    message: GENERIC_LLM_ERROR,
+  });
+}
 
 // ─── Auth Router ─────────────────────────────────────────────────────
 
@@ -103,8 +172,15 @@ const modulesRouter = router({
 
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      return db.getModuleById(input.id);
+    .query(async ({ ctx, input }) => {
+      const mod = await db.getModuleById(input.id);
+      if (!mod) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Module not found" });
+      }
+      if (mod.status !== "published" && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Module not found" });
+      }
+      return mod;
     }),
 
   create: adminProcedure
@@ -163,8 +239,15 @@ const lessonsRouter = router({
 
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {
-      return db.getLessonById(input.id);
+    .query(async ({ ctx, input }) => {
+      const lesson = await db.getLessonById(input.id);
+      if (!lesson) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+      }
+      if (lesson.status !== "published" && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+      }
+      return lesson;
     }),
 
   create: adminProcedure
@@ -257,8 +340,8 @@ const answersRouter = router({
       z.object({
         lessonId: z.number(),
         moduleId: z.number(),
-        questionKey: z.string().min(1),
-        answer: z.string(),
+        questionKey: z.string().min(1).max(200),
+        answer: z.string().min(1).max(MAX_ANSWER_LENGTH),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -296,11 +379,13 @@ const aiRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Get lesson context if available
+      assertRateLimit(`trpc:ai.chat:${ctx.user.id}`);
+
+      // Get lesson context if available (published only for non-admins)
       let lessonContext = "";
       if (input.lessonId) {
         const lesson = await db.getLessonById(input.lessonId);
-        if (lesson) {
+        if (lesson && (lesson.status === "published" || ctx.user.role === "admin")) {
           lessonContext = `\n\nCurrent lesson: "${lesson.title}"\nLesson summary: ${lesson.summary || "No summary available."}\nLesson content excerpt: ${(lesson.content || "").slice(0, 1500)}`;
         }
       }
@@ -332,18 +417,20 @@ const aiRouter = router({
         { role: "user", content: input.message },
       ];
 
-      // Save user message
+      // Call LLM first so a failure does not leave an orphan user message
+      let response;
+      try {
+        response = await invokeLLM(messages);
+      } catch (error) {
+        mapLlmError(error);
+      }
+
       await db.saveChatMessage({
         userId: ctx.user.id,
         lessonId: input.lessonId,
         role: "user",
         content: input.message,
       });
-
-      // Call LLM with automatic failover
-      const response = await invokeLLM(messages);
-
-      // Save assistant message
       await db.saveChatMessage({
         userId: ctx.user.id,
         lessonId: input.lessonId,
@@ -387,6 +474,8 @@ const contentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      assertRateLimit(`trpc:content.generate:${ctx.user.id}`);
+
       // Get user's curriculum answers for personalization
       const allAnswers = await db.getUserAnswers(ctx.user.id);
       let practiceContext = "";
@@ -424,7 +513,12 @@ const contentRouter = router({
         },
       ];
 
-      const response = await invokeLLM(messages);
+      let response;
+      try {
+        response = await invokeLLM(messages);
+      } catch (error) {
+        mapLlmError(error);
+      }
 
       // Save to history
       await db.saveContentHistory({
@@ -524,8 +618,9 @@ const routineRouter = router({
 // ─── Coupons Router ─────────────────────────────────────────────────
 
 const couponsRouter = router({
+  // Intentionally public: validates coupon codes before signup/checkout (no auth required).
   validate: publicProcedure
-    .input(z.object({ code: z.string().min(1) }))
+    .input(z.object({ code: z.string().min(1).max(50) }))
     .query(async ({ input }) => {
       const coupon = await db.getCouponByCode(input.code);
       if (!coupon) return { valid: false, message: "Coupon not found" };
@@ -586,6 +681,7 @@ const coachingRouter = router({
   getSteps: protectedProcedure
     .input(z.object({ moduleId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await assertModuleUnlocked(ctx.user.id, input.moduleId, ctx.user.role === "admin");
       const steps = await db.getModuleSteps(input.moduleId);
       const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
       return steps.map((step) => {
@@ -602,6 +698,11 @@ const coachingRouter = router({
   getStepChat: protectedProcedure
     .input(z.object({ stepId: z.number() }))
     .query(async ({ ctx, input }) => {
+      const step = await db.getStepById(input.stepId);
+      if (!step) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
+      }
+      await assertModuleUnlocked(ctx.user.id, step.moduleId, ctx.user.role === "admin");
       return db.getStepChatHistory(ctx.user.id, input.stepId);
     }),
 
@@ -614,9 +715,20 @@ const coachingRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      assertRateLimit(`trpc:coaching.chat:${ctx.user.id}`);
+
       // Get the step details
       const step = await db.getStepById(input.stepId);
-      if (!step) throw new Error("Step not found");
+      if (!step) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
+      }
+      await assertModuleUnlocked(ctx.user.id, step.moduleId, ctx.user.role === "admin");
+      await assertPreviousStepsComplete(
+        ctx.user.id,
+        step.moduleId,
+        step.id,
+        ctx.user.role === "admin"
+      );
 
       // Get all previous answers across all modules for context carry-forward
       const allStepProgress = await db.getAllUserStepProgress(ctx.user.id);
@@ -657,18 +769,20 @@ const coachingRouter = router({
         { role: "user", content: input.message },
       ];
 
-      // Save user message
+      // Call LLM first so a failure does not leave an orphan user message
+      let response;
+      try {
+        response = await invokeLLM(messages);
+      } catch (error) {
+        mapLlmError(error);
+      }
+
       await db.saveStepChatMessage({
         userId: ctx.user.id,
         stepId: input.stepId,
         role: "user",
         content: input.message,
       });
-
-      // Call LLM
-      const response = await invokeLLM(messages);
-
-      // Save assistant message
       await db.saveStepChatMessage({
         userId: ctx.user.id,
         stepId: input.stepId,
@@ -685,10 +799,28 @@ const coachingRouter = router({
       z.object({
         stepId: z.number(),
         moduleId: z.number(),
-        finalAnswer: z.string().min(1),
+        finalAnswer: z.string().min(1).max(MAX_ANSWER_LENGTH),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const step = await db.getStepById(input.stepId);
+      if (!step) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
+      }
+      if (step.moduleId !== input.moduleId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Step does not belong to this module.",
+        });
+      }
+      await assertModuleUnlocked(ctx.user.id, input.moduleId, ctx.user.role === "admin");
+      await assertPreviousStepsComplete(
+        ctx.user.id,
+        input.moduleId,
+        input.stepId,
+        ctx.user.role === "admin"
+      );
+
       await db.completeStep(
         ctx.user.id,
         input.moduleId,
@@ -697,16 +829,13 @@ const coachingRouter = router({
       );
 
       // Also save to the legacy user_answers table for backward compatibility
-      const step = await db.getStepById(input.stepId);
-      if (step) {
-        await db.saveUserAnswer({
-          userId: ctx.user.id,
-          lessonId: 0, // No lesson association in coaching mode
-          moduleId: input.moduleId,
-          questionKey: step.answerKey,
-          answer: input.finalAnswer,
-        });
-      }
+      await db.saveUserAnswer({
+        userId: ctx.user.id,
+        lessonId: 0, // No lesson association in coaching mode
+        moduleId: input.moduleId,
+        questionKey: step.answerKey,
+        answer: input.finalAnswer,
+      });
 
       return { success: true };
     }),
@@ -715,6 +844,11 @@ const coachingRouter = router({
   clearStepChat: protectedProcedure
     .input(z.object({ stepId: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      const step = await db.getStepById(input.stepId);
+      if (!step) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
+      }
+      await assertModuleUnlocked(ctx.user.id, step.moduleId, ctx.user.role === "admin");
       await db.clearStepChatHistory(ctx.user.id, input.stepId);
       return { success: true };
     }),
@@ -723,6 +857,7 @@ const coachingRouter = router({
   getModuleProgress: protectedProcedure
     .input(z.object({ moduleId: z.number() }))
     .query(async ({ ctx, input }) => {
+      await assertModuleUnlocked(ctx.user.id, input.moduleId, ctx.user.role === "admin");
       const steps = await db.getModuleSteps(input.moduleId);
       const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
       const completedSteps = progress.filter((p) => p.completed).length;

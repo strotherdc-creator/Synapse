@@ -211,10 +211,8 @@ export async function invokeLLM(messages: ChatMessage[]): Promise<LLMResponse> {
     errors.push("Groq: API key not configured");
   }
 
-  // All providers failed — include detailed error info
+  // All providers failed — log details server-side; never leak provider errors to clients.
   const detail = errors.join(" | ");
   console.error(`[LLM] ALL PROVIDERS FAILED: ${detail}`);
-  throw new Error(
-    `All LLM providers failed. Details: ${detail}`
-  );
+  throw new Error("Unable to generate a response right now. Please try again.");
 }
