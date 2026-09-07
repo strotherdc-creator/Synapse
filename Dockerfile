@@ -11,8 +11,12 @@ RUN pnpm install --frozen-lockfile || pnpm install
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Vite reads .env.production automatically during 'vite build'
-# No Docker ARG needed — the key is in .env.production in the repo
+# Vite inlines VITE_* at build time. Railway auto-passes matching
+# service variables as build-args when ARG is declared here.
+# Do not rely on .env.production for secrets — keep keys in Railway/CI.
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ARG CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-$CLERK_PUBLISHABLE_KEY}
 RUN pnpm build
 
 # Production
