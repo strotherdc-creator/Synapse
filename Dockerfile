@@ -16,7 +16,8 @@ COPY . .
 # Do not rely on .env.production for secrets — keep keys in Railway/CI.
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG CLERK_PUBLISHABLE_KEY
-ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-$CLERK_PUBLISHABLE_KEY}
+ENV VITE_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY:-$VITE_CLERK_PUBLISHABLE_KEY}
+RUN test -n "$VITE_CLERK_PUBLISHABLE_KEY" && test "$VITE_CLERK_PUBLISHABLE_KEY" != "pk_test_..." && test "$VITE_CLERK_PUBLISHABLE_KEY" != "pk_live_..." || (echo "ERROR: Clerk publishable key missing or .env.example placeholder. Set CLERK_PUBLISHABLE_KEY in Railway." >&2; exit 1)
 RUN pnpm build
 
 # Production
