@@ -14,11 +14,24 @@ The audit closed the most material code-level exposure found: the Communication 
 | High | Fixed in code | The Communication Coach could consume paid LLM capacity without authentication or rate control. |
 | High | Reduced | Direct dependencies with known advisories were upgraded: Clerk React, Drizzle ORM, Express, tRPC, and Nanoid. |
 | High | Remaining transitive advisory | `lodash`, `js-cookie`, and `form-data` remain flagged through older Recharts, Clerk Express, and Groq SDK dependency paths. Their upgrade paths require compatibility testing, not a blind production bump. |
-| Medium | Open | LLM-backed tRPC workflows do not yet have a shared distributed rate limiter across Railway instances. |
+| Medium | Fixed in code (in-process) | tRPC LLM paths (`ai.chat`, `coaching.chat`, `content.generate`) now use the same per-user in-memory limiter as Express coaches. Multi-instance still needs Redis/gateway limiting. |
 | Medium | Open | Railway variable values and database-service references could not be visually verified without authenticated Railway access. |
-| Low | Open | The production Clerk publishable key is tracked in `.env.production`. It is public by design, but build-time configuration should still be centralized and documented. |
+| Low | Fixed in code | Hardcoded `pk_test_` client fallback removed; `.env.production` no longer tracks a real publishable key. Production must set `VITE_CLERK_PUBLISHABLE_KEY` at build time. |
 
 ## Fixed Controls
+
+### Security + AI audit follow-up (2026-09)
+
+Addressed High/Medium/Low findings on branch `fix/security-ai-audit-findings`:
+
+- Rate-limited tRPC LLM procedures (`ai.chat`, `coaching.chat`, `content.generate`) via shared `server/_core/rateLimit.ts` (10 req/min/user, in-process; multi-instance needs Redis).
+- Curriculum chat no longer persists orphan user messages on LLM failure; client shows a generic toast.
+- Draft modules/lessons return NOT_FOUND for non-admins on `getById`.
+- LLM provider errors are logged server-side and mapped to generic client messages.
+- Input `.max(...)` bounds on answers, final answers, coupon codes, and Comm Coach optional context fields.
+- Server-side sequential module unlock + step-order checks on coaching routes; `completeStep` validates `step.moduleId === input.moduleId`.
+- Replaced `#GetFixed` engagement hashtag with compliant `#SpineHealth`.
+- Removed tracked `pk_test_` from `.env.production` / client fallback; ARCHITECTURE.md LLM model names aligned with `llm.ts`.
 
 ### Communication Coach Access and Abuse Prevention
 
@@ -44,7 +57,7 @@ The production dependency audit was run before and after direct upgrades. The co
 
 All reviewed database procedures scope user-owned records by the authenticated user ID. LLM calls remain server-side; Gemini and Groq credentials are not sent to the browser. The Communication Coach UI warns users not to send patient names, dates of birth, or protected health information. That warning should remain prominent because user-entered content is forwarded to third-party LLM providers.
 
-The application still needs a shared rate-limit store or gateway-level rate limiting for all expensive LLM procedures. The new Communication Coach limiter is intentionally a local safety control; it resets on a restart and is not shared between multiple Railway instances. Authentication guidance also recommends monitoring automated abuse and applying context-appropriate re-authentication for sensitive changes.[2]
+Expensive LLM procedures (Express coaches + tRPC `ai`/`coaching`/`content`) share an in-process per-user limiter. Multi-instance or gateway-level rate limiting (e.g. Redis) remains recommended for horizontal scale; the in-process limiter resets on restart and is not shared between Railway instances. Authentication guidance also recommends monitoring automated abuse and applying context-appropriate re-authentication for sensitive changes.[2]
 
 ## Configuration Verification
 

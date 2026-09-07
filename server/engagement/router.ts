@@ -132,7 +132,8 @@ function buildHashtags(topic: ReturnType<typeof getTopicById>, profile: UserProf
     tags.push(`#${profile.state.replace(/\s+/g, "")}Chiropractic`);
   }
   // General growth tags
-  tags.push("#GetFixed", "#StructuralCorrection", "#ChiropracticCare");
+  // Avoid promise-style hashtags (e.g. #GetFixed) — see healthcare-content-rules RULE 2/19
+  tags.push("#SpineHealth", "#StructuralCorrection", "#ChiropracticCare");
   return tags.slice(0, 12).join(" ");
 }
 

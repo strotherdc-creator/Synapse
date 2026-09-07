@@ -8,16 +8,16 @@ import { useState } from "react";
 import App from "./App";
 import "./index.css";
 
-// Clerk publishable key — this is a PUBLIC key (safe to include in client code).
-// In local dev, VITE_CLERK_PUBLISHABLE_KEY from .env takes precedence.
-// In production Docker builds, the hardcoded fallback is used since Docker ARG
-// can mangle the trailing $ in the key value.
-const CLERK_PUBLISHABLE_KEY =
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
-  "pk_test_cmVzdGVkLW1vbGUtMjguY2xlcmsuYWNjb3VudHMuZGV2JA";
+// Clerk publishable key — PUBLIC by design, but must be supplied via env at
+// build/runtime (VITE_CLERK_PUBLISHABLE_KEY). Do not hardcode pk_test_/pk_live_.
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
+  | string
+  | undefined;
 
 if (!CLERK_PUBLISHABLE_KEY) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY environment variable");
+  throw new Error(
+    "Missing VITE_CLERK_PUBLISHABLE_KEY. Set it in .env for local dev, or as a build-time env var in production."
+  );
 }
 
 /**

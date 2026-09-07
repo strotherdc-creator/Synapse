@@ -5,6 +5,7 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { invokeLLM, type ChatMessage } from "../_core/llm";
+import { consumeRateLimit, RATE_LIMIT_MAX_REQUESTS } from "../_core/rateLimit";
 import { WWLD_SYSTEM_PROMPT } from "./system-prompt";
 import * as db from "../db";
 
@@ -13,21 +14,6 @@ export const wwldCoachRouter = Router();
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CONTENT = 2000;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 10;
-const requestBuckets = new Map<string, { count: number; resetAt: number }>();
-
-function consumeRequest(userId: string): boolean {
-  const now = Date.now();
-  const bucket = requestBuckets.get(userId);
-  if (!bucket || bucket.resetAt <= now) {
-    requestBuckets.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) return false;
-  bucket.count += 1;
-  return true;
-}
 
 async function buildWwldContext(userId: number): Promise<string> {
   const endStr = db.getCentralDateKey();
@@ -80,7 +66,7 @@ wwldCoachRouter.post("/ask", async (req, res) => {
       res.status(401).json({ error: "Sign in is required to use WWLD Coach." });
       return;
     }
-    if (!consumeRequest(auth.userId)) {
+    if (!consumeRateLimit(`wwld-coach:${auth.userId}`, RATE_LIMIT_MAX_REQUESTS)) {
       res.status(429).json({ error: "Too many requests. Please wait a minute and try again." });
       return;
     }

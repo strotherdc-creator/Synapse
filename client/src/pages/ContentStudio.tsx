@@ -31,8 +31,8 @@ export default function ContentStudio() {
     onSuccess: (data) => {
       setGeneratedContent(data.content);
     },
-    onError: (error) => {
-      toast.error(error.message);
+    onError: () => {
+      toast.error("Generation failed. Please try again.");
     },
   });
 
