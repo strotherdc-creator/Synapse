@@ -35,7 +35,7 @@ export default function Home() {
         <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Daily start</p>
         <p className="text-xl font-bold text-foreground mt-1">Start Today's Plan</p>
         <p className="text-sm text-muted-foreground mt-1">
-          One next action, Communication Coach, and WWLD stats — without menu hunting.
+          One next action and WWLD stats — without menu hunting.
         </p>
       </button>
 
