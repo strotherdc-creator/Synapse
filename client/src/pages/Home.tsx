@@ -2,9 +2,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
-import { BookOpen, CheckCircle2, MessageSquare, Zap, Trophy, Target } from "lucide-react";
+import { BookOpen, CheckCircle2, MessageSquare, Zap, Trophy, Target, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import { SessionPrompt } from "@/components/wwld/SessionPrompt";
+import { getModuleUnlockState, sortModulesForUnlock } from "@shared/curriculumUnlock";
 
 export default function Home() {
   const { user } = useAuth();
@@ -147,7 +148,7 @@ export default function Home() {
           </div>
         ) : modules && modules.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {modules.map((mod) => {
+            {sortModulesForUnlock(modules).map((mod) => {
               const usesCoachingSteps = mod.stepCount > 0;
               const completedItems = usesCoachingSteps ? mod.completedStepCount : mod.completedCount;
               const totalItems = usesCoachingSteps ? mod.stepCount : mod.lessonCount;
@@ -156,11 +157,22 @@ export default function Home() {
                 totalItems > 0
                   ? Math.round((completedItems / totalItems) * 100)
                   : 0;
+              const unlocked =
+                typeof mod.unlocked === "boolean"
+                  ? mod.unlocked
+                  : getModuleUnlockState(modules, mod.id).unlocked;
+              const showComplete = unlocked && mod.moduleComplete;
               return (
                 <Card
                   key={mod.id}
-                  className="bg-card border-brand-gold/15 cursor-pointer hover:border-primary/50 transition-colors group"
-                  onClick={() => setLocation(`/curriculum/${mod.id}`)}
+                  className={`bg-card border-brand-gold/15 transition-colors group ${
+                    unlocked
+                      ? "cursor-pointer hover:border-primary/50"
+                      : "opacity-60 cursor-not-allowed"
+                  }`}
+                  onClick={() => {
+                    if (unlocked) setLocation(`/curriculum/${mod.id}`);
+                  }}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start gap-3 mb-3">
@@ -170,9 +182,11 @@ export default function Home() {
                           <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
                             {mod.title}
                           </h3>
-                          {mod.moduleComplete && (
+                          {!unlocked ? (
+                            <Lock className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
+                          ) : showComplete ? (
                             <CheckCircle2 className="h-4 w-4 text-gold flex-shrink-0" />
-                          )}
+                          ) : null}
                         </div>
                         {mod.description && (
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">

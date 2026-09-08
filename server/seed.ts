@@ -19,12 +19,13 @@ const db = drizzle(pool);
 // This script seeds REFERENCE LESSONS (legacy/support content). The primary
 // learner path is Bridge the Gap coaching steps in server/seed-coaching.ts.
 // Module titles here may not match coaching modules — do not assume IDs align.
+// Seed as draft so learners only see BTG via publishedOnly (admin can publish).
 const CURRICULUM = [
   {
     title: "Bridge the Gap: Foundation",
     description: "Discover your unique value proposition and what makes your practice different from every other provider in your market.",
     iconEmoji: "🌉",
-    status: "published" as const,
+    status: "draft" as const,
     lessons: [
       {
         title: "Why Differentiation Matters",
@@ -122,7 +123,7 @@ Write your origin story using the framework above. Keep it to 200-300 words. We'
     title: "Messaging & Positioning",
     description: "Translate your unique value into clear, compelling messaging that attracts your ideal patients.",
     iconEmoji: "📣",
-    status: "published" as const,
+    status: "draft" as const,
     lessons: [
       {
         title: "The Positioning Statement",
@@ -237,7 +238,7 @@ Define your 3-5 content pillars. For each one, write:
     title: "Content Creation System",
     description: "Build a repeatable system for creating engaging content that attracts and converts your ideal patients.",
     iconEmoji: "✍️",
-    status: "published" as const,
+    status: "draft" as const,
     lessons: [
       {
         title: "The Content Machine",
@@ -318,7 +319,7 @@ Write one post for each of the 5 types above using your positioning and content 
     title: "Patient Experience & Retention",
     description: "Design a patient experience that turns first-time visitors into long-term advocates who refer others.",
     iconEmoji: "⭐",
-    status: "published" as const,
+    status: "draft" as const,
     lessons: [
       {
         title: "The First Visit Experience",
@@ -418,7 +419,7 @@ Design your referral system using the steps above. Write the referral message yo
     title: "Growth Strategy & Metrics",
     description: "Set measurable goals, track the right numbers, and build a sustainable growth plan for your practice.",
     iconEmoji: "📈",
-    status: "published" as const,
+    status: "draft" as const,
     lessons: [
       {
         title: "The Numbers That Matter",
@@ -528,7 +529,7 @@ async function seed() {
         description: mod.description,
         iconEmoji: mod.iconEmoji,
         status: mod.status,
-        sortOrder: i + 1,
+        sortOrder: 101 + i,
       })
       .returning({ id: modules.id });
 

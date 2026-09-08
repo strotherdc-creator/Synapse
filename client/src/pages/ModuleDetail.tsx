@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc";
 import { ArrowLeft, BookOpen, CheckCircle2, Circle, MessageSquare, ChevronRight } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { useEffect } from "react";
+import { getModuleUnlockState } from "@shared/curriculumUnlock";
 
 export default function ModuleDetail() {
   const params = useParams<{ moduleId: string }>();
@@ -14,15 +15,12 @@ export default function ModuleDetail() {
   // Fetch all modules to check if this one is unlocked
   const { data: allModules } = trpc.modules.list.useQuery();
 
-  // Guard: redirect to curriculum if this module is locked
+  // Guard: redirect to curriculum if this module is locked (all prior must be complete)
   useEffect(() => {
     if (!allModules || allModules.length === 0) return;
-    const sortedModules = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
-    const currentIndex = sortedModules.findIndex((m) => m.id === moduleId);
-    if (currentIndex <= 0) return; // First module or not found — allow access
-    const prevModule = sortedModules[currentIndex - 1];
-    // Must match Curriculum unlock: moduleComplete (coaching when steps exist, else lessons)
-    if (!prevModule?.moduleComplete) {
+    const { index, unlocked } = getModuleUnlockState(allModules, moduleId);
+    if (index < 0) return;
+    if (!unlocked) {
       setLocation("/curriculum");
     }
   }, [allModules, moduleId, setLocation]);

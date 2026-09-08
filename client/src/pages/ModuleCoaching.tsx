@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
+import { getModuleUnlockState, sortModulesForUnlock } from "@shared/curriculumUnlock";
 import ReactMarkdown from "react-markdown";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { Confetti } from "@/components/Confetti";
@@ -45,22 +46,19 @@ export default function ModuleCoaching() {
   // Fetch all modules to find the next one and check locking
   const { data: allModules } = trpc.modules.list.useQuery();
 
-  // Guard: redirect if this module is locked (previous module not complete)
+  // Guard: redirect if locked — all prior modules must be moduleComplete (matches server)
   useEffect(() => {
     if (!allModules || allModules.length === 0) return;
-    const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
-    const currentIdx = sorted.findIndex((m) => m.id === moduleId);
-    if (currentIdx <= 0) return; // First module or not found — allow
-    const prevModule = sorted[currentIdx - 1];
-    // Must match Curriculum unlock: moduleComplete (coaching when steps exist, else lessons)
-    if (!prevModule?.moduleComplete) {
+    const { index, unlocked } = getModuleUnlockState(allModules, moduleId);
+    if (index < 0) return;
+    if (!unlocked) {
       setLocation("/curriculum");
     }
   }, [allModules, moduleId, setLocation]);
 
   const nextModule = useMemo(() => {
     if (!allModules || !mod) return null;
-    const sorted = [...allModules].sort((a, b) => a.sortOrder - b.sortOrder);
+    const sorted = sortModulesForUnlock(allModules);
     const currentIdx = sorted.findIndex((m) => m.id === moduleId);
     if (currentIdx >= 0 && currentIdx < sorted.length - 1) {
       return sorted[currentIdx + 1];

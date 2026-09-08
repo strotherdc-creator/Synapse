@@ -13,6 +13,7 @@ import {
   wwldSessions,
 } from "../../shared/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
+import { sortModulesForUnlock } from "../../shared/curriculumUnlock";
 
 // ─── Constants ─────────────────────────────────────────────────────
 
@@ -493,9 +494,7 @@ export const engagementRouter = router({
     );
 
     // Stable order: sortOrder then id (avoids duplicate sortOrder races)
-    const ordered = [...modulesWithProgress].sort(
-      (a, b) => a.sortOrder - b.sortOrder || a.id - b.id
-    );
+    const ordered = sortModulesForUnlock(modulesWithProgress);
 
     // Sequential unlock: module i unlocked iff all previous are complete
     const withUnlock = ordered.map((mod, index) => {

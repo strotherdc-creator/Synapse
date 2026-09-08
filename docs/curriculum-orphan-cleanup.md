@@ -10,10 +10,13 @@ Deploy logs or Admin show:
 - Duplicate modules (old lesson rows **and** new BTG rows)
 - `module_steps` rows whose `module_id` no longer exists (true orphans after hard deletes before cascade landed)
 
-The startup seed **does not delete or move** existing steps. It only:
+The startup seed **does not delete or move** existing steps. It:
 
 1. Ensures the 6 BTG modules exist (create / rename Referral Identity candidates)
-2. Seeds steps onto BTG modules that still have **zero** steps
+2. **Demotes** obsolete lesson-seed modules (exact titles from `server/seed.ts`) to `draft` with `sort_order` ≥ 101 so they drop out of the learner Curriculum list (`publishedOnly`)
+3. Seeds steps onto BTG modules that still have **zero** steps
+
+Demotion is idempotent and non-destructive (no SQL deletes). Admins still see drafts in Admin Modules.
 
 ## Inspect
 
@@ -110,4 +113,6 @@ Then **restart** the Synapse service so `seedCoachingSteps` can attach steps to 
 
 ## Optional: hide old lesson-seed modules
 
-If the five lesson-seed modules should not appear in Curriculum unlock order, set them to `draft` or raise `sort_order` above 100 in Admin (or SQL) after BTG modules occupy sort_order 1–6.
+Startup `seedCoachingSteps` now demotes the five known lesson-seed titles automatically (draft + sort_order 101–105).
+
+If a one-off still appears in the learner list (custom title / not in the obsolete list), set it to `draft` or raise `sort_order` above 100 in Admin (or SQL) after BTG modules occupy sort_order 1–6.
