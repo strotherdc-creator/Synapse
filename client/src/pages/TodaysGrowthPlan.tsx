@@ -2,7 +2,18 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { CheckCircle2, Flame, Trophy, Target, Copy, ExternalLink, ArrowLeft, RefreshCw } from "lucide-react";
+import { CheckCircle2, Flame, Trophy, Copy, ExternalLink, ArrowLeft, RefreshCw, BarChart2, MessageSquare } from "lucide-react";
+import {
+  buildCommCoachDeepLink,
+  defaultsForPlanAction,
+  getCommBase,
+  isTalkScriptAction,
+} from "@/lib/commCoachDeepLink";
+
+function getTodayDateKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export default function TodaysGrowthPlan() {
   const [, setLocation] = useLocation();
@@ -18,6 +29,9 @@ export default function TodaysGrowthPlan() {
   const topicsQuery = trpc.engagement.getTopics.useQuery();
   const curriculumQuery = trpc.engagement.getCurriculumReminder.useQuery();
   const streakQuery = trpc.routine.getStreak.useQuery();
+  const todayKey = getTodayDateKey();
+  const wwldTodayQuery = trpc.wwld.getToday.useQuery({ date: todayKey }, { staleTime: 60_000 });
+  const wwldStatusQuery = trpc.wwld.getTodayStatus.useQuery({ date: todayKey }, { staleTime: 60_000 });
 
   // Mutations
   const pickMutation = trpc.engagement.pickDailyActions.useMutation({
@@ -108,6 +122,8 @@ export default function TodaysGrowthPlan() {
   // Local state
   const [showTopicPicker, setShowTopicPicker] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  // Soft-progress: user opened Comm Coach; Done still waits for explicit complete / returnUrl.
+  const [softProgressActionId, setSoftProgressActionId] = useState<number | null>(null);
 
   const data = planQuery.data;
   const streak = streakQuery.data;
@@ -139,6 +155,28 @@ export default function TodaysGrowthPlan() {
     }
     // Send just the one action — server accepts 1+
     pickMutation.mutate({ actionKeys: [key] });
+  };
+
+  /** Open Comm Coach via external VITE_COMM_BASE (+ returnUrl). Soft-progress until Done. */
+  const openCommCoachForAction = (action: { id: number; sourceRef?: string | null; title?: string }) => {
+    const defaults = defaultsForPlanAction(action.sourceRef);
+    const { href, external } = buildCommCoachDeepLink({
+      planStepId: action.id,
+      outcome: defaults.outcome,
+      channel: defaults.channel,
+      direction: defaults.direction,
+      returnUrl: `${window.location.origin}/today`,
+    });
+    setSoftProgressActionId(action.id);
+    if (external) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      toast.message("Communication Coach opened", {
+        description: "Mark done on Today's Plan when you return.",
+      });
+      return;
+    }
+    // Placeholder until VITE_COMM_BASE is configured (local review only — not a proxy).
+    setLocation(href);
   };
 
   // Loading state
@@ -173,6 +211,68 @@ export default function TodaysGrowthPlan() {
   const pendingActions = data?.status === "active" ? data.actions.filter((a: any) => a.status === "pending") : [];
   const currentAction = pendingActions.length > 0 ? pendingActions[0] : null;
 
+  const wwldTotals = wwldTodayQuery.data?.totals;
+  const wwldStatus = wwldStatusQuery.data;
+  const sessionsLogged = wwldStatus
+    ? [wwldStatus.morning, wwldStatus.afternoon, wwldStatus.endOfDay].filter(Boolean).length
+    : 0;
+
+  const primaryIsTalk = currentAction
+    ? isTalkScriptAction(currentAction.sourceRef)
+    : true; // front-door default: talk practice via Comm Coach
+
+  const commBaseReady = Boolean(getCommBase());
+  let primaryCtaLabel = commBaseReady
+    ? "Practice today's conversation"
+    : "Practice in Communication Coach";
+  if (currentAction) {
+    if (isTalkScriptAction(currentAction.sourceRef)) {
+      primaryCtaLabel = commBaseReady
+        ? "Practice in Communication Coach"
+        : "Open Communication Coach (in-app)";
+    } else if (currentAction.sourceRef === "ai_coach") primaryCtaLabel = "Open AI Coach";
+    else if (currentAction.sourceRef === "curriculum_lesson") primaryCtaLabel = "Continue Curriculum";
+    else if (currentAction.script) primaryCtaLabel = "Do this action";
+    else primaryCtaLabel = "Continue today's action";
+  }
+
+  const handlePrimaryCta = () => {
+    if (currentAction) {
+      if (isTalkScriptAction(currentAction.sourceRef)) {
+        openCommCoachForAction(currentAction);
+        return;
+      }
+      if (currentAction.sourceRef === "ai_coach") {
+        setLocation("/chat");
+        return;
+      }
+      if (currentAction.sourceRef === "curriculum_lesson") {
+        setLocation("/curriculum");
+        return;
+      }
+      document.getElementById("todays-current-action")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    // No action picked — deep-link to Comm Coach (external when VITE_COMM_BASE set)
+    const { href, external } = buildCommCoachDeepLink({
+      planStepId: "today-front-door",
+      outcome: data?.lyleRecommendation?.actionText
+        ? "Practice Lyle's recommended conversation"
+        : "Practice today's conversation",
+      channel: "verbal",
+      direction: "outgoing",
+      returnUrl: `${window.location.origin}/today`,
+    });
+    if (external) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      toast.message("Communication Coach opened", {
+        description: "Pick an action on Today's Plan when you return.",
+      });
+      return;
+    }
+    setLocation(href);
+  };
+
   return (
     <div className="max-w-xl mx-auto p-5 space-y-8">
       {/* Header — large, readable */}
@@ -196,6 +296,74 @@ export default function TodaysGrowthPlan() {
           <span className="text-base text-gray-400">done today</span>
         </div>
       </div>
+
+      {/* ─── PRIMARY NEXT ACTION (front door CTA) ─── */}
+      <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/30 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <MessageSquare className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Your next action</p>
+            <p className="text-xl font-bold text-white mt-1 leading-snug">
+              {currentAction?.title
+                ?? data?.lyleRecommendation?.actionText
+                ?? "Practice one patient conversation today"}
+            </p>
+            {softProgressActionId && currentAction && softProgressActionId === currentAction.id && (
+              <p className="text-sm text-amber-300 mt-2">
+                Soft progress: Communication Coach opened — mark done when you return.
+              </p>
+            )}
+            {!commBaseReady && primaryIsTalk && (
+              <p className="text-xs text-gray-400 mt-2">
+                {/* TODO(Head Dev): set VITE_COMM_BASE when Comm Module has a public https origin. */}
+                External Comm Module not live yet — opens in-app Communication Coach for now.
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handlePrimaryCta}
+          className="w-full py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+        >
+          {primaryIsTalk && commBaseReady && <ExternalLink className="h-5 w-5" />}
+          {primaryCtaLabel}
+        </button>
+      </div>
+
+      {/* ─── WWLD / Log Stats (nearby, one click) ─── */}
+      <button
+        type="button"
+        onClick={() => setLocation("/wwld")}
+        className="w-full text-left rounded-2xl border border-brand-gold/30 bg-card/80 hover:border-brand-gold/60 p-5 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="h-5 w-5 text-[var(--gold)]" />
+            <div>
+              <p className="text-sm font-bold text-foreground">WWLD · Log Stats</p>
+              <p className="text-xs text-muted-foreground">
+                {sessionsLogged}/3 sessions logged today
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-semibold text-[var(--gold)]">Open →</span>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.officeVisits ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Visits</p>
+          </div>
+          <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.newPatients ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">New Pts</p>
+          </div>
+          <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
+            <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.carePlansSigned ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Care Plans</p>
+          </div>
+        </div>
+      </button>
 
       {/* Lyle Recommendation */}
       {data?.lyleRecommendation && (
@@ -252,7 +420,7 @@ export default function TodaysGrowthPlan() {
 
       {/* ─── CURRENT ACTION (one at a time) ─── */}
       {currentAction && (
-        <div className="space-y-4">
+        <div id="todays-current-action" className="space-y-4">
           {/* Topic badge — always visible with the action */}
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-sm">
@@ -341,8 +509,18 @@ export default function TodaysGrowthPlan() {
               </div>
             )}
 
-            {/* Mark done */}
-            <div className="px-6 pb-6">
+            {/* Talk/script → Comm Coach deep-link; Done remains explicit (soft-progress until then) */}
+            <div className="px-6 pb-6 space-y-3">
+              {isTalkScriptAction(currentAction.sourceRef) && (
+                <button
+                  type="button"
+                  onClick={() => openCommCoachForAction(currentAction)}
+                  className="w-full py-4 rounded-xl bg-purple-600 text-white text-lg font-bold hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  {commBaseReady && <ExternalLink className="h-5 w-5" />}
+                  {commBaseReady ? "Practice in Communication Coach" : "Open Communication Coach (in-app)"}
+                </button>
+              )}
               <button
                 onClick={() => completeMutation.mutate({ actionId: currentAction.id })}
                 disabled={completeMutation.isPending}

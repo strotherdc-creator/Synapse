@@ -24,6 +24,20 @@ export default function Home() {
     <div className="space-y-8">
       {/* WWLD daily stats prompt */}
       <SessionPrompt />
+
+      {/* Daily front door — Today's Plan */}
+      <button
+        type="button"
+        onClick={() => setLocation("/today")}
+        className="w-full text-left rounded-2xl border-2 border-emerald-500/40 bg-emerald-950/20 hover:border-emerald-500/70 p-5 transition-colors"
+      >
+        <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Daily start</p>
+        <p className="text-xl font-bold text-foreground mt-1">Start Today's Plan</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          One next action, Communication Coach, and WWLD stats — without menu hunting.
+        </p>
+      </button>
+
       {/* Welcome header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">

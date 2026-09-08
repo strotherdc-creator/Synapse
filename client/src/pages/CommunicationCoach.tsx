@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Copy, MessageSquare, Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { toast } from "sonner";
@@ -29,6 +29,38 @@ export default function CommunicationCoach() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [returnUrl, setReturnUrl] = useState<string | null>(null);
+
+  // Placeholder deep-link hydrate when VITE_COMM_BASE is unset (Synapse /communication).
+  // External Comm Module owns the real contract; this only helps local/review clicks.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("coach") !== "1") return;
+      const outcome = params.get("outcome");
+      const ch = params.get("channel");
+      const dir = params.get("direction");
+      const tone = params.get("tone");
+      const stage = params.get("stage");
+      const obstacles = params.get("obstacles");
+      const urg = params.get("urgency");
+      const convo = params.get("conversation");
+      const ret = params.get("returnUrl");
+      if (outcome) setDesiredOutcome(outcome);
+      if (ch === "verbal" || ch === "text" || ch === "email") setChannel(ch);
+      if (dir === "incoming" || dir === "outgoing" || dir === "both") setDirection(dir);
+      if (tone) setEmotionalTone(tone);
+      if (stage) setRelationshipStage(stage);
+      if (obstacles) setKnownObstacles(obstacles);
+      if (urg) setUrgency(urg);
+      // conversation may be short context only — never expect PHI here
+      if (convo) setConversation(convo);
+      if (ret) setReturnUrl(ret);
+      setCoachMode(true);
+    } catch {
+      // ignore malformed query
+    }
+  }, []);
 
   const handleGenerate = async () => {
     if (!conversation.trim()) { toast.error("Paste the conversation first"); return; }
@@ -94,6 +126,15 @@ export default function CommunicationCoach() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {returnUrl && (
+        <a
+          href={returnUrl}
+          className="text-sm text-emerald-400 hover:text-emerald-300 underline"
+        >
+          ← Back to Today's Plan
+        </a>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-purple-600/20 flex items-center justify-center">
