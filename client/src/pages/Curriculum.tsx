@@ -14,8 +14,12 @@ export default function Curriculum() {
   const { data: modules, isLoading } = trpc.modules.list.useQuery();
 
   // Stable order + unlock math must match server assertModuleUnlocked / modules.list
+  // Defense-in-depth: never render drafts on learner Curriculum (server list is published-only)
   const ordered = useMemo(
-    () => (modules ? sortModulesForUnlock(modules) : []),
+    () =>
+      modules
+        ? sortModulesForUnlock(modules.filter((m) => m.status === "published"))
+        : [],
     [modules]
   );
 
@@ -119,11 +123,6 @@ export default function Curriculum() {
                     </p>
                   )}
 
-                  {mod.status === "draft" && (
-                    <span className="inline-block mt-3 text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
-                      Draft
-                    </span>
-                  )}
                 </CardContent>
               </Card>
             );

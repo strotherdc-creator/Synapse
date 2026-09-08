@@ -56,6 +56,26 @@ describe("Synapse curriculum completion badge", () => {
     expect(unlock).toContain("every((m) => m.moduleComplete === true)");
   });
 
+  it("learner modules.list is published-only; drafts only via adminList / Manage Modules", () => {
+    const router = source("server/routers.ts");
+    const curriculum = source("client/src/pages/Curriculum.tsx");
+    const home = source("client/src/pages/Home.tsx");
+    const adminModules = source("client/src/pages/AdminModules.tsx");
+
+    // Learner list must not gate publishedOnly on admin role (that leaked drafts to ADMIN_EMAIL smoke)
+    expect(router).not.toContain("listModules(!isAdmin)");
+    expect(router).toContain("adminList: adminProcedure");
+    expect(router).toContain("const allModules = await db.listModules(true);");
+    expect(router).toContain("await db.listLessons(mod.id, true)");
+    // Manage Modules keeps drafts
+    expect(adminModules).toContain("trpc.modules.adminList.useQuery()");
+    expect(adminModules).toContain("utils.modules.adminList.invalidate()");
+    // Client defense-in-depth on Curriculum / Home
+    expect(curriculum).toContain('m.status === "published"');
+    expect(curriculum).not.toContain("Draft");
+    expect(home).toContain('m.status === "published"');
+  });
+
   it("demotes obsolete lesson-seed modules out of the learner Curriculum path", () => {
     const seedCoaching = source("server/seed-coaching.ts");
     const seedLessons = source("server/seed.ts");

@@ -142,14 +142,18 @@ const profileRouter = router({
 // ─── Modules Router ──────────────────────────────────────────────────
 
 const modulesRouter = router({
+  /**
+   * Learner Curriculum contract: always published-only (even for admins browsing
+   * /curriculum or Home). Draft / obsolete lesson-seed modules stay in Manage Modules
+   * via modules.adminList — otherwise ADMIN_EMAIL smoke users still see demoted drafts.
+   */
   list: protectedProcedure.query(async ({ ctx }) => {
-    const isAdmin = ctx.user.role === "admin";
-    const allModules = await db.listModules(!isAdmin);
+    const allModules = await db.listModules(true);
     const progress = await db.getUserProgress(ctx.user.id);
 
     const modulesWithProgress = await Promise.all(
       allModules.map(async (mod) => {
-        const moduleLessons = await db.listLessons(mod.id, !isAdmin);
+        const moduleLessons = await db.listLessons(mod.id, true);
         const moduleProgress = progress.filter((p) => p.moduleId === mod.id);
         const completedCount = moduleProgress.filter((p) => p.completed).length;
         const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;
@@ -177,6 +181,20 @@ const modulesRouter = router({
       ...mod,
       unlocked: isModuleUnlockedAtIndex(ordered, index),
     }));
+  }),
+
+  /** Manage Modules: admins see drafts + published (lesson counts include draft lessons). */
+  adminList: adminProcedure.query(async () => {
+    const allModules = await db.listModules(false);
+    return Promise.all(
+      allModules.map(async (mod) => {
+        const moduleLessons = await db.listLessons(mod.id, false);
+        return {
+          ...mod,
+          lessonCount: moduleLessons.length,
+        };
+      })
+    );
   }),
 
   getById: protectedProcedure
