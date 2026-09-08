@@ -66,7 +66,7 @@ export default function AdminModules() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
-  const { data: modules, isLoading } = trpc.modules.list.useQuery();
+  const { data: modules, isLoading } = trpc.modules.adminList.useQuery();
 
   // Module dialog state
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
@@ -86,6 +86,7 @@ export default function AdminModules() {
   const createModule = trpc.modules.create.useMutation({
     onSuccess: () => {
       toast.success("Module created");
+      utils.modules.adminList.invalidate();
       utils.modules.list.invalidate();
       setModuleDialogOpen(false);
     },
@@ -95,6 +96,7 @@ export default function AdminModules() {
   const updateModule = trpc.modules.update.useMutation({
     onSuccess: () => {
       toast.success("Module updated");
+      utils.modules.adminList.invalidate();
       utils.modules.list.invalidate();
       setModuleDialogOpen(false);
     },
@@ -104,6 +106,7 @@ export default function AdminModules() {
   const deleteModule = trpc.modules.delete.useMutation({
     onSuccess: () => {
       toast.success("Module deleted");
+      utils.modules.adminList.invalidate();
       utils.modules.list.invalidate();
     },
     onError: (e) => toast.error(e.message),

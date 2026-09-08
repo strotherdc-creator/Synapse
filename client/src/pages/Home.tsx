@@ -10,7 +10,9 @@ import { getModuleUnlockState, sortModulesForUnlock } from "@shared/curriculumUn
 export default function Home() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: modules, isLoading } = trpc.modules.list.useQuery();
+  const { data: modulesRaw, isLoading } = trpc.modules.list.useQuery();
+  // Defense-in-depth: learner Home only counts/renders published modules
+  const modules = modulesRaw?.filter((m) => m.status === "published");
 
   // Coaching step progress (primary metric)
   const totalSteps = modules?.reduce((sum, m) => sum + m.stepCount, 0) ?? 0;
