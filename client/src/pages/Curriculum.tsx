@@ -2,20 +2,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
 import { BookOpen, Lock } from "lucide-react";
+import { useMemo } from "react";
 import { useLocation } from "wouter";
+import {
+  isModuleUnlockedAtIndex,
+  sortModulesForUnlock,
+} from "@shared/curriculumUnlock";
 
 export default function Curriculum() {
   const [, setLocation] = useLocation();
   const { data: modules, isLoading } = trpc.modules.list.useQuery();
 
-  // Determine which modules are unlocked
-  // Module 1 (first in sort order) is always unlocked
-  // Subsequent modules require the previous module's coaching to be complete
+  // Stable order + unlock math must match server assertModuleUnlocked / modules.list
+  const ordered = useMemo(
+    () => (modules ? sortModulesForUnlock(modules) : []),
+    [modules]
+  );
+
   const isModuleUnlocked = (index: number): boolean => {
-    if (!modules) return false;
-    if (index === 0) return true; // First module always unlocked
-    // Use the same completion rule the card presents to the doctor.
-    return modules[index - 1]?.moduleComplete === true;
+    // Prefer server-computed unlocked when present; fall back to shared helper
+    const fromServer = ordered[index]?.unlocked;
+    if (typeof fromServer === "boolean") return fromServer;
+    return isModuleUnlockedAtIndex(ordered, index);
   };
 
   return (
@@ -42,9 +50,9 @@ export default function Curriculum() {
             </Card>
           ))}
         </div>
-      ) : modules && modules.length > 0 ? (
+      ) : ordered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((mod, index) => {
+          {ordered.map((mod, index) => {
             const unlocked = isModuleUnlocked(index);
             const usesCoachingSteps = mod.stepCount > 0;
             const completedItems = usesCoachingSteps ? mod.completedStepCount : mod.completedCount;
@@ -54,7 +62,9 @@ export default function Curriculum() {
               totalItems > 0
                 ? Math.round((completedItems / totalItems) * 100)
                 : 0;
-            const prevModTitle = index > 0 ? modules[index - 1]?.title : "";
+            const prevModTitle = index > 0 ? ordered[index - 1]?.title : "";
+            // Never show Lock + Complete together (finishability / badge integrity)
+            const showComplete = unlocked && mod.moduleComplete;
 
             return (
               <Card
@@ -73,14 +83,13 @@ export default function Curriculum() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-3xl">{mod.iconEmoji || "📘"}</div>
-                    {!unlocked && (
+                    {!unlocked ? (
                       <Lock className="h-5 w-5 text-muted-foreground/60" />
-                    )}
-                    {mod.moduleComplete && (
+                    ) : showComplete ? (
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--gold)", color: "#1a1a1a" }}>
                         Complete
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <h3
                     className={`font-semibold text-lg ${

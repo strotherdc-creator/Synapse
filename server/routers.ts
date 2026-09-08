@@ -7,6 +7,10 @@ import { invokeLLM, type ChatMessage } from "./_core/llm";
 import { assertRateLimit } from "./_core/rateLimit";
 import { engagementRouter } from "./engagement/router";
 import { buildComplianceFromProfile } from "./compliance/healthcare-content-rules";
+import {
+  isModuleUnlockedAtIndex,
+  sortModulesForUnlock,
+} from "../shared/curriculumUnlock";
 
 const MAX_ANSWER_LENGTH = 8000;
 const GENERIC_LLM_ERROR = "Unable to generate a response right now. Please try again.";
@@ -27,7 +31,7 @@ async function computeModuleComplete(userId: number, moduleId: number): Promise<
 async function assertModuleUnlocked(userId: number, moduleId: number, isAdmin: boolean): Promise<void> {
   if (isAdmin) return;
   const published = await db.listModules(true);
-  const sorted = [...published].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+  const sorted = sortModulesForUnlock(published);
   const idx = sorted.findIndex((m) => m.id === moduleId);
   if (idx < 0) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Module not found" });
@@ -167,7 +171,12 @@ const modulesRouter = router({
         };
       })
     );
-    return modulesWithProgress;
+    // Stable order + unlocked flag so client badges/clickability match assertModuleUnlocked
+    const ordered = sortModulesForUnlock(modulesWithProgress);
+    return ordered.map((mod, index) => ({
+      ...mod,
+      unlocked: isModuleUnlockedAtIndex(ordered, index),
+    }));
   }),
 
   getById: protectedProcedure

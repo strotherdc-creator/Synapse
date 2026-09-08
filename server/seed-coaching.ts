@@ -1,12 +1,14 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "./db";
 import * as db from "./db";
+import { isObsoleteLessonSeedTitle, OBSOLETE_LESSON_SEED_MODULE_TITLES } from "../shared/curriculumUnlock";
 
 // ─── Module Step Definitions ──────────────────────────────────────
 // Primary curriculum path is Bridge the Gap coaching (these steps).
 // server/seed.ts may also insert reference lessons under different titles —
 // coaching seed ensures the 6 BTG modules exist, matches by strict title with
-// claim-exclusion, and only seeds empty modules (never assumes IDs 1–6).
+// claim-exclusion, demotes obsolete lesson-seed modules to draft, and only
+// seeds empty modules (never assumes IDs 1–6).
 // Each module has structured coaching steps from the master prompts
 
 const MODULE_STEPS: Record<number, Array<{
@@ -1068,6 +1070,34 @@ async function ensureBridgeTheGapModules(): Promise<Map<number, number>> {
   return keyToModuleId;
 }
 
+/** Draft + raise sortOrder for obsolete lesson-seed modules so learners only see BTG. */
+async function demoteObsoleteLessonSeedModules(claimedIds: Set<number>): Promise<number> {
+  const allModules = (await db.listModules(false)) as ModuleRow[];
+  let demoted = 0;
+  for (const mod of allModules) {
+    if (claimedIds.has(mod.id)) continue;
+    if (!isObsoleteLessonSeedTitle(mod.title)) continue;
+    // Already demoted — idempotent
+    if (mod.status === "draft" && (mod.sortOrder ?? 0) >= 100) continue;
+    const titleIdx = OBSOLETE_LESSON_SEED_MODULE_TITLES.findIndex(
+      (t) => t.toLowerCase() === mod.title.trim().toLowerCase()
+    );
+    const nextOrder = 101 + (titleIdx >= 0 ? titleIdx : demoted);
+    await db.updateModule(mod.id, {
+      status: "draft",
+      sortOrder: nextOrder,
+    });
+    demoted++;
+    console.log(
+      `[Seed] Demoted obsolete lesson-seed module ${mod.id} "${mod.title}" → draft (sortOrder ${nextOrder})`
+    );
+  }
+  if (demoted === 0) {
+    console.log("[Seed] No obsolete lesson-seed modules needed demotion");
+  }
+  return demoted;
+}
+
 export async function seedCoachingSteps() {
   const database = await getDb();
   if (!database) {
@@ -1116,9 +1146,12 @@ export async function seedCoachingSteps() {
       )
     `);
 
-    // Ensure the 6 Bridge-the-Gap modules exist (create/rename), then seed
-    // steps only onto modules that still have zero steps.
+    // Ensure the 6 Bridge-the-Gap modules exist (create/rename), demote obsolete
+    // lesson-seed duplicates out of the learner path, then seed steps only onto
+    // BTG modules that still have zero steps.
     const keyToModuleId = await ensureBridgeTheGapModules();
+    const claimedIds = new Set(keyToModuleId.values());
+    await demoteObsoleteLessonSeedModules(claimedIds);
     let totalSeeded = 0;
     let modulesTouched = 0;
 

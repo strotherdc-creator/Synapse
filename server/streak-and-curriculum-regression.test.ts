@@ -32,21 +32,40 @@ describe("Synapse curriculum completion badge", () => {
     const moduleDetail = source("client/src/pages/ModuleDetail.tsx");
     const moduleCoaching = source("client/src/pages/ModuleCoaching.tsx");
     const home = source("client/src/pages/Home.tsx");
+    const unlock = source("shared/curriculumUnlock.ts");
 
     expect(router).toContain("const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;");
     expect(router).toContain("const moduleComplete = steps.length > 0 ? coachingComplete : curriculumComplete;");
+    expect(router).toContain("unlocked: isModuleUnlockedAtIndex(ordered, index)");
+    expect(router).toContain("sortModulesForUnlock");
     expect(curriculum).toContain("const usesCoachingSteps = mod.stepCount > 0;");
-    expect(curriculum).toContain("{mod.moduleComplete && (");
+    expect(curriculum).toContain("const showComplete = unlocked && mod.moduleComplete");
     expect(curriculum).toContain("{completedItems}/{totalItems} {progressLabel}");
-    expect(curriculum).toContain("modules[index - 1]?.moduleComplete === true");
+    expect(curriculum).toContain("isModuleUnlockedAtIndex");
+    // Lock and Complete are mutually exclusive (no locked+Complete contradiction)
+    expect(curriculum).toContain("!unlocked ? (");
+    expect(curriculum).toContain(") : showComplete ? (");
 
     // Detail / coaching / home must use the same unlock/complete metric as Curriculum
-    expect(moduleDetail).toContain("if (!prevModule?.moduleComplete)");
-    expect(moduleCoaching).toContain("if (!prevModule?.moduleComplete)");
+    expect(moduleDetail).toContain("getModuleUnlockState(allModules, moduleId)");
+    expect(moduleCoaching).toContain("getModuleUnlockState(allModules, moduleId)");
     expect(home).toContain("modules?.filter((m) => m.moduleComplete)");
-    expect(home).toContain("{mod.moduleComplete && (");
+    expect(home).toContain("const showComplete = unlocked && mod.moduleComplete");
     expect(moduleDetail).not.toContain("if (!prevModule?.coachingComplete)");
     expect(moduleCoaching).not.toContain("if (!prevModule?.coachingComplete)");
+    expect(unlock).toContain("every((m) => m.moduleComplete === true)");
+  });
+
+  it("demotes obsolete lesson-seed modules out of the learner Curriculum path", () => {
+    const seedCoaching = source("server/seed-coaching.ts");
+    const seedLessons = source("server/seed.ts");
+    const unlock = source("shared/curriculumUnlock.ts");
+    expect(seedCoaching).toContain("demoteObsoleteLessonSeedModules");
+    expect(seedCoaching).toContain("isObsoleteLessonSeedTitle");
+    expect(seedCoaching).toContain('status: "draft"');
+    expect(unlock).toContain("Messaging & Positioning");
+    expect(seedLessons).toContain('status: "draft" as const');
+    expect(seedLessons).toContain("sortOrder: 101 + i");
   });
 
   it("seeds coaching steps by title/sortOrder instead of hardcoded module IDs", () => {
@@ -65,6 +84,8 @@ describe("Synapse curriculum completion badge", () => {
     expect(cleanupDoc).toContain("one-time");
     expect(cleanupDoc).toContain("module_steps");
     expect(cleanupDoc).toContain("Referral Identity");
+    expect(cleanupDoc).toContain("Demotes");
+    expect(cleanupDoc).toContain("demotes the five known lesson-seed titles");
   });
 
   it("cascades coaching rows when a module is deleted", () => {
