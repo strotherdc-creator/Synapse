@@ -22,7 +22,6 @@ import Landing from "./pages/Landing";
 import WWLD from "./pages/WWLD";
 import TodaysGrowthPlan from "./pages/TodaysGrowthPlan";
 import WeeklyReview from "./pages/WeeklyReview";
-import CommunicationCoach from "./pages/CommunicationCoach";
 import WwldCoach from "./pages/WwldCoach";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 import ProfileCompletion from "./components/ProfileCompletion";
@@ -171,7 +170,6 @@ function AuthenticatedRouter() {
         <Route path="/wwld" component={WWLD} />
         <Route path="/today" component={TodaysGrowthPlan} />
         <Route path="/review" component={WeeklyReview} />
-        <Route path="/communication" component={CommunicationCoach} />
         <Route path="/wwld-coach" component={WwldCoach} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

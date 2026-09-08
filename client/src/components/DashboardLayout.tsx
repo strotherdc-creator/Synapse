@@ -36,7 +36,6 @@ import {
   Sparkles,
   User,
   Target,
-  Zap,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -50,7 +49,6 @@ const menuItems = [
   { icon: BookOpen, label: "Curriculum", path: "/curriculum" },
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },
-  { icon: Zap, label: "Communication Coach", path: "/communication", badge: "BETA" },
   { icon: Target, label: "WWLD Coach", path: "/wwld-coach", badge: "BETA" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
