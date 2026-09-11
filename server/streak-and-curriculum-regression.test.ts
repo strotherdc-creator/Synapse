@@ -108,6 +108,27 @@ describe("Synapse curriculum completion badge", () => {
     expect(cleanupDoc).toContain("demotes the five known lesson-seed titles");
   });
 
+
+  it("credits demoted draft completions onto published BTG without deleting draft rows", () => {
+    const unlock = source("shared/curriculumUnlock.ts");
+    const credit = source("server/legacyCurriculumCredit.ts");
+    const router = source("server/routers.ts");
+    const docs = source("docs/legacy-curriculum-credit.md");
+    expect(unlock).toContain("LEGACY_TO_BTG_CREDIT_MAP");
+    expect(unlock).toContain("planModuleCredit");
+    expect(unlock).toContain("Messaging & Positioning");
+    expect(unlock).toContain("Local Positioning");
+    expect(credit).toContain("loadLegacyCreditIndex");
+    expect(credit).toContain("SYNAPSE_LEGACY_CREDIT_APPLY");
+    expect(credit).not.toMatch(/\.delete\(/);
+    expect(router).toContain("loadLegacyCreditIndex");
+    expect(router).toContain("previewLegacyCurriculumCredit");
+    expect(router).toContain("mergeModuleCoachingProgress");
+    expect(docs).toContain("HOLD");
+    expect(docs).toContain("1→6");
+    expect(docs).toContain("Marcus");
+  });
+
   it("cascades coaching rows when a module is deleted", () => {
     const dbSource = source("server/db.ts");
     expect(dbSource).toContain("await db.delete(moduleSteps).where(eq(moduleSteps.moduleId, id));");

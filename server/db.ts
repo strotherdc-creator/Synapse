@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lte, sql, count } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
@@ -522,6 +522,30 @@ export async function getAllUserStepProgress(userId: number) {
   if (!db) return [];
   return db.select().from(userStepProgress).where(eq(userStepProgress.userId, userId));
 }
+
+export async function listAllModuleSteps() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(moduleSteps).orderBy(asc(moduleSteps.moduleId), asc(moduleSteps.stepNumber));
+}
+
+export async function listCompletedStepProgress() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userStepProgress).where(eq(userStepProgress.completed, true));
+}
+
+export async function listUsersByIds(ids: number[]) {
+  const db = await getDb();
+  if (!db) return [];
+  if (ids.length === 0) return [];
+  return db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+  }).from(users).where(inArray(users.id, ids));
+}
+
 
 export async function completeStep(userId: number, moduleId: number, stepId: number, finalAnswer: string) {
   const db = await getDb();

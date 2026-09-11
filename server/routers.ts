@@ -11,19 +11,45 @@ import {
   isModuleUnlockedAtIndex,
   sortModulesForUnlock,
 } from "../shared/curriculumUnlock";
+import {
+  creditedAnswerForStep,
+  loadLegacyCreditIndex,
+  mergeModuleCoachingProgress,
+  previewLegacyCurriculumCredit as buildLegacyCreditPreview,
+  applyLegacyCurriculumCredit as persistLegacyCurriculumCredit,
+  stepSatisfiedByLegacy,
+  type LegacyCreditIndex,
+} from "./legacyCurriculumCredit";
 
 const MAX_ANSWER_LENGTH = 8000;
 const GENERIC_LLM_ERROR = "Unable to generate a response right now. Please try again.";
 
-async function computeModuleComplete(userId: number, moduleId: number): Promise<boolean> {
+function creditedStepNumbersForList(
+  credit: LegacyCreditIndex,
+  moduleId: number,
+  steps: Array<{ id: number; stepNumber: number }>,
+  stepProgress: Array<{ stepId: number; completed: boolean }>
+): boolean {
+  const merged = mergeModuleCoachingProgress(credit, moduleId, steps, stepProgress);
+  const actual = stepProgress.filter((p) => p.completed).length;
+  return merged.completedStepCount > actual;
+}
+
+
+async function computeModuleComplete(
+  userId: number,
+  moduleId: number,
+  credit?: LegacyCreditIndex
+): Promise<boolean> {
   const moduleLessons = await db.listLessons(moduleId, true);
   const progress = await db.getUserModuleProgress(userId, moduleId);
   const completedCount = progress.filter((p) => p.completed).length;
   const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;
   const steps = await db.getModuleSteps(moduleId);
   const stepProgress = await db.getUserStepProgress(userId, moduleId);
-  const coachingCompletedSteps = stepProgress.filter((p) => p.completed).length;
-  const coachingComplete = coachingCompletedSteps >= steps.length && steps.length > 0;
+  const creditIndex = credit ?? await loadLegacyCreditIndex(userId);
+  const merged = mergeModuleCoachingProgress(creditIndex, moduleId, steps, stepProgress);
+  const coachingComplete = merged.moduleComplete;
   return steps.length > 0 ? coachingComplete : curriculumComplete;
 }
 
@@ -36,8 +62,9 @@ async function assertModuleUnlocked(userId: number, moduleId: number, isAdmin: b
   if (idx < 0) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Module not found" });
   }
+  const credit = await loadLegacyCreditIndex(userId);
   for (let i = 0; i < idx; i++) {
-    const prevComplete = await computeModuleComplete(userId, sorted[i].id);
+    const prevComplete = await computeModuleComplete(userId, sorted[i].id, credit);
     if (!prevComplete) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -60,9 +87,12 @@ async function assertPreviousStepsComplete(
     throw new TRPCError({ code: "NOT_FOUND", message: "Step not found" });
   }
   const progress = await db.getUserStepProgress(userId, moduleId);
+  const credit = await loadLegacyCreditIndex(userId);
   for (const step of steps) {
     if (step.stepNumber >= target.stepNumber) continue;
-    const done = progress.some((p) => p.stepId === step.id && p.completed);
+    const done =
+      progress.some((p) => p.stepId === step.id && p.completed) ||
+      stepSatisfiedByLegacy(credit, moduleId, step.stepNumber);
     if (!done) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -150,6 +180,7 @@ const modulesRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const allModules = await db.listModules(true);
     const progress = await db.getUserProgress(ctx.user.id);
+    const credit = await loadLegacyCreditIndex(ctx.user.id);
 
     const modulesWithProgress = await Promise.all(
       allModules.map(async (mod) => {
@@ -157,11 +188,12 @@ const modulesRouter = router({
         const moduleProgress = progress.filter((p) => p.moduleId === mod.id);
         const completedCount = moduleProgress.filter((p) => p.completed).length;
         const curriculumComplete = moduleLessons.length > 0 && completedCount >= moduleLessons.length;
-        // Check coaching completion for this module
+        // Check coaching completion for this module (includes legacy draft credit)
         const steps = await db.getModuleSteps(mod.id);
         const stepProgress = await db.getUserStepProgress(ctx.user.id, mod.id);
-        const coachingCompletedSteps = stepProgress.filter((p) => p.completed).length;
-        const coachingComplete = coachingCompletedSteps >= steps.length && steps.length > 0;
+        const merged = mergeModuleCoachingProgress(credit, mod.id, steps, stepProgress);
+        const coachingCompletedSteps = merged.completedStepCount;
+        const coachingComplete = merged.moduleComplete;
         const moduleComplete = steps.length > 0 ? coachingComplete : curriculumComplete;
         return {
           ...mod,
@@ -172,6 +204,7 @@ const modulesRouter = router({
           moduleComplete,
           stepCount: steps.length,
           completedStepCount: coachingCompletedSteps,
+          creditedFromLegacy: creditedStepNumbersForList(credit, mod.id, steps, stepProgress),
         };
       })
     );
@@ -711,12 +744,18 @@ const coachingRouter = router({
       await assertModuleUnlocked(ctx.user.id, input.moduleId, ctx.user.role === "admin");
       const steps = await db.getModuleSteps(input.moduleId);
       const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
+      const credit = await loadLegacyCreditIndex(ctx.user.id);
       return steps.map((step) => {
         const stepProgress = progress.find((p) => p.stepId === step.id);
+        const credited = stepSatisfiedByLegacy(credit, input.moduleId, step.stepNumber);
+        const completed = stepProgress?.completed || credited;
         return {
           ...step,
-          completed: stepProgress?.completed ?? false,
-          finalAnswer: stepProgress?.finalAnswer ?? null,
+          completed,
+          finalAnswer:
+            stepProgress?.finalAnswer ??
+            (credited ? creditedAnswerForStep(credit, input.moduleId, step.stepNumber) : null),
+          creditedFromLegacy: Boolean(credited && !stepProgress?.completed),
         };
       });
     }),
@@ -887,11 +926,13 @@ const coachingRouter = router({
       await assertModuleUnlocked(ctx.user.id, input.moduleId, ctx.user.role === "admin");
       const steps = await db.getModuleSteps(input.moduleId);
       const progress = await db.getUserStepProgress(ctx.user.id, input.moduleId);
-      const completedSteps = progress.filter((p) => p.completed).length;
+      const credit = await loadLegacyCreditIndex(ctx.user.id);
+      const merged = mergeModuleCoachingProgress(credit, input.moduleId, steps, progress);
       return {
         totalSteps: steps.length,
-        completedSteps,
-        isComplete: completedSteps >= steps.length && steps.length > 0,
+        completedSteps: merged.completedStepCount,
+        isComplete: merged.moduleComplete,
+        creditedFromLegacy: merged.completedStepCount > progress.filter((p) => p.completed).length,
       };
     }),
 });
@@ -903,6 +944,32 @@ const adminStatsRouter = router({
     const stats = await db.getAdminStats();
     return stats;
   }),
+
+  /** Dry-run counts for draft→BTG credit. Never writes. */
+  previewLegacyCurriculumCredit: adminProcedure.query(async () => {
+    return buildLegacyCreditPreview();
+  }),
+
+  /**
+   * Persist credited BTG step rows. Defaults to dry-run.
+   * Writes only when dryRun=false, confirm=true, and SYNAPSE_LEGACY_CREDIT_APPLY=1.
+   * Never deletes draft progress.
+   */
+  applyLegacyCurriculumCredit: adminProcedure
+    .input(
+      z.object({
+        dryRun: z.boolean().optional(),
+        confirm: z.boolean().optional(),
+        userId: z.number().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return persistLegacyCurriculumCredit({
+        dryRun: input.dryRun,
+        confirm: input.confirm,
+        userId: input.userId,
+      });
+    }),
 });
 
 // ─── WWLD Router ────────────────────────────────────────────────────
