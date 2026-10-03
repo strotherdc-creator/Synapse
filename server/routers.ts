@@ -1277,26 +1277,22 @@ const goalsRouter = router({
         yearlyOfficeVisits: goalNumber(MAX_GOAL_VISITS),
         yearlyNewPatients: goalNumber(MAX_GOAL_NEW_PATIENTS),
         weeksWorked: z.number().int().min(MIN_WEEKS_WORKED).max(MAX_WEEKS_WORKED),
+        // Optional clinic schedule, saved in the same transaction (users.work_days only).
+        workDays: z.string().max(100).regex(WORK_DAYS_PATTERN).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
+      if (input.workDays !== undefined && !isValidWorkDays(input.workDays)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Set each day of the week once: Full day, Half day, or Closed." });
+      }
       return goals.saveGoals(ctx.user.id, {
         goalYear: input.goalYear,
         yearlyRevenue: input.yearlyRevenue,
         yearlyOfficeVisits: input.yearlyOfficeVisits,
         yearlyNewPatients: input.yearlyNewPatients,
         weeksWorked: input.weeksWorked,
+        ...(input.workDays !== undefined ? { workDays: input.workDays } : {}),
       });
-    }),
-  /** Same schedule as Profile → Practice Schedule (users.work_days); only that column changes. */
-  saveClinicDays: protectedProcedure
-    .input(z.object({ workDays: z.string().max(100).regex(WORK_DAYS_PATTERN) }))
-    .mutation(async ({ ctx, input }) => {
-      if (!isValidWorkDays(input.workDays)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Set each day of the week once: Full day, Half day, or Closed." });
-      }
-      await goals.saveClinicDays(ctx.user.id, input.workDays);
-      return { workDays: input.workDays };
     }),
   getProgress: protectedProcedure
     .input(z.object({ goalYear: goalYearSchema }))

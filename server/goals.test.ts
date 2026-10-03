@@ -7,7 +7,6 @@ import path from "node:path";
 vi.mock("./goals/goals", () => ({
   getGoals: vi.fn(async () => null),
   saveGoals: vi.fn(async (_userId: number, input: Record<string, unknown>) => ({ ...input, updatedAt: null })),
-  saveClinicDays: vi.fn(async () => undefined),
   getYearProgress: vi.fn(async () => ({ asOf: "2026-10-03", officeVisits: 0, newPatients: 0, hasData: false })),
 }));
 
@@ -18,6 +17,9 @@ import { GOALS_MIGRATIONS } from "./goals/migrations";
 import {
   DEFAULT_WORK_DAYS,
   calculateGoals,
+  clampGoalYear,
+  fullDayAim,
+  progressThroughDate,
   formatCount,
   formatMoney,
   formatMoneyCents,
@@ -121,14 +123,39 @@ describe("Goals math", () => {
     expect(parseGoalInput("-5")).toBeNull();
   });
 
-  it("this-year pace uses the share of the year that has passed", () => {
-    expect(yearElapsedFraction(2026, "2026-01-01")).toBeCloseTo(1 / 365, 10);
-    expect(yearElapsedFraction(2026, "2026-12-31")).toBe(1);
+  it("this-year pace counts completed days only (today is not counted in full)", () => {
+    expect(yearElapsedFraction(2026, "2026-01-01")).toBe(0);
+    expect(yearElapsedFraction(2026, "2026-01-02")).toBeCloseTo(1 / 365, 10);
+    expect(yearElapsedFraction(2026, "2026-12-31")).toBeCloseTo(364 / 365, 10);
     expect(yearElapsedFraction(2027, "2026-10-03")).toBe(0);
     expect(yearElapsedFraction(2025, "2026-10-03")).toBe(1);
-    expect(yearElapsedFraction(2028, "2028-12-31")).toBe(1); // leap year
-    expect(paceTarget(3650, yearElapsedFraction(2026, "2026-01-10"))).toBeCloseTo(100, 6);
+    expect(yearElapsedFraction(2028, "2028-12-31")).toBeCloseTo(365 / 366, 10); // leap year
+    expect(paceTarget(3650, yearElapsedFraction(2026, "2026-01-11"))).toBeCloseTo(100, 6);
     expect(paceTarget(null, 0.5)).toBeNull();
+  });
+
+  it("actual totals cover the same completed days as the pace (through yesterday)", () => {
+    expect(progressThroughDate(2026, "2026-10-03")).toBe("2026-10-02");
+    expect(progressThroughDate(2026, "2026-03-01")).toBe("2026-02-28");
+    expect(progressThroughDate(2028, "2028-03-01")).toBe("2028-02-29");
+    expect(progressThroughDate(2026, "2026-01-01")).toBeNull();
+    expect(progressThroughDate(2027, "2026-10-03")).toBeNull();
+    expect(progressThroughDate(2025, "2026-10-03")).toBe("2025-12-31");
+  });
+
+  it("year picker is clamped to the range the server accepts", () => {
+    expect(clampGoalYear(2101)).toBe(2100);
+    expect(clampGoalYear(1999)).toBe(2000);
+    expect(clampGoalYear(2026)).toBe(2026);
+    expect(clampGoalYear(Number.NaN)).toBe(2000);
+  });
+
+  it("full-day aim rounds visits and new patients the same way (up to whole patients)", () => {
+    const r = calculateGoals({ yearlyRevenue: 600_000, yearlyOfficeVisits: 12_000, yearlyNewPatients: 400, weeksWorked: 48, schedule: parseClinicSchedule("mon:full,tue:full,wed:half,thu:full,fri:full,sat:off,sun:off") });
+    // 216 clinic days: 55.6 visits and 1.85 new patients per full day
+    expect(fullDayAim(r)).toEqual({ officeVisits: 56, newPatients: 2 });
+    const empty = calculateGoals({ yearlyRevenue: null, yearlyOfficeVisits: null, yearlyNewPatients: null, weeksWorked: 50, schedule: fiveFull });
+    expect(fullDayAim(empty)).toEqual({ officeVisits: null, newPatients: null });
   });
 });
 
@@ -163,10 +190,8 @@ describe("goals router auth and ownership", () => {
     const caller = appRouter.createCaller(ctxFor(null));
     await expect(caller.goals.get({ goalYear: 2026 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.goals.save(validSave)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.goals.saveClinicDays({ workDays: DEFAULT_WORK_DAYS })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.goals.getProgress({ goalYear: 2026 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(goalsData.saveGoals).not.toHaveBeenCalled();
-    expect(goalsData.saveClinicDays).not.toHaveBeenCalled();
   });
 
   it("save always writes the signed-in doctor's row, even if the request names another user", async () => {
@@ -178,15 +203,25 @@ describe("goals router auth and ownership", () => {
     expect(input).not.toHaveProperty("userId");
   });
 
-  it("get, getProgress and saveClinicDays are scoped to the signed-in doctor", async () => {
+  it("schedule and goals are saved in one request, scoped to the signed-in doctor", async () => {
+    const caller = appRouter.createCaller(ctxFor({ id: 7 }));
+    const workDays = "mon:full,tue:half,wed:off,thu:full,fri:full,sat:off,sun:off";
+    await caller.goals.save({ ...validSave, workDays, userId: 99 } as typeof validSave);
+    expect(goalsData.saveGoals).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(goalsData.saveGoals).mock.calls[0]).toEqual([7, { ...validSave, workDays }]);
+    // Without a schedule change, no workDays key is sent to the data layer
+    await caller.goals.save(validSave);
+    expect(vi.mocked(goalsData.saveGoals).mock.calls[1][1]).not.toHaveProperty("workDays");
+    expect((appRouter as unknown as { _def: { record: { goals: Record<string, unknown> } } })._def.record.goals).not.toHaveProperty("saveClinicDays");
+  });
+
+  it("get and getProgress are scoped to the signed-in doctor", async () => {
     const caller = appRouter.createCaller(ctxFor({ id: 7, workDays: "mon:full,tue:half,wed:off,thu:full,fri:full,sat:off,sun:off" }));
     const got = await caller.goals.get({ goalYear: 2026, userId: 99 } as { goalYear: number });
     expect(vi.mocked(goalsData.getGoals).mock.calls[0][0]).toBe(7);
     expect(got).toEqual({ goals: null, workDays: "mon:full,tue:half,wed:off,thu:full,fri:full,sat:off,sun:off" });
     await caller.goals.getProgress({ goalYear: 2026, userId: 99 } as { goalYear: number });
     expect(vi.mocked(goalsData.getYearProgress).mock.calls[0][0]).toBe(7);
-    await caller.goals.saveClinicDays({ workDays: DEFAULT_WORK_DAYS, userId: 99 } as { workDays: string });
-    expect(vi.mocked(goalsData.saveClinicDays).mock.calls[0]).toEqual([7, DEFAULT_WORK_DAYS]);
   });
 
   it("new doctors start with no goals and the default schedule (nothing invented)", async () => {
@@ -202,12 +237,12 @@ describe("goals router auth and ownership", () => {
     await expect(caller.goals.save({ ...validSave, weeksWorked: 0 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(caller.goals.save({ ...validSave, weeksWorked: 53 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(caller.goals.save({ ...validSave, goalYear: 1999 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(caller.goals.saveClinicDays({ workDays: "mon:full; DROP TABLE users" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.goals.save({ ...validSave, goalYear: 2101 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.goals.save({ ...validSave, workDays: "mon:full; DROP TABLE users" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(
-      caller.goals.saveClinicDays({ workDays: "mon:full,mon:full,wed:full,thu:full,fri:full,sat:off,sun:off" })
+      caller.goals.save({ ...validSave, workDays: "mon:full,mon:full,wed:full,thu:full,fri:full,sat:off,sun:off" })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(goalsData.saveGoals).not.toHaveBeenCalled();
-    expect(goalsData.saveClinicDays).not.toHaveBeenCalled();
   });
 
   it("empty goals are allowed (save some now, fill in the rest later)", async () => {
@@ -228,6 +263,33 @@ describe("Goals migrations and wiring", () => {
     }
     expect(GOALS_MIGRATIONS.join("\n")).toContain("UNIQUE (user_id, goal_year)");
     expect(source("server/db.ts")).toContain("...GOALS_MIGRATIONS");
+  });
+
+  it("startup migrations hold an advisory lock and always release it", () => {
+    const db = source("server/db.ts");
+    expect(db).toContain("SELECT pg_advisory_lock($1)");
+    expect(db).toContain("SELECT pg_advisory_unlock($1)");
+    expect(db.indexOf("pg_advisory_lock($1)")).toBeLessThan(db.indexOf("for (const sql of migrations)"));
+  });
+
+  it("Profile describes half days the way the math counts them", () => {
+    const profile = source("client/src/pages/Profile.tsx");
+    expect(profile).not.toContain("weighted 2x");
+    expect(profile).toContain("a half day counts as half of a full day");
+  });
+
+  it("weekly backup includes doctor_goals", () => {
+    const backup = source("server/wwld-backup.ts");
+    expect(backup).toContain("fetchDoctorGoalsBackupRows(db)");
+    expect(backup).toContain("doctor-goals-backup-");
+  });
+
+  it("Goals page clamps the year arrows and saves in one request", () => {
+    const page = source("client/src/pages/Goals.tsx");
+    expect(page).toContain("disabled={!canGoBack}");
+    expect(page).toContain("disabled={!canGoForward}");
+    expect(page).not.toContain("saveClinicDays");
+    expect(page).toContain("fullDayAim(results)");
   });
 
   it("Goals is in the sidebar and routed at /goals", () => {

@@ -186,6 +186,23 @@ export function wholeNeeded(value: number | null): number | null {
   return Math.ceil(Math.round(value * 1000) / 1000);
 }
 
+/** Keep the year picker inside the range the server accepts. */
+export function clampGoalYear(year: number): number {
+  if (!Number.isFinite(year)) return MIN_GOAL_YEAR;
+  return Math.min(MAX_GOAL_YEAR, Math.max(MIN_GOAL_YEAR, Math.trunc(year)));
+}
+
+/**
+ * Whole numbers to aim for on one full day. Visits and new patients use the same rule
+ * (round UP: you can't see 0.3 of a patient, and rounding down would miss the goal).
+ */
+export function fullDayAim(results: Pick<GoalResults, "officeVisits" | "newPatients">) {
+  return {
+    officeVisits: wholeNeeded(results.officeVisits.fullDay),
+    newPatients: wholeNeeded(results.newPatients.fullDay),
+  };
+}
+
 /** Parse a form field ("12,500" / "$12,500" / "") into a non-negative whole number or null. */
 export function parseGoalInput(raw: string): number | null {
   const cleaned = raw.replace(/[$,\s]/g, "");
@@ -202,8 +219,9 @@ function isLeap(year: number) {
 }
 
 /**
- * Share of the goal year that has passed by `todayKey` (YYYY-MM-DD), counting today.
- * 0 for a future year, 1 for a past year.
+ * Share of the goal year fully completed before `todayKey` (YYYY-MM-DD). Today is NOT counted,
+ * because today's numbers usually aren't all logged yet; the pace runs through yesterday.
+ * 0 for a future year (and on Jan 1), 1 for a past year.
  */
 export function yearElapsedFraction(year: number, todayKey: string): number {
   const todayYear = Number(todayKey.slice(0, 4));
@@ -211,8 +229,22 @@ export function yearElapsedFraction(year: number, todayKey: string): number {
   if (year < todayYear) return 1;
   const start = Date.UTC(year, 0, 1);
   const today = Date.UTC(year, Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10)));
-  const dayOfYear = Math.floor((today - start) / 86_400_000) + 1;
-  return Math.min(1, Math.max(0, dayOfYear / (isLeap(year) ? 366 : 365)));
+  const completedDays = Math.floor((today - start) / 86_400_000);
+  return Math.min(1, Math.max(0, completedDays / (isLeap(year) ? 366 : 365)));
+}
+
+/**
+ * Last day counted in "this year so far" (YYYY-MM-DD): Dec 31 for a past year, yesterday for the
+ * current year, null when no full day has passed yet (future year or Jan 1).
+ */
+export function progressThroughDate(year: number, todayKey: string): string | null {
+  const todayYear = Number(todayKey.slice(0, 4));
+  if (year > todayYear) return null;
+  if (year < todayYear) return `${year}-12-31`;
+  const d = new Date(Date.UTC(year, Number(todayKey.slice(5, 7)) - 1, Number(todayKey.slice(8, 10))));
+  d.setUTCDate(d.getUTCDate() - 1);
+  if (d.getUTCFullYear() !== year) return null;
+  return d.toISOString().slice(0, 10);
 }
 
 /** Where an even pace through the year says you should be by now. */

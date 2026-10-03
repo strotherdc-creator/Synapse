@@ -110,6 +110,9 @@ export async function getDb() {
   return _db;
 }
 
+/** Session advisory-lock key held while startup migrations run (arbitrary constant, "SYNMIGR"). */
+export const MIGRATIONS_LOCK_KEY = 73_896_464;
+
 /**
  * Run idempotent schema migrations — safe to call on every startup.
  * Every statement is attempted; if any fail, this throws (after logging each failure) so
@@ -131,7 +134,14 @@ export async function runMigrations(additionalMigrations: string[] = []) {
   // One dedicated connection with a lock timeout, so a migration stuck behind a long-running
   // query fails fast (and startup exits) instead of hanging the deploy forever.
   const client = await _pool.connect();
+  let locked = false;
   try {
+    // Serialize migration runs across processes (overlapping deploys, parallel test files):
+    // concurrent CREATE TABLE IF NOT EXISTS can otherwise collide on the catalog.
+    // lock_timeout also bounds this wait, so a stuck holder fails startup instead of hanging it.
+    await client.query(`SET lock_timeout = '60s'`);
+    await client.query(`SELECT pg_advisory_lock($1)`, [MIGRATIONS_LOCK_KEY]);
+    locked = true;
     await client.query(`SET lock_timeout = '15s'`);
     for (const sql of migrations) {
       try {
@@ -143,6 +153,7 @@ export async function runMigrations(additionalMigrations: string[] = []) {
       }
     }
   } finally {
+    if (locked) await client.query(`SELECT pg_advisory_unlock($1)`, [MIGRATIONS_LOCK_KEY]).catch(() => undefined);
     // Don't leak the migration-only lock timeout to app queries that reuse this connection.
     await client.query(`RESET lock_timeout`).catch(() => undefined);
     client.release();

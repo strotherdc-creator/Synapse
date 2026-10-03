@@ -172,7 +172,7 @@ export default function Profile() {
                 );
               })}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Tap to cycle: Full Day → Half Day → Off. Days off are excluded from trends. Half days are weighted 2x.</p>
+            <p className="text-xs text-muted-foreground mt-2">Tap to cycle: Full Day → Half Day → Off. Days off are left out of your trends. On the Goals page, a half day counts as half of a full day.</p>
           </div>
 
           <Button onClick={handleSavePractice} disabled={updatePracticeMutation.isPending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" size="lg">
