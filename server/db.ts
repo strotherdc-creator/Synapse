@@ -110,6 +110,37 @@ export async function getDb() {
   return _db;
 }
 
+/** Postgres SQLSTATE for "lock_timeout expired" (lock_not_available). */
+export const LOCK_NOT_AVAILABLE = "55P03";
+
+/**
+ * Run each statement in order on one connection, collecting failures (all statements are
+ * attempted) EXCEPT on a lock timeout: then stop, because something is holding a table lock and
+ * the remaining statements would very likely wait out their own lock_timeout too.
+ */
+export async function runMigrationStatements(
+  client: { query: (sql: string) => Promise<unknown> },
+  migrations: string[],
+): Promise<string[]> {
+  const failures: string[] = [];
+  for (let i = 0; i < migrations.length; i++) {
+    const sql = migrations[i];
+    try {
+      await client.query(sql);
+    } catch (e: any) {
+      const head = sql.replace(/\s+/g, " ").substring(0, 80);
+      console.error(`[Migrations] Failed: ${head}...`, e?.message);
+      failures.push(`${head}... -> ${e?.message}`);
+      if (e?.code === LOCK_NOT_AVAILABLE) {
+        const skipped = migrations.length - i - 1;
+        if (skipped > 0) failures.push(`stopped after lock timeout; ${skipped} remaining migration(s) not attempted`);
+        break;
+      }
+    }
+  }
+  return failures;
+}
+
 /** Session advisory-lock key held while startup migrations run (arbitrary constant, "SYNMIGR"). */
 export const MIGRATIONS_LOCK_KEY = 73_896_464;
 
@@ -143,15 +174,7 @@ export async function runMigrations(additionalMigrations: string[] = []) {
     await client.query(`SELECT pg_advisory_lock($1)`, [MIGRATIONS_LOCK_KEY]);
     locked = true;
     await client.query(`SET lock_timeout = '15s'`);
-    for (const sql of migrations) {
-      try {
-        await client.query(sql);
-      } catch (e: any) {
-        const head = sql.replace(/\s+/g, " ").substring(0, 80);
-        console.error(`[Migrations] Failed: ${head}...`, e.message);
-        failures.push(`${head}... -> ${e.message}`);
-      }
-    }
+    failures.push(...(await runMigrationStatements(client, migrations)));
   } finally {
     if (locked) await client.query(`SELECT pg_advisory_unlock($1)`, [MIGRATIONS_LOCK_KEY]).catch(() => undefined);
     // Don't leak the migration-only lock timeout to app queries that reuse this connection.

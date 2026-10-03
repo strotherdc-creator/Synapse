@@ -247,6 +247,17 @@ export function progressThroughDate(year: number, todayKey: string): string | nu
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * "How much of the year is done" label for the pace section. Never shows 0% once a day has
+ * passed (Jan 2 is 1/365, which would round to 0%), and never 100% until the year is over.
+ */
+export function formatYearDone(fraction: number): string {
+  if (!Number.isFinite(fraction) || fraction <= 0) return "0%";
+  if (fraction >= 1) return "100%";
+  if (fraction < 0.01) return "under 1%";
+  return `${Math.min(99, Math.round(fraction * 100))}%`;
+}
+
 /** Where an even pace through the year says you should be by now. */
 export function paceTarget(yearly: number | null, fraction: number): number | null {
   if (yearly === null || !Number.isFinite(yearly)) return null;
