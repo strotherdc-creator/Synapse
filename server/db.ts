@@ -20,6 +20,8 @@ import {
   lyleServedLog,
 } from "../shared/schema";
 import { ENV } from "./_core/env";
+import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
+import { BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
 export function getUserAnswersTable() { return userAnswers; }
@@ -114,6 +116,8 @@ export async function runMigrations(additionalMigrations: string[] = []) {
   const migrations: string[] = [
     // Add recall column (Aug 2026)
     `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
+    // Log Stats settings, custom stats, and tracked-stat provenance (Oct 2026, additive only)
+    ...WWLD_STATS_MIGRATIONS,
     ...additionalMigrations,
   ];
   for (const sql of migrations) {
@@ -719,19 +723,30 @@ export interface WwldSessionInput {
   userId: number;
   sessionDate: string;
   sessionType: WwldSessionType;
-  officeVisits: number;
-  newPatients: number;
-  recall: number;
-  testResults: number;
-  progressExams: number;
-  performanceReviews: number;
-  carePlansSigned: number;
+  // Built-in stats are optional: a doctor only submits the stats they track.
+  // Omitted stats are never overwritten on an existing row.
+  officeVisits?: number;
+  newPatients?: number;
+  recall?: number;
+  testResults?: number;
+  progressExams?: number;
+  performanceReviews?: number;
+  carePlansSigned?: number;
   notes?: string;
+}
+
+/** Built-in stat keys present in a log submission. */
+export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | undefined>>): BuiltinStatKey[] {
+  return BUILTIN_STAT_KEYS.filter((key) => typeof input[key] === "number");
 }
 
 export async function upsertWwldSession(input: WwldSessionInput) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  const submitted = submittedBuiltinStats(input);
+  const submittedValues: Partial<Record<BuiltinStatKey, number>> = {};
+  for (const key of submitted) submittedValues[key] = input[key] as number;
 
   const existing = await db
     .select()
@@ -746,20 +761,16 @@ export async function upsertWwldSession(input: WwldSessionInput) {
     .limit(1);
 
   if (existing.length > 0) {
+    const trackedStats = mergeTrackedStats(existing[0].trackedStats, submitted);
     await db
       .update(wwldSessions)
       .set({
-        officeVisits: input.officeVisits,
-        newPatients: input.newPatients,
-        recall: input.recall,
-        testResults: input.testResults,
-        progressExams: input.progressExams,
-        performanceReviews: input.performanceReviews,
-        carePlansSigned: input.carePlansSigned,
+        ...submittedValues,
+        trackedStats,
         notes: input.notes ?? null,
       })
       .where(eq(wwldSessions.id, existing[0].id));
-    return { ...existing[0], ...input };
+    return { ...existing[0], ...submittedValues, trackedStats, notes: input.notes ?? null };
   } else {
     const [inserted] = await db
       .insert(wwldSessions)
@@ -767,13 +778,10 @@ export async function upsertWwldSession(input: WwldSessionInput) {
         userId: input.userId,
         sessionDate: input.sessionDate,
         sessionType: input.sessionType,
-        officeVisits: input.officeVisits,
-        newPatients: input.newPatients,
-        recall: input.recall,
-        testResults: input.testResults,
-        progressExams: input.progressExams,
-        performanceReviews: input.performanceReviews,
-        carePlansSigned: input.carePlansSigned,
+        // Untracked stats fall back to the column default (0) but are NOT listed in
+        // tracked_stats, so history never presents them as logged numbers.
+        ...submittedValues,
+        trackedStats: serializeStatKeyList(submitted),
         notes: input.notes ?? null,
       })
       .returning();

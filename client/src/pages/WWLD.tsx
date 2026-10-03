@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,7 +34,10 @@ import {
   Activity,
   Lightbulb,
   AlertCircle,
+  CalendarDays,
+  Settings2,
 } from "lucide-react";
+import { BUILTIN_STAT_KEYS } from "@shared/wwldStats";
 import {
   ResponsiveContainer,
   BarChart,
@@ -261,6 +264,9 @@ export default function WWLD() {
   const { data: todayData, isLoading: todayLoading } = trpc.wwld.getToday.useQuery({ date: today });
   const { data: todayStatus } = trpc.wwld.getTodayStatus.useQuery({ date: today });
   const analyticsQuery = trpc.wwld.getAnalytics.useQuery();
+  const statSettingsQuery = trpc.wwld.getStatSettings.useQuery(undefined, { staleTime: 60_000 });
+  // Stats the doctor chose to track (defaults to all built-in stats).
+  const enabledStats = new Set<string>(statSettingsQuery.data?.enabledBuiltinStats ?? BUILTIN_STAT_KEYS);
 
   // Always fetch all period ranges so data is ready instantly when switching tabs
   // and so invalidation after backlog saves refreshes everything regardless of active tab
@@ -328,6 +334,22 @@ export default function WWLD() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/wwld/history"
+              className="inline-flex items-center gap-1 rounded-md border border-brand-gold/15 px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              aria-label="Stats history"
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+            </Link>
+            <Link
+              href="/wwld/settings"
+              className="inline-flex items-center gap-1 rounded-md border border-brand-gold/15 px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              aria-label="Log Stats settings"
+            >
+              <Settings2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
             <BacklogModal />
             <Button
               onClick={() => openLogForm(new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "end_of_day")}
@@ -373,13 +395,13 @@ export default function WWLD() {
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Office Visits" alias="OV" value={totals?.officeVisits ?? 0} highlight={true} />
-                <StatCard label="New Patients" alias="Day 1" value={totals?.newPatients ?? 0} />
-                <StatCard label="Recall" alias="RC" value={(totals as any)?.recall ?? 0} />
-                <StatCard label="Test Results" alias="Day 2" value={totals?.testResults ?? 0} />
-                <StatCard label="Progress Exams" alias="PE" value={totals?.progressExams ?? 0} />
-                <StatCard label="Performance Reviews" alias="PR" value={totals?.performanceReviews ?? 0} />
-                <StatCard label="Care Plans Signed" alias="CPS" value={totals?.carePlansSigned ?? 0} highlight={true} />
+                {enabledStats.has("officeVisits") && <StatCard label="Office Visits" alias="OV" value={totals?.officeVisits ?? 0} highlight={true} />}
+                {enabledStats.has("newPatients") && <StatCard label="New Patients" alias="Day 1" value={totals?.newPatients ?? 0} />}
+                {enabledStats.has("recall") && <StatCard label="Recall" alias="RC" value={(totals as any)?.recall ?? 0} />}
+                {enabledStats.has("testResults") && <StatCard label="Test Results" alias="Day 2" value={totals?.testResults ?? 0} />}
+                {enabledStats.has("progressExams") && <StatCard label="Progress Exams" alias="PE" value={totals?.progressExams ?? 0} />}
+                {enabledStats.has("performanceReviews") && <StatCard label="Performance Reviews" alias="PR" value={totals?.performanceReviews ?? 0} />}
+                {enabledStats.has("carePlansSigned") && <StatCard label="Care Plans Signed" alias="CPS" value={totals?.carePlansSigned ?? 0} highlight={true} />}
               </div>
             )}
 

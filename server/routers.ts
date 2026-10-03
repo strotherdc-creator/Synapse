@@ -6,6 +6,14 @@ import * as db from "./db";
 import { invokeLLM, type ChatMessage } from "./_core/llm";
 import { assertRateLimit } from "./_core/rateLimit";
 import { engagementRouter } from "./engagement/router";
+import * as statSettings from "./wwld/statSettings";
+import {
+  BUILTIN_STAT_KEYS,
+  CUSTOM_STAT_NAME_MAX,
+  CUSTOM_STAT_UNIT_MAX,
+  CUSTOM_STAT_VALUE_MAX,
+  MAX_CUSTOM_STATS,
+} from "../shared/wwldStats";
 import { buildComplianceFromProfile } from "./compliance/healthcare-content-rules";
 import {
   isModuleUnlockedAtIndex,
@@ -980,22 +988,93 @@ const wwldRouter = router({
       z.object({
         sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         sessionType: z.enum(["morning", "afternoon", "end_of_day"]),
-        officeVisits: z.number().int().min(0).max(9999),
-        newPatients: z.number().int().min(0).max(9999),
-        recall: z.number().int().min(0).max(9999),
-        testResults: z.number().int().min(0).max(9999),
-        progressExams: z.number().int().min(0).max(9999),
-        performanceReviews: z.number().int().min(0).max(9999),
-        carePlansSigned: z.number().int().min(0).max(9999),
+        // Built-in stats are optional so a doctor only submits the stats they track.
+        // Omitted stats are left untouched on an existing row (never zeroed out).
+        officeVisits: z.number().int().min(0).max(9999).optional(),
+        newPatients: z.number().int().min(0).max(9999).optional(),
+        recall: z.number().int().min(0).max(9999).optional(),
+        testResults: z.number().int().min(0).max(9999).optional(),
+        progressExams: z.number().int().min(0).max(9999).optional(),
+        performanceReviews: z.number().int().min(0).max(9999).optional(),
+        carePlansSigned: z.number().int().min(0).max(9999).optional(),
+        customStats: z
+          .array(
+            z.object({
+              customStatId: z.number().int().positive(),
+              value: z.number().int().min(0).max(CUSTOM_STAT_VALUE_MAX),
+            })
+          )
+          .max(MAX_CUSTOM_STATS)
+          .optional(),
         notes: z.string().max(500).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const session = await db.upsertWwldSession({
-        userId: ctx.user.id,
-        ...input,
-      });
-      return { success: true, session };
+      const { customStats, ...sessionInput } = input;
+      try {
+        // Validate custom stat ownership before writing anything.
+        if (customStats && customStats.length > 0) {
+          await statSettings.assertActiveCustomStats(ctx.user.id, customStats.map((c) => c.customStatId));
+        }
+        const session = await db.upsertWwldSession({
+          userId: ctx.user.id,
+          ...sessionInput,
+        });
+        if (customStats && customStats.length > 0) {
+          await statSettings.upsertCustomStatValues(ctx.user.id, input.sessionDate, input.sessionType, customStats);
+        }
+        return { success: true, session };
+      } catch (error) {
+        if (error instanceof statSettings.StatSettingsError) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+        }
+        throw error;
+      }
+    }),
+
+  /** The doctor's Log Stats settings (defaults: every built-in stat shown, no custom stats). */
+  getStatSettings: protectedProcedure.query(async ({ ctx }) => {
+    return statSettings.getStatSettings(ctx.user.id);
+  }),
+
+  saveStatSettings: protectedProcedure
+    .input(
+      z.object({
+        enabledBuiltinStats: z.array(z.enum(BUILTIN_STAT_KEYS as [string, ...string[]])).max(BUILTIN_STAT_KEYS.length),
+        customStats: z
+          .array(
+            z.object({
+              id: z.number().int().positive().optional(),
+              name: z.string().max(CUSTOM_STAT_NAME_MAX),
+              unit: z.string().max(CUSTOM_STAT_UNIT_MAX).nullable().optional(),
+            })
+          )
+          .max(MAX_CUSTOM_STATS),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await statSettings.saveStatSettings(ctx.user.id, input);
+      } catch (error) {
+        if (error instanceof statSettings.StatSettingsError) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+        }
+        throw error;
+      }
+    }),
+
+  /** Custom stat values saved for one date (used to pre-fill the log form when editing). */
+  getCustomStatValues: protectedProcedure
+    .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+    .query(async ({ ctx, input }) => {
+      return statSettings.getCustomStatValuesForDate(ctx.user.id, input.date);
+    }),
+
+  /** Everything actually logged in a calendar year, grouped by day. No filler values. */
+  getHistory: protectedProcedure
+    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+    .query(async ({ ctx, input }) => {
+      return statSettings.getStatsHistoryForYear(ctx.user.id, input.year);
     }),
 
   getToday: protectedProcedure
