@@ -35,7 +35,7 @@ import {
   Lightbulb,
   AlertCircle,
   CalendarDays,
-  Settings2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { BUILTIN_STAT_KEYS } from "@shared/wwldStats";
 import {
@@ -325,7 +325,7 @@ export default function WWLD() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 max-w-2xl mx-auto">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-6 h-6 text-[var(--gold)]" />
             <div>
@@ -334,22 +334,6 @@ export default function WWLD() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href="/wwld/history"
-              className="inline-flex items-center gap-1 rounded-md border border-brand-gold/15 px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
-              aria-label="Stats history"
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span className="hidden sm:inline">History</span>
-            </Link>
-            <Link
-              href="/wwld/settings"
-              className="inline-flex items-center gap-1 rounded-md border border-brand-gold/15 px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
-              aria-label="Log Stats settings"
-            >
-              <Settings2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
-            </Link>
             <BacklogModal />
             <Button
               onClick={() => openLogForm(new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "end_of_day")}
@@ -360,6 +344,23 @@ export default function WWLD() {
               Log Stats
             </Button>
           </div>
+        </div>
+        {/* Customize + past days: always labeled, full-width, large tap targets (mobile too) */}
+        <div className="grid grid-cols-2 gap-2 max-w-2xl mx-auto mt-3" data-testid="wwld-header-actions">
+          <Link
+            href="/wwld/settings"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-[var(--gold)] bg-[var(--gold)]/10 px-3 py-2 text-sm font-bold text-[var(--gold)] transition-colors hover:bg-[var(--gold)]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+          >
+            <SlidersHorizontal className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>Customize stats</span>
+          </Link>
+          <Link
+            href="/wwld/history"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-brand-gold/30 bg-card px-3 py-2 text-sm font-bold text-foreground transition-colors hover:border-[var(--gold)]/60 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+          >
+            <CalendarDays className="h-5 w-5 shrink-0 text-[var(--gold)]" aria-hidden="true" />
+            <span>View past days</span>
+          </Link>
         </div>
       </div>
 

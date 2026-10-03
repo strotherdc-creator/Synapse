@@ -163,3 +163,18 @@ describe("Plain-English error messages", () => {
     expect(friendlyErrorMessage(null, fallback)).toBe(fallback);
   });
 });
+
+describe("Log Stats header actions are obvious (Doc request)", () => {
+  it("shows labeled Customize stats and View past days buttons with large tap targets", () => {
+    const page = source("client/src/pages/WWLD.tsx");
+    expect(page).toContain("<span>Customize stats</span>");
+    expect(page).toContain("<span>View past days</span>");
+    expect(page).toContain('href="/wwld/settings"');
+    expect(page).toContain('href="/wwld/history"');
+    // Labels are always visible (not hidden on mobile) and buttons are at least 44px tall
+    expect(page).not.toContain('<span className="hidden sm:inline">Settings</span>');
+    expect(page.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    // The log form keeps its own link to settings
+    expect(source("client/src/components/wwld/StatEntryForm.tsx")).toContain("Choose which stats appear here");
+  });
+});
