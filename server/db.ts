@@ -20,6 +20,8 @@ import {
   lyleServedLog,
 } from "../shared/schema";
 import { ENV } from "./_core/env";
+import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
+import { BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
 export function getUserAnswersTable() { return userAnswers; }
@@ -107,21 +109,44 @@ export async function getDb() {
   return _db;
 }
 
-/** Run idempotent schema migrations — safe to call on every startup. */
+/**
+ * Run idempotent schema migrations — safe to call on every startup.
+ * Every statement is attempted; if any fail, this throws (after logging each failure) so
+ * startup can refuse to serve traffic on a half-migrated schema.
+ */
 export async function runMigrations(additionalMigrations: string[] = []) {
   await getDb(); // ensure pool is initialized
   if (!_pool) { console.warn("[Migrations] No DB pool available, skipping."); return; }
   const migrations: string[] = [
     // Add recall column (Aug 2026)
     `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
+    // Log Stats settings, custom stats, and tracked-stat provenance (Oct 2026, additive only)
+    ...WWLD_STATS_MIGRATIONS,
     ...additionalMigrations,
   ];
-  for (const sql of migrations) {
-    try {
-      await _pool.query(sql);
-    } catch (e: any) {
-      console.error(`[Migrations] Failed: ${sql.substring(0, 60)}...`, e.message);
+  const failures: string[] = [];
+  // One dedicated connection with a lock timeout, so a migration stuck behind a long-running
+  // query fails fast (and startup exits) instead of hanging the deploy forever.
+  const client = await _pool.connect();
+  try {
+    await client.query(`SET lock_timeout = '15s'`);
+    for (const sql of migrations) {
+      try {
+        await client.query(sql);
+      } catch (e: any) {
+        const head = sql.replace(/\s+/g, " ").substring(0, 80);
+        console.error(`[Migrations] Failed: ${head}...`, e.message);
+        failures.push(`${head}... -> ${e.message}`);
+      }
     }
+  } finally {
+    // Don't leak the migration-only lock timeout to app queries that reuse this connection.
+    await client.query(`RESET lock_timeout`).catch(() => undefined);
+    client.release();
+  }
+  if (failures.length > 0) {
+    // Fail loudly: serving requests against a half-migrated schema breaks Log Stats for everyone.
+    throw new Error(`[Migrations] ${failures.length} of ${migrations.length} migration(s) failed:\n  ${failures.join("\n  ")}`);
   }
   console.log(`[Migrations] ${migrations.length} migration(s) applied.`);
 }
@@ -719,19 +744,34 @@ export interface WwldSessionInput {
   userId: number;
   sessionDate: string;
   sessionType: WwldSessionType;
-  officeVisits: number;
-  newPatients: number;
-  recall: number;
-  testResults: number;
-  progressExams: number;
-  performanceReviews: number;
-  carePlansSigned: number;
+  // Built-in stats are optional: a doctor only submits the stats they track.
+  // Omitted stats are never overwritten on an existing row.
+  officeVisits?: number;
+  newPatients?: number;
+  recall?: number;
+  testResults?: number;
+  progressExams?: number;
+  performanceReviews?: number;
+  carePlansSigned?: number;
   notes?: string;
 }
 
-export async function upsertWwldSession(input: WwldSessionInput) {
-  const db = await getDb();
+/** Built-in stat keys present in a log submission. */
+export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | undefined>>): BuiltinStatKey[] {
+  return BUILTIN_STAT_KEYS.filter((key) => typeof input[key] === "number");
+}
+
+type DrizzleDb = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+type DrizzleTx = Parameters<Parameters<DrizzleDb["transaction"]>[0]>[0];
+
+/** Upsert one WWLD session. Pass `executor` to run inside an existing transaction. */
+export async function upsertWwldSession(input: WwldSessionInput, executor?: DrizzleDb | DrizzleTx) {
+  const db = executor ?? (await getDb());
   if (!db) throw new Error("Database not available");
+
+  const submitted = submittedBuiltinStats(input);
+  const submittedValues: Partial<Record<BuiltinStatKey, number>> = {};
+  for (const key of submitted) submittedValues[key] = input[key] as number;
 
   const existing = await db
     .select()
@@ -746,20 +786,16 @@ export async function upsertWwldSession(input: WwldSessionInput) {
     .limit(1);
 
   if (existing.length > 0) {
+    const trackedStats = mergeTrackedStats(existing[0].trackedStats, submitted);
     await db
       .update(wwldSessions)
       .set({
-        officeVisits: input.officeVisits,
-        newPatients: input.newPatients,
-        recall: input.recall,
-        testResults: input.testResults,
-        progressExams: input.progressExams,
-        performanceReviews: input.performanceReviews,
-        carePlansSigned: input.carePlansSigned,
+        ...submittedValues,
+        trackedStats,
         notes: input.notes ?? null,
       })
       .where(eq(wwldSessions.id, existing[0].id));
-    return { ...existing[0], ...input };
+    return { ...existing[0], ...submittedValues, trackedStats, notes: input.notes ?? null };
   } else {
     const [inserted] = await db
       .insert(wwldSessions)
@@ -767,13 +803,10 @@ export async function upsertWwldSession(input: WwldSessionInput) {
         userId: input.userId,
         sessionDate: input.sessionDate,
         sessionType: input.sessionType,
-        officeVisits: input.officeVisits,
-        newPatients: input.newPatients,
-        recall: input.recall,
-        testResults: input.testResults,
-        progressExams: input.progressExams,
-        performanceReviews: input.performanceReviews,
-        carePlansSigned: input.carePlansSigned,
+        // Untracked stats fall back to the column default (0) but are NOT listed in
+        // tracked_stats, so history never presents them as logged numbers.
+        ...submittedValues,
+        trackedStats: serializeStatKeyList(submitted),
         notes: input.notes ?? null,
       })
       .returning();

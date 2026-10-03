@@ -241,6 +241,9 @@ export const wwldSessions = pgTable(
     performanceReviews: integer("performance_reviews").notNull().default(0),
     carePlansSigned: integer("care_plans_signed").notNull().default(0),
     notes: text("notes"),
+    // Comma-separated built-in stat keys shown in the log form when this row was saved.
+    // NULL = row saved before per-doctor stat settings existed (every built-in stat tracked).
+    trackedStats: text("tracked_stats"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ([
@@ -250,6 +253,57 @@ export const wwldSessions = pgTable(
 
 export type WwldSession = typeof wwldSessions.$inferSelect;
 export type InsertWwldSession = typeof wwldSessions.$inferInsert;
+
+// ─── WWLD Stat Settings ────────────────────────────────────────────
+// Per-doctor Log Stats preferences. A doctor with no row sees every built-in stat.
+// We store the HIDDEN built-in keys so new built-in stats default to visible.
+
+export const wwldStatSettings = pgTable("wwld_stat_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  hiddenBuiltinStats: text("hidden_builtin_stats").notNull().default(""), // comma-separated built-in keys
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type WwldStatSetting = typeof wwldStatSettings.$inferSelect;
+
+// ─── WWLD Custom Stats ─────────────────────────────────────────────
+// Up to 3 active custom stats per doctor. Removing one sets archived_at (soft) so
+// past values stay visible in history; rows are never deleted.
+
+export const wwldCustomStats = pgTable("wwld_custom_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: varchar("name", { length: 60 }).notNull(),
+  unit: varchar("unit", { length: 20 }),
+  valueType: varchar("value_type", { length: 20 }).notNull().default("number"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  archivedAt: timestamp("archived_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type WwldCustomStat = typeof wwldCustomStats.$inferSelect;
+
+// ─── WWLD Custom Stat Values ───────────────────────────────────────
+// One value per custom stat per session (same date + session type as wwld_sessions).
+
+export const wwldCustomStatValues = pgTable(
+  "wwld_custom_stat_values",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    customStatId: integer("custom_stat_id").notNull(),
+    sessionDate: varchar("session_date", { length: 10 }).notNull(), // YYYY-MM-DD
+    sessionType: varchar("session_type", { length: 20 }).notNull(), // morning | afternoon | end_of_day
+    value: integer("value").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ([
+    unique().on(table.userId, table.customStatId, table.sessionDate, table.sessionType),
+  ])
+);
+export type WwldCustomStatValue = typeof wwldCustomStatValues.$inferSelect;
 
 // ─── Lyle Content Bank ─────────────────────────────────────────────
 // Pre-seeded action lines from the Lyle Algorithm content bank CSV
