@@ -54,6 +54,6 @@ describe("phone readability (Goals + Log Stats)", () => {
     const layout = source("client/src/components/DashboardLayout.tsx");
     expect(layout).toContain('<span className="text-base text-muted-foreground tracking-widest uppercase">Powered by Synapse</span>');
     expect(layout).not.toContain("text-muted-foreground/40 tracking-widest");
-    expect(layout).toMatch(/aria-label="Open menu"\s+className="h-11 w-11 shrink-0/);
+    expect(layout).toMatch(/aria-label="Open menu"\s+(?:aria-expanded=\{openMobile\}\s+)?className="h-11 w-11 shrink-0/);
   });
 });
