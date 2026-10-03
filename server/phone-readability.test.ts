@@ -44,4 +44,16 @@ describe("phone readability (Goals + Log Stats)", () => {
     const goals = source("client/src/pages/Goals.tsx");
     expect(goals).toMatch(/Behind pace|Ahead of pace|On pace/);
   });
+
+  it("Goals year arrows can't be squeezed below 44px", () => {
+    const goals = source("client/src/pages/Goals.tsx");
+    expect(goals.match(/className="flex h-11 w-11 shrink-0 /g)?.length).toBe(2);
+  });
+
+  it("layout footer and mobile menu button meet size + contrast", () => {
+    const layout = source("client/src/components/DashboardLayout.tsx");
+    expect(layout).toContain('<span className="text-base text-muted-foreground tracking-widest uppercase">Powered by Synapse</span>');
+    expect(layout).not.toContain("text-muted-foreground/40 tracking-widest");
+    expect(layout).toMatch(/aria-label="Open menu"\s+className="h-11 w-11 shrink-0/);
+  });
 });

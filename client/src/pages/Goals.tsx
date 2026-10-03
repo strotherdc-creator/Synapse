@@ -236,19 +236,19 @@ export default function Goals() {
     <div className="readable min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
         <div className="flex items-center justify-between gap-3 max-w-2xl mx-auto">
-          <div className="flex items-center gap-2">
-            <Goal className="w-6 h-6 text-[var(--gold)]" />
+          <div className="flex min-w-0 items-center gap-2">
+            <Goal className="w-6 h-6 shrink-0 text-[var(--gold)]" aria-hidden="true" />
             <div>
               <h1 className="text-xl font-bold text-foreground">Goals</h1>
               <p className="text-base text-muted-foreground">Your year, broken down to a day</p>
             </div>
           </div>
-          <div className="flex items-center gap-1" aria-label="Goal year">
+          <div className="flex shrink-0 items-center gap-1" aria-label="Goal year">
             <button
               type="button"
               onClick={() => changeYear(-1)}
               disabled={!canGoBack}
-              className="flex h-11 w-11 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
+              className="flex h-11 w-11 shrink-0 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
               aria-label="Previous year"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -258,7 +258,7 @@ export default function Goals() {
               type="button"
               onClick={() => changeYear(1)}
               disabled={!canGoForward}
-              className="flex h-11 w-11 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
+              className="flex h-11 w-11 shrink-0 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
               aria-label="Next year"
             >
               <ChevronRight className="h-5 w-5" />

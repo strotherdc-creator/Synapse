@@ -295,8 +295,10 @@ function DashboardLayoutContent({
           <div className="flex border-b border-brand-gold/15 h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={toggleSidebar}
-                className="h-10 w-10 rounded-lg bg-surface border border-brand-gold/15 flex items-center justify-center"
+                aria-label="Open menu"
+                className="h-11 w-11 shrink-0 rounded-lg bg-surface border border-brand-gold/15 flex items-center justify-center"
               >
                 <Menu className="h-6 w-6 text-foreground" />
               </button>
@@ -309,7 +311,7 @@ function DashboardLayoutContent({
           {/* Footer branding */}
           <div className="flex flex-col items-center gap-2 py-8 mt-10 border-t border-brand-gold/15">
             <SynapseLogo variant="watermark" className="opacity-40" />
-            <span className="text-xs text-muted-foreground/40 tracking-widest uppercase">Powered by Synapse</span>
+            <span className="text-base text-muted-foreground tracking-widest uppercase">Powered by Synapse</span>
           </div>
         </main>
       </SidebarInset>
