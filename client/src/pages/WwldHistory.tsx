@@ -56,11 +56,11 @@ function MonthGrid({
   const cells: Array<number | null> = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
-    <div className="bg-card border border-brand-gold/15 rounded-xl p-3">
-      <h3 className="text-xs font-semibold text-foreground mb-2">{MONTHS[month]}</h3>
+    <div className="bg-card border border-brand-gold/15 rounded-xl p-2 sm:p-3">
+      <h3 className="text-lg font-bold text-foreground mb-2 px-1">{MONTHS[month]}</h3>
       <div className="grid grid-cols-7 gap-0.5 text-center">
         {WEEKDAYS.map((d, i) => (
-          <span key={i} className="text-[10px] text-muted-foreground">{d}</span>
+          <span key={i} className="pb-1 text-base font-semibold text-muted-foreground" aria-hidden="true">{d}</span>
         ))}
         {cells.map((day, i) => {
           if (day === null) return <span key={`e-${i}`} />;
@@ -77,17 +77,26 @@ function MonthGrid({
               aria-label={`${formatLongDate(key)}${logged ? ", stats logged" : ", nothing logged"}`}
               aria-pressed={isSelected}
               className={[
-                "h-7 rounded-md text-[11px] transition-colors",
+                "relative flex h-11 min-w-0 flex-col items-center justify-center rounded-md text-base leading-none transition-colors",
                 isSelected
                   ? "bg-[var(--gold)] text-black font-bold"
                   : logged
-                    ? "bg-[var(--gold)]/20 text-foreground font-semibold hover:bg-[var(--gold)]/35"
-                    : "text-muted-foreground hover:bg-muted",
-                key === today && !isSelected ? "ring-1 ring-[var(--gold)]/60" : "",
-                isFuture ? "opacity-30 cursor-not-allowed" : "",
+                    ? "bg-[var(--gold)]/20 text-foreground font-bold hover:bg-[var(--gold)]/35"
+                    : "text-foreground/85 hover:bg-muted",
+                key === today && !isSelected ? "ring-2 ring-[var(--gold)]" : "",
+                isFuture ? "text-muted-foreground/60 cursor-not-allowed" : "",
               ].join(" ")}
             >
               {day}
+              {logged && (
+                <span
+                  aria-hidden="true"
+                  className={[
+                    "mt-1 h-1.5 w-1.5 rounded-full",
+                    isSelected ? "bg-black" : "bg-[var(--gold)]",
+                  ].join(" ")}
+                />
+              )}
             </button>
           );
         })}
@@ -102,7 +111,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
   if (!day) {
     return (
       <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-foreground">{formatLongDate(dateKeyStr)}</h3>
+        <h3 className="text-lg font-bold text-foreground">{formatLongDate(dateKeyStr)}</h3>
         <p className="text-sm text-muted-foreground mt-2">Nothing logged on this day.</p>
       </div>
     );
@@ -135,7 +144,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
   return (
     <div className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-foreground">{formatLongDate(dateKeyStr)}</h3>
+        <h3 className="text-lg font-bold text-foreground">{formatLongDate(dateKeyStr)}</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Logged: {day.sessions.map((s) => SESSION_LABELS[s.sessionType] ?? s.sessionType).join(", ")}
         </p>
@@ -152,14 +161,14 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">A log was saved for this day, but no stat values were entered.</p>
       ) : (
-        <div className="divide-y divide-brand-gold/10">
+        <div className="divide-y divide-border">
           {rows.map((row) => (
-            <div key={row.key} className="flex items-center justify-between py-2">
+            <div key={row.key} className="flex items-center justify-between gap-3 py-3">
               <div className="flex flex-col">
                 <span className="text-sm text-foreground">{row.label}</span>
                 <span className="text-[11px] text-muted-foreground">{row.alias}</span>
               </div>
-              <span className="text-lg font-bold text-foreground tabular-nums">{row.value.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{row.value.toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -167,7 +176,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
 
       {day.sessions.length > 1 && rows.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Show by session</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-[var(--gold)] underline underline-offset-4">Show by session</summary>
           <div className="mt-2 space-y-2">
             {day.sessions.map((s) => (
               <div key={s.sessionType} className="rounded-lg bg-muted/30 px-3 py-2">
@@ -216,38 +225,38 @@ export default function WwldHistory() {
   const selectedInYear = selected.startsWith(`${year}-`);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
-        <div className="flex items-center justify-between max-w-4xl mx-auto gap-3">
+    <div className="readable min-h-screen bg-background">
+      <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-3 py-3 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between max-w-4xl mx-auto gap-2">
           <div className="flex items-center gap-3">
-            <Link href="/wwld" className="text-muted-foreground hover:text-foreground" aria-label="Back to Log Stats">
+            <Link href="/wwld" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted" aria-label="Back to Log Stats">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <CalendarDays className="w-6 h-6 text-[var(--gold)]" />
+            <CalendarDays className="hidden w-6 h-6 text-[var(--gold)] sm:block" aria-hidden="true" />
             <div>
               <h1 className="text-xl font-bold text-foreground">Stats History</h1>
               <p className="text-xs text-muted-foreground">Tap any day to see what you logged</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => changeYear(-1)} className="p-2 rounded-lg hover:bg-muted" aria-label="Previous year">
-              <ChevronLeft className="w-4 h-4" />
+            <button type="button" onClick={() => changeYear(-1)} className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted" aria-label="Previous year">
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm font-bold text-foreground w-12 text-center">{year}</span>
+            <span className="text-lg font-bold text-foreground w-14 text-center">{year}</span>
             <button
               type="button"
               onClick={() => changeYear(1)}
               disabled={year >= currentYear}
-              className="p-2 rounded-lg hover:bg-muted disabled:opacity-30"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-40"
               aria-label="Next year"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      <div className="max-w-4xl mx-auto px-3 py-5 space-y-5 sm:px-4">
         {historyQuery.isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -256,11 +265,27 @@ export default function WwldHistory() {
           <p className="text-sm text-destructive text-center py-8">Could not load your history. Please refresh.</p>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {loggedDates.size === 0
                 ? `No stats logged in ${year}.`
-                : `${loggedDates.size} day${loggedDates.size === 1 ? "" : "s"} with stats logged in ${year}. Highlighted days have data; blank days had nothing logged.`}
+                : `${loggedDates.size} day${loggedDates.size === 1 ? "" : "s"} with stats logged in ${year}.`}
             </p>
+            <ul className="flex flex-wrap gap-x-5 gap-y-2 text-base text-foreground" aria-label="Calendar key">
+              <li className="flex items-center gap-2">
+                <span className="flex h-7 w-7 flex-col items-center justify-center rounded-md bg-[var(--gold)]/20 text-sm font-bold" aria-hidden="true">
+                  5<span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-[var(--gold)]" />
+                </span>
+                Dot = stats logged
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md ring-2 ring-[var(--gold)] text-sm" aria-hidden="true">5</span>
+                Ring = today
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--gold)] text-sm font-bold text-black" aria-hidden="true">5</span>
+                Filled = selected
+              </li>
+            </ul>
 
             <div id="history-day-detail" className="scroll-mt-24">
               {selectedInYear && <DayDetail dateKeyStr={selected} day={dayMap.get(selected)} data={data} />}
