@@ -108,3 +108,58 @@ describe("Log Stats database safety", () => {
     expect(form).toContain("customStats.map((stat)");
   });
 });
+
+describe("Head Developer review fixes (PR #16)", () => {
+  it("startup awaits migrations before listening (no half-migrated window)", () => {
+    const index = source("server/_core/index.ts");
+    const migrate = index.indexOf("await runMigrations(ENGAGEMENT_MIGRATIONS)");
+    const listen = index.indexOf("await listenOnAvailablePort(server");
+    expect(migrate).toBeGreaterThan(-1);
+    expect(listen).toBeGreaterThan(migrate);
+    expect(index).not.toContain("runMigrations(ENGAGEMENT_MIGRATIONS).catch");
+    // startServer() failures exit non-zero
+    expect(index).toMatch(/startServer\(\)\.catch\([\s\S]*process\.exit\(1\)/);
+  });
+
+  it("runMigrations throws when any statement fails", () => {
+    const dbSrc = source("server/db.ts");
+    expect(dbSrc).toContain("if (failures.length > 0)");
+    expect(dbSrc).toContain("throw new Error(`[Migrations] ${failures.length} of");
+  });
+
+  it("settings saves run in one transaction under a per-doctor lock and re-count the cap", () => {
+    const code = source("server/wwld/statSettings.ts");
+    expect(code).toContain("db.transaction(async (tx)");
+    expect(code).toContain("pg_advisory_xact_lock(");
+    expect(code).toContain("Number(activeCount) > MAX_CUSTOM_STATS");
+    // id validation happens before the settings upsert
+    const save = code.slice(code.indexOf("export async function saveStatSettings"));
+    expect(save.indexOf("Validate ids before writing anything")).toBeLessThan(save.indexOf(".insert(wwldStatSettings)"));
+  });
+
+  it("log form and past-days form only send touched custom stats and checked built-ins", () => {
+    const form = source("client/src/components/wwld/StatEntryForm.tsx");
+    expect(form).toContain(".filter((stat) => touchedCustomIds.has(stat.id))");
+    const backlog = source("client/src/components/wwld/BacklogModal.tsx");
+    expect(backlog).toContain("useStatFieldConfig()");
+    expect(backlog).toContain("buildLogPayload(stats, fields.builtinFields, fields.customStats, custom)");
+    expect(backlog).not.toContain("...stats,");
+  });
+});
+
+describe("Plain-English error messages", () => {
+  it("passes our own sentences through and hides raw validation output", async () => {
+    const { friendlyErrorMessage } = await import("../client/src/lib/friendlyError");
+    const fallback = "Please try again.";
+    expect(friendlyErrorMessage({ message: "You can have at most 3 custom stats.", data: { code: "BAD_REQUEST" } }, fallback))
+      .toBe("You can have at most 3 custom stats.");
+    const zodish = '[{"code":"too_big","maximum":3,"path":["customStats"],"message":"Too big"}]';
+    const out = friendlyErrorMessage({ message: zodish, data: { code: "BAD_REQUEST" } }, fallback);
+    expect(out).not.toContain("{");
+    expect(out).toMatch(/check the numbers and names/);
+    expect(friendlyErrorMessage({ message: "x", data: { code: "BAD_REQUEST", zodError: {} } }, fallback)).toMatch(/check/);
+    expect(friendlyErrorMessage({ message: "Please sign in to continue", data: { code: "UNAUTHORIZED" } }, fallback)).toMatch(/sign in/);
+    expect(friendlyErrorMessage({ message: "column x does not exist", data: { code: "INTERNAL_SERVER_ERROR" } }, fallback)).not.toContain("column");
+    expect(friendlyErrorMessage(null, fallback)).toBe(fallback);
+  });
+});

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { friendlyErrorMessage } from "@/lib/friendlyError";
 import { Loader2, Minus, Plus, CheckCircle2, Settings2 } from "lucide-react";
 import {
   BUILTIN_STATS,
@@ -48,7 +49,12 @@ export function StatEntryForm({
   });
   // Custom stat values keyed by custom stat id
   const [customValues, setCustomValues] = useState<Record<number, number>>({});
-  const [customTouched, setCustomTouched] = useState(false);
+  // Custom stats the doctor actually changed in this form. Only these are sent, so an
+  // untouched custom stat is never saved as a made-up 0 (and an existing value is kept).
+  const [touchedCustomIds, setTouchedCustomIds] = useState<Set<number>>(new Set());
+  const customTouched = touchedCustomIds.size > 0;
+  const markTouched = (id: number) =>
+    setTouchedCustomIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   const [submitted, setSubmitted] = useState(false);
 
   // The doctor's Log Stats settings — which built-in stats to show + their custom stats.
@@ -104,7 +110,7 @@ export function StatEntryForm({
   };
 
   const adjustCustom = (id: number, delta: number) => {
-    setCustomTouched(true);
+    markTouched(id);
     setCustomValues((prev) => ({
       ...prev,
       [id]: Math.max(0, Math.min(CUSTOM_STAT_VALUE_MAX, (prev[id] ?? 0) + delta)),
@@ -112,7 +118,7 @@ export function StatEntryForm({
   };
 
   const handleCustomInput = (id: number, raw: string) => {
-    setCustomTouched(true);
+    markTouched(id);
     const num = parseInt(raw, 10);
     if (!isNaN(num)) {
       setCustomValues((prev) => ({ ...prev, [id]: Math.max(0, Math.min(CUSTOM_STAT_VALUE_MAX, num)) }));
@@ -129,7 +135,9 @@ export function StatEntryForm({
       sessionDate,
       sessionType,
       ...builtinPayload,
-      customStats: customStats.map((stat) => ({ customStatId: stat.id, value: customValues[stat.id] ?? 0 })),
+      customStats: customStats
+        .filter((stat) => touchedCustomIds.has(stat.id))
+        .map((stat) => ({ customStatId: stat.id, value: customValues[stat.id] ?? 0 })),
     });
   };
 
@@ -154,7 +162,7 @@ export function StatEntryForm({
     key: string,
     label: string,
     sublabel: string | null,
-    value: number,
+    value: number | "",
     onMinus: () => void,
     onPlus: () => void,
     onInput: (raw: string) => void,
@@ -182,6 +190,7 @@ export function StatEntryForm({
           min={0}
           max={max}
           value={value}
+          placeholder="–"
           onChange={(e) => onInput(e.target.value)}
           aria-label={label}
           className="w-16 text-center text-lg font-bold text-foreground bg-transparent border-b border-brand-gold/15 focus:outline-none focus:border-[var(--gold)]"
@@ -225,7 +234,8 @@ export function StatEntryForm({
             `custom-${stat.id}`,
             stat.name,
             stat.unit ? `Custom · ${stat.unit}` : "Custom",
-            customValues[stat.id] ?? 0,
+            // Blank (not 0) until the doctor enters something; blanks are not saved.
+            customValues[stat.id] ?? "",
             () => adjustCustom(stat.id, -1),
             () => adjustCustom(stat.id, 1),
             (raw) => handleCustomInput(stat.id, raw),
@@ -267,9 +277,7 @@ export function StatEntryForm({
 
       {logSession.isError && (
         <p className="text-sm text-destructive text-center">
-          {logSession.error?.data?.code === "BAD_REQUEST" && logSession.error.message
-            ? logSession.error.message
-            : "Failed to save. Please try again."}
+          {friendlyErrorMessage(logSession.error, "Your stats didn't save. Please try again.")}
         </p>
       )}
     </div>

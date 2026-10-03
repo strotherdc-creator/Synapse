@@ -109,7 +109,11 @@ export async function getDb() {
   return _db;
 }
 
-/** Run idempotent schema migrations — safe to call on every startup. */
+/**
+ * Run idempotent schema migrations — safe to call on every startup.
+ * Every statement is attempted; if any fail, this throws (after logging each failure) so
+ * startup can refuse to serve traffic on a half-migrated schema.
+ */
 export async function runMigrations(additionalMigrations: string[] = []) {
   await getDb(); // ensure pool is initialized
   if (!_pool) { console.warn("[Migrations] No DB pool available, skipping."); return; }
@@ -120,12 +124,29 @@ export async function runMigrations(additionalMigrations: string[] = []) {
     ...WWLD_STATS_MIGRATIONS,
     ...additionalMigrations,
   ];
-  for (const sql of migrations) {
-    try {
-      await _pool.query(sql);
-    } catch (e: any) {
-      console.error(`[Migrations] Failed: ${sql.substring(0, 60)}...`, e.message);
+  const failures: string[] = [];
+  // One dedicated connection with a lock timeout, so a migration stuck behind a long-running
+  // query fails fast (and startup exits) instead of hanging the deploy forever.
+  const client = await _pool.connect();
+  try {
+    await client.query(`SET lock_timeout = '15s'`);
+    for (const sql of migrations) {
+      try {
+        await client.query(sql);
+      } catch (e: any) {
+        const head = sql.replace(/\s+/g, " ").substring(0, 80);
+        console.error(`[Migrations] Failed: ${head}...`, e.message);
+        failures.push(`${head}... -> ${e.message}`);
+      }
     }
+  } finally {
+    // Don't leak the migration-only lock timeout to app queries that reuse this connection.
+    await client.query(`RESET lock_timeout`).catch(() => undefined);
+    client.release();
+  }
+  if (failures.length > 0) {
+    // Fail loudly: serving requests against a half-migrated schema breaks Log Stats for everyone.
+    throw new Error(`[Migrations] ${failures.length} of ${migrations.length} migration(s) failed:\n  ${failures.join("\n  ")}`);
   }
   console.log(`[Migrations] ${migrations.length} migration(s) applied.`);
 }
@@ -740,8 +761,12 @@ export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, numb
   return BUILTIN_STAT_KEYS.filter((key) => typeof input[key] === "number");
 }
 
-export async function upsertWwldSession(input: WwldSessionInput) {
-  const db = await getDb();
+type DrizzleDb = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+type DrizzleTx = Parameters<Parameters<DrizzleDb["transaction"]>[0]>[0];
+
+/** Upsert one WWLD session. Pass `executor` to run inside an existing transaction. */
+export async function upsertWwldSession(input: WwldSessionInput, executor?: DrizzleDb | DrizzleTx) {
+  const db = executor ?? (await getDb());
   if (!db) throw new Error("Database not available");
 
   const submitted = submittedBuiltinStats(input);

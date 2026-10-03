@@ -143,8 +143,9 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
 
       {backlogSessions.length > 0 && (
         <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-foreground/90">
-          {backlogSessions.map((s) => s.note).join("; ")} — these numbers were entered as a weekly/monthly total and
-          cover more than this one day.
+          {backlogSessions.some((s) => s.note?.startsWith("Monthly"))
+            ? "Monthly total: these numbers were entered for the whole month, not just this one day."
+            : "Weekly total: these numbers were entered for the whole week, not just this one day."}
         </p>
       )}
 

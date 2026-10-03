@@ -1012,17 +1012,12 @@ const wwldRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { customStats, ...sessionInput } = input;
       try {
-        // Validate custom stat ownership before writing anything.
-        if (customStats && customStats.length > 0) {
-          await statSettings.assertActiveCustomStats(ctx.user.id, customStats.map((c) => c.customStatId));
-        }
-        const session = await db.upsertWwldSession({
-          userId: ctx.user.id,
-          ...sessionInput,
-        });
-        if (customStats && customStats.length > 0) {
-          await statSettings.upsertCustomStatValues(ctx.user.id, input.sessionDate, input.sessionType, customStats);
-        }
+        // One transaction under the doctor's lock: custom stat ownership is checked first,
+        // and if anything is rejected nothing (session row or custom values) is written.
+        const session = await statSettings.logSessionWithCustomStats(
+          { userId: ctx.user.id, ...sessionInput },
+          customStats ?? [],
+        );
         return { success: true, session };
       } catch (error) {
         if (error instanceof statSettings.StatSettingsError) {

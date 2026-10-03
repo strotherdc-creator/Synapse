@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { friendlyErrorMessage } from "@/lib/friendlyError";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,12 @@ export default function WwldStatSettings() {
     setLoaded(true);
   }, [settingsQuery.data, loaded]);
 
+  // Synchronous guard against double-taps before the button re-renders as disabled.
+  const savingRef = useRef(false);
   const save = trpc.wwld.saveStatSettings.useMutation({
+    onSettled: () => {
+      savingRef.current = false;
+    },
     onSuccess: () => {
       utils.wwld.getStatSettings.invalidate();
       utils.wwld.getHistory.invalidate();
@@ -50,7 +56,7 @@ export default function WwldStatSettings() {
       setLocation("/wwld");
     },
     onError: (error) => {
-      toast.error(error.message || "Could not save settings. Please try again.");
+      toast.error(friendlyErrorMessage(error, "Could not save your settings. Please try again."));
     },
   });
 
@@ -81,6 +87,7 @@ export default function WwldStatSettings() {
   const nothingSelected = enabled.size === 0 && customs.length === 0;
 
   const handleSave = () => {
+    if (savingRef.current) return;
     if (hasBlankName) {
       toast.error("Give each custom stat a name, or remove it.");
       return;
@@ -89,6 +96,7 @@ export default function WwldStatSettings() {
       toast.error("Keep at least one stat checked (or add a custom stat).");
       return;
     }
+    savingRef.current = true;
     save.mutate({
       enabledBuiltinStats: BUILTIN_STAT_KEYS.filter((k) => enabled.has(k)),
       customStats: customs.map((c) => ({

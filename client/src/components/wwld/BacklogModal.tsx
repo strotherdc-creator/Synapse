@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { History, ChevronRight, ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { friendlyErrorMessage } from "@/lib/friendlyError";
+import { BUILTIN_STAT_KEYS, CUSTOM_STAT_VALUE_MAX } from "@shared/wwldStats";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,18 +134,20 @@ function StatRow({
   value,
   onChange,
   compact = false,
+  max = 9999,
 }: {
   label: string;
-  value: number;
+  value: number | "";
   onChange: (v: number) => void;
   compact?: boolean;
+  max?: number;
 }) {
   return (
     <div className={cn("flex items-center justify-between gap-2", compact ? "py-1" : "py-2")}>
       <span className={cn("text-foreground", compact ? "text-xs" : "text-sm")}>{label}</span>
       <div className="flex items-center gap-1">
         <button
-          onClick={() => onChange(Math.max(0, value - 1))}
+          onClick={() => onChange(Math.max(0, (value === "" ? 0 : value) - 1))}
           className="w-7 h-7 rounded-md bg-muted/40 hover:bg-muted/70 text-foreground flex items-center justify-center text-base font-bold transition-colors"
           aria-label={`Decrease ${label}`}
         >
@@ -152,16 +156,17 @@ function StatRow({
         <input
           type="number"
           min={0}
-          max={9999}
+          max={max}
           value={value}
+          placeholder="–"
           onChange={(e) => {
             const v = parseInt(e.target.value, 10);
-            if (!isNaN(v) && v >= 0 && v <= 9999) onChange(v);
+            if (!isNaN(v) && v >= 0 && v <= max) onChange(v);
           }}
           className="w-14 text-center bg-muted/20 border border-brand-gold/15 rounded-md text-foreground text-sm py-1 focus:outline-none focus:ring-1 focus:ring-[var(--gold)]"
         />
         <button
-          onClick={() => onChange(Math.min(9999, value + 1))}
+          onClick={() => onChange(Math.min(max, (value === "" ? 0 : value) + 1))}
           className="w-7 h-7 rounded-md bg-muted/40 hover:bg-muted/70 text-foreground flex items-center justify-center text-base font-bold transition-colors"
           aria-label={`Increase ${label}`}
         >
@@ -169,6 +174,94 @@ function StatRow({
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── Doctor's Log Stats settings (shared by every entry mode) ────────────────
+
+/** Built-in fields the doctor checked + their active custom stats. Falls back to all built-ins. */
+function useStatFieldConfig() {
+  const settingsQuery = trpc.wwld.getStatSettings.useQuery(undefined, { staleTime: 60_000 });
+  const enabled = new Set<string>(settingsQuery.data?.enabledBuiltinStats ?? BUILTIN_STAT_KEYS);
+  return {
+    builtinFields: STAT_LABELS.filter((field) => enabled.has(field.key)),
+    customStats: settingsQuery.data?.customStats ?? [],
+    isLoading: settingsQuery.isLoading,
+  };
+}
+
+type CustomDraft = { values: Record<number, number>; touched: Set<number> };
+const EMPTY_CUSTOM: CustomDraft = { values: {}, touched: new Set() };
+
+/**
+ * Build the logSession payload: only the doctor's checked built-in stats (unchecked stats
+ * are left untouched on the server, never zeroed) and only custom stats they actually entered.
+ */
+function buildLogPayload(
+  stats: StatValues,
+  builtinFields: Array<{ key: keyof StatValues }>,
+  customStats: Array<{ id: number }>,
+  custom: CustomDraft,
+) {
+  const builtin: Partial<StatValues> = {};
+  for (const { key } of builtinFields) builtin[key] = stats[key];
+  return {
+    ...builtin,
+    customStats: customStats
+      .filter((stat) => custom.touched.has(stat.id))
+      .map((stat) => ({ customStatId: stat.id, value: custom.values[stat.id] ?? 0 })),
+  };
+}
+
+function StatFields({
+  builtinFields,
+  stats,
+  setStats,
+  customStats,
+  custom,
+  setCustom,
+}: {
+  builtinFields: Array<{ key: keyof StatValues; label: string }>;
+  stats: StatValues;
+  setStats: (updater: (s: StatValues) => StatValues) => void;
+  customStats: Array<{ id: number; name: string; unit: string | null }>;
+  custom: CustomDraft;
+  setCustom: (updater: (c: CustomDraft) => CustomDraft) => void;
+}) {
+  return (
+    <div className="divide-y divide-border">
+      {builtinFields.map(({ key, label }) => (
+        <StatRow
+          key={key}
+          label={label}
+          value={stats[key]}
+          onChange={(v) => setStats((s) => ({ ...s, [key]: v }))}
+        />
+      ))}
+      {customStats.map((stat) => (
+        <StatRow
+          key={`custom-${stat.id}`}
+          label={stat.unit ? `${stat.name} (${stat.unit})` : stat.name}
+          value={custom.values[stat.id] ?? ""}
+          max={CUSTOM_STAT_VALUE_MAX}
+          onChange={(v) =>
+            setCustom((c) => ({
+              values: { ...c.values, [stat.id]: v },
+              touched: new Set(c.touched).add(stat.id),
+            }))
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function SaveError({ error }: { error: Parameters<typeof friendlyErrorMessage>[0] }) {
+  if (!error) return null;
+  return (
+    <p className="text-sm text-destructive text-center">
+      {friendlyErrorMessage(error, "Those stats didn't save. Please try again.")}
+    </p>
   );
 }
 
@@ -180,9 +273,15 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
   const [stats, setStats] = useState<StatValues>({ ...EMPTY_STATS });
   const [savedDays, setSavedDays] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [custom, setCustom] = useState<CustomDraft>(EMPTY_CUSTOM);
+  const fields = useStatFieldConfig();
 
   const utils = trpc.useUtils();
   const selectedDate = selectedDay ? formatDate(selectedDay) : "2000-01-01";
+  const savedCustomQuery = trpc.wwld.getCustomStatValues.useQuery(
+    { date: selectedDate },
+    { enabled: Boolean(selectedDay), staleTime: 0 },
+  );
   const selectedDayQuery = trpc.wwld.getToday.useQuery(
     { date: selectedDate },
     { enabled: Boolean(selectedDay), staleTime: 0 },
@@ -196,8 +295,19 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
     }
   }, [selectedDay, existingEndOfDay]);
 
+  // Pre-fill custom values already saved for this day's end-of-day entry (shown, not re-sent unless changed).
+  useEffect(() => {
+    if (!selectedDay || !savedCustomQuery.data) return;
+    const values: Record<number, number> = {};
+    for (const row of savedCustomQuery.data) {
+      if (row.sessionType === "end_of_day") values[row.customStatId] = row.value;
+    }
+    setCustom((c) => (c.touched.size > 0 ? c : { values, touched: new Set() }));
+  }, [selectedDay, savedCustomQuery.data]);
+
   const selectDay = useCallback((day: Date) => {
     setStats({ ...EMPTY_STATS });
+    setCustom(EMPTY_CUSTOM);
     setSelectedDay(day);
   }, []);
 
@@ -207,6 +317,8 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getStats.invalidate();
       utils.wwld.getTodayStatus.invalidate();
       utils.wwld.getAnalytics.invalidate();
+      utils.wwld.getHistory.invalidate();
+      utils.wwld.getCustomStatValues.invalidate();
     },
   });
 
@@ -217,21 +329,24 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
       await logSession.mutateAsync({
         sessionDate: selectedDate,
         sessionType: "end_of_day" as SessionType,
-        ...stats,
+        ...buildLogPayload(stats, fields.builtinFields, fields.customStats, custom),
       });
       setSavedDays((prev) => new Set(prev).add(selectedDate));
       setSelectedDay(null);
       setStats({ ...EMPTY_STATS });
+      setCustom(EMPTY_CUSTOM);
+    } catch {
+      // Error message is shown below the form (SaveError).
     } finally {
       setSaving(false);
     }
-  }, [selectedDay, selectedDate, stats, logSession]);
+  }, [selectedDay, selectedDate, stats, custom, fields.builtinFields, fields.customStats, logSession]);
 
   if (selectedDay) {
     return (
       <div className="space-y-3">
         <button
-          onClick={() => { setSelectedDay(null); setStats({ ...EMPTY_STATS }); }}
+          onClick={() => { setSelectedDay(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
           className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
         >
           <ChevronLeft className="w-4 h-4" /> Back to day list
@@ -246,24 +361,23 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
                 : "Enter totals for the full day"}
           </p>
         </div>
-        <div className="divide-y divide-border">
-          {STAT_LABELS.map(({ key, label }) => (
-            <StatRow
-              key={key}
-              label={label}
-              value={stats[key]}
-              onChange={(v) => setStats((s) => ({ ...s, [key]: v }))}
-            />
-          ))}
-        </div>
+        <StatFields
+          builtinFields={fields.builtinFields}
+          stats={stats}
+          setStats={setStats}
+          customStats={fields.customStats}
+          custom={custom}
+          setCustom={setCustom}
+        />
         <Button
           onClick={handleSaveDay}
-          disabled={saving || selectedDayQuery.isLoading}
+          disabled={saving || selectedDayQuery.isLoading || fields.isLoading}
           className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           {isEditingSavedDay ? "Save changes to" : "Save"} {getDayLabel(selectedDay)}
         </Button>
+        <SaveError error={logSession.error} />
       </div>
     );
   }
@@ -349,6 +463,8 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
   const [stats, setStats] = useState<StatValues>({ ...EMPTY_STATS });
   const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [custom, setCustom] = useState<CustomDraft>(EMPTY_CUSTOM);
+  const fields = useStatFieldConfig();
 
   const utils = trpc.useUtils();
   const logSession = trpc.wwld.logSession.useMutation({
@@ -357,6 +473,8 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getStats.invalidate();
       utils.wwld.getTodayStatus.invalidate();
       utils.wwld.getAnalytics.invalidate();
+      utils.wwld.getHistory.invalidate();
+      utils.wwld.getCustomStatValues.invalidate();
     },
   });
 
@@ -368,22 +486,25 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
       await logSession.mutateAsync({
         sessionDate: formatDate(selectedWeek),
         sessionType: "end_of_day" as SessionType,
-        ...stats,
+        ...buildLogPayload(stats, fields.builtinFields, fields.customStats, custom),
         notes: "Weekly total (backlog entry)",
       });
       setSavedWeeks((prev) => new Set(prev).add(formatDate(selectedWeek)));
       setSelectedWeek(null);
       setStats({ ...EMPTY_STATS });
+      setCustom(EMPTY_CUSTOM);
+    } catch {
+      // Error message is shown below the form (SaveError).
     } finally {
       setSaving(false);
     }
-  }, [selectedWeek, stats, logSession]);
+  }, [selectedWeek, stats, custom, fields.builtinFields, fields.customStats, logSession]);
 
   if (selectedWeek) {
     return (
       <div className="space-y-3">
         <button
-          onClick={() => { setSelectedWeek(null); setStats({ ...EMPTY_STATS }); }}
+          onClick={() => { setSelectedWeek(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
           className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
         >
           <ChevronLeft className="w-4 h-4" /> Back to week list
@@ -392,24 +513,23 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
           <p className="text-base font-semibold text-foreground">Week of {getWeekLabel(selectedWeek)}</p>
           <p className="text-xs text-muted-foreground">Enter the total for the entire week</p>
         </div>
-        <div className="divide-y divide-border">
-          {STAT_LABELS.map(({ key, label }) => (
-            <StatRow
-              key={key}
-              label={label}
-              value={stats[key]}
-              onChange={(v) => setStats((s) => ({ ...s, [key]: v }))}
-            />
-          ))}
-        </div>
+        <StatFields
+          builtinFields={fields.builtinFields}
+          stats={stats}
+          setStats={setStats}
+          customStats={fields.customStats}
+          custom={custom}
+          setCustom={setCustom}
+        />
         <Button
           onClick={handleSaveWeek}
-          disabled={saving}
+          disabled={saving || fields.isLoading}
           className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           Save Week of {getWeekLabel(selectedWeek)}
         </Button>
+        <SaveError error={logSession.error} />
       </div>
     );
   }
@@ -424,7 +544,7 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
           return (
             <button
               key={key}
-              onClick={() => { setSelectedWeek(w); setStats({ ...EMPTY_STATS }); }}
+              onClick={() => { setSelectedWeek(w); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
               className={cn(
                 "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
                 saved
@@ -459,6 +579,8 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
   const [stats, setStats] = useState<StatValues>({ ...EMPTY_STATS });
   const [savedMonths, setSavedMonths] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [custom, setCustom] = useState<CustomDraft>(EMPTY_CUSTOM);
+  const fields = useStatFieldConfig();
 
   const utils = trpc.useUtils();
   const logSession = trpc.wwld.logSession.useMutation({
@@ -467,6 +589,8 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getStats.invalidate();
       utils.wwld.getTodayStatus.invalidate();
       utils.wwld.getAnalytics.invalidate();
+      utils.wwld.getHistory.invalidate();
+      utils.wwld.getCustomStatValues.invalidate();
     },
   });
 
@@ -480,23 +604,26 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
       await logSession.mutateAsync({
         sessionDate: dateStr,
         sessionType: "end_of_day" as SessionType,
-        ...stats,
+        ...buildLogPayload(stats, fields.builtinFields, fields.customStats, custom),
         notes: "Monthly total (backlog entry)",
       });
       setSavedMonths((prev) => new Set(prev).add(key));
       setSelectedMonth(null);
       setStats({ ...EMPTY_STATS });
+      setCustom(EMPTY_CUSTOM);
+    } catch {
+      // Error message is shown below the form (SaveError).
     } finally {
       setSaving(false);
     }
-  }, [selectedMonth, stats, logSession]);
+  }, [selectedMonth, stats, custom, fields.builtinFields, fields.customStats, logSession]);
 
   if (selectedMonth) {
     const label = getMonthLabel(selectedMonth.year, selectedMonth.month);
     return (
       <div className="space-y-3">
         <button
-          onClick={() => { setSelectedMonth(null); setStats({ ...EMPTY_STATS }); }}
+          onClick={() => { setSelectedMonth(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
           className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
         >
           <ChevronLeft className="w-4 h-4" /> Back to month list
@@ -505,24 +632,23 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
           <p className="text-base font-semibold text-foreground">{label}</p>
           <p className="text-xs text-muted-foreground">Enter the total for the entire month</p>
         </div>
-        <div className="divide-y divide-border">
-          {STAT_LABELS.map(({ key, label: statLabel }) => (
-            <StatRow
-              key={key}
-              label={statLabel}
-              value={stats[key]}
-              onChange={(v) => setStats((s) => ({ ...s, [key]: v }))}
-            />
-          ))}
-        </div>
+        <StatFields
+          builtinFields={fields.builtinFields}
+          stats={stats}
+          setStats={setStats}
+          customStats={fields.customStats}
+          custom={custom}
+          setCustom={setCustom}
+        />
         <Button
           onClick={handleSaveMonth}
-          disabled={saving}
+          disabled={saving || fields.isLoading}
           className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           Save {label}
         </Button>
+        <SaveError error={logSession.error} />
       </div>
     );
   }
@@ -538,7 +664,7 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
           return (
             <button
               key={key}
-              onClick={() => { setSelectedMonth({ year, month }); setStats({ ...EMPTY_STATS }); }}
+              onClick={() => { setSelectedMonth({ year, month }); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
               className={cn(
                 "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
                 saved

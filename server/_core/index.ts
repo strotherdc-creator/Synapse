@@ -154,6 +154,11 @@ async function startServer() {
     }
   });
 
+  // Run schema migrations (idempotent — safe on every startup) BEFORE accepting traffic.
+  // If any migration fails, runMigrations throws and startServer() exits non-zero below,
+  // so we never serve requests against a half-migrated schema.
+  await runMigrations(ENGAGEMENT_MIGRATIONS);
+
   const preferredPort = ENV.port;
   const port = await listenOnAvailablePort(server, preferredPort);
 
@@ -167,8 +172,6 @@ async function startServer() {
   console.log(`Database: ${ENV.databaseUrl ? "configured" : "NOT configured"}`);
   console.log(`Gemini: ${ENV.geminiApiKey ? "configured" : "NOT configured"}`);
 
-  // Run schema migrations (idempotent — safe on every startup)
-  runMigrations(ENGAGEMENT_MIGRATIONS).catch((err) => console.error("[Migrations] Failed:", err));
   // Seed coaching steps (ensures 6 BTG modules; seeds only empty modules)
   seedCoachingSteps().catch((err) => console.error("[Seed] Failed:", err));
   seedLyleAlgorithmContent().catch((err) => console.error("[Lyle Seed] Failed:", err));
