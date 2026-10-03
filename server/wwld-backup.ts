@@ -2,7 +2,7 @@
  * WWLD Weekly Data Backup
  *
  * Runs every Sunday at 11:00 PM server time.
- * Exports all wwld_sessions data as a CSV and emails it to BACKUP_EMAIL.
+ * Exports all wwld_sessions data and all doctor_goals (Goals page) as CSVs and emails them to BACKUP_EMAIL.
  *
  * Setup required (Railway env vars):
  *   SMTP_USER   — Gmail address to send from (e.g., synapse.backup@gmail.com)
@@ -15,12 +15,12 @@
 import cron from "node-cron";
 import nodemailer from "nodemailer";
 import { getDb } from "./db";
-import { wwldSessions } from "../shared/schema";
+import { doctorGoals, wwldSessions } from "../shared/schema";
 import { users } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
-function toCSV(rows: Record<string, unknown>[]): string {
+export function toCSV(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "No data";
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
@@ -34,6 +34,30 @@ function toCSV(rows: Record<string, unknown>[]): string {
     ...rows.map((row) => headers.map((h) => escape(row[h])).join(",")),
   ];
   return lines.join("\n");
+}
+
+type BackupDb = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+/** Every doctor's saved yearly goals, with name/email for readability (Goals page backup). */
+export async function fetchDoctorGoalsBackupRows(db: BackupDb) {
+  return db
+    .select({
+      id: doctorGoals.id,
+      userId: doctorGoals.userId,
+      userName: users.name,
+      userEmail: users.email,
+      goalYear: doctorGoals.goalYear,
+      yearlyRevenue: doctorGoals.yearlyRevenue,
+      yearlyOfficeVisits: doctorGoals.yearlyOfficeVisits,
+      yearlyNewPatients: doctorGoals.yearlyNewPatients,
+      weeksWorked: doctorGoals.weeksWorked,
+      clinicDays: users.workDays,
+      createdAt: doctorGoals.createdAt,
+      updatedAt: doctorGoals.updatedAt,
+    })
+    .from(doctorGoals)
+    .leftJoin(users, eq(doctorGoals.userId, users.id))
+    .orderBy(doctorGoals.userId, doctorGoals.goalYear);
 }
 
 async function runBackup() {
@@ -82,9 +106,12 @@ async function runBackup() {
       .orderBy(wwldSessions.sessionDate, wwldSessions.userId);
 
     const csv = toCSV(rows as Record<string, unknown>[]);
+    const goalRows = await fetchDoctorGoalsBackupRows(db);
+    const goalsCsv = toCSV(goalRows as Record<string, unknown>[]);
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const filename = `wwld-backup-${dateStr}.csv`;
+    const goalsFilename = `doctor-goals-backup-${dateStr}.csv`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -102,6 +129,7 @@ async function runBackup() {
         `Weekly WWLD stats backup — ${dateStr}`,
         ``,
         `Total records: ${rows.length}`,
+        `Doctor goals (Goals page): ${goalRows.length} row(s), in ${goalsFilename}`,
         ``,
         `This is an automated backup of all WWLD session data from the Synapse app.`,
         `The CSV attachment contains all historical stats for all users.`,
@@ -114,11 +142,16 @@ async function runBackup() {
           content: csv,
           contentType: "text/csv",
         },
+        {
+          filename: goalsFilename,
+          content: goalsCsv,
+          contentType: "text/csv",
+        },
       ],
     });
 
     console.log(
-      `[WWLD Backup] ✓ Backup sent to ${ENV.backupEmail} — ${rows.length} records, file: ${filename}`
+      `[WWLD Backup] ✓ Backup sent to ${ENV.backupEmail} — ${rows.length} records, ${goalRows.length} goal rows, files: ${filename}, ${goalsFilename}`
     );
   } catch (err) {
     console.error("[WWLD Backup] Failed:", err);

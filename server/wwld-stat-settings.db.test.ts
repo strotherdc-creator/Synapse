@@ -21,13 +21,16 @@ describe.skipIf(!TEST_DB)("Log Stats settings against real Postgres", () => {
     const { Pool } = await import("pg");
     pg = new Pool({ connectionString: TEST_DB });
     // Minimal pre-feature wwld_sessions table (as on main before this PR) if missing.
-    await pg.query(`CREATE TABLE IF NOT EXISTS wwld_sessions (
+    const { withMigrationLock } = await import("./test-utils/pgFixture");
+    await withMigrationLock(pg, [
+      `CREATE TABLE IF NOT EXISTS wwld_sessions (
       id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, session_date VARCHAR(10) NOT NULL,
       session_type VARCHAR(20) NOT NULL, office_visits INTEGER NOT NULL DEFAULT 0,
       new_patients INTEGER NOT NULL DEFAULT 0, test_results INTEGER NOT NULL DEFAULT 0,
       progress_exams INTEGER NOT NULL DEFAULT 0, performance_reviews INTEGER NOT NULL DEFAULT 0,
       care_plans_signed INTEGER NOT NULL DEFAULT 0, notes TEXT, created_at TIMESTAMP DEFAULT NOW(),
-      UNIQUE(user_id, session_date, session_type))`);
+      UNIQUE(user_id, session_date, session_type))`,
+    ]);
     db = await import("./db");
     ss = await import("./wwld/statSettings");
     await db.runMigrations([]);

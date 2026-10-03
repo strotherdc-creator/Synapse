@@ -12,10 +12,14 @@ import {
   MAX_GOAL_NEW_PATIENTS,
   MAX_GOAL_REVENUE,
   MAX_GOAL_VISITS,
+  MAX_GOAL_YEAR,
+  MIN_GOAL_YEAR,
   MAX_WEEKS_WORKED,
   MIN_WEEKS_WORKED,
   WEEKDAYS,
   calculateGoals,
+  clampGoalYear,
+  fullDayAim,
   formatCount,
   formatMoney,
   formatMoneyCents,
@@ -23,7 +27,6 @@ import {
   parseClinicSchedule,
   parseGoalInput,
   serializeClinicSchedule,
-  wholeNeeded,
   yearElapsedFraction,
   type ClinicDayType,
   type ClinicSchedule,
@@ -104,7 +107,7 @@ function GoalField({
 export default function Goals() {
   const utils = trpc.useUtils();
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
+  const [year, setYear] = useState(() => clampGoalYear(currentYear));
   const goalsQuery = trpc.goals.get.useQuery({ goalYear: year });
   const progressQuery = trpc.goals.getProgress.useQuery({ goalYear: year });
 
@@ -154,8 +157,7 @@ export default function Goals() {
 
   const savingRef = useRef(false);
   const saveGoals = trpc.goals.save.useMutation();
-  const saveClinicDays = trpc.goals.saveClinicDays.useMutation();
-  const saving = saveGoals.isPending || saveClinicDays.isPending;
+  const saving = saveGoals.isPending;
 
   const fieldError = (() => {
     const bad = (raw: string, n: number | null) => raw.trim() !== "" && n === null;
@@ -178,20 +180,22 @@ export default function Goals() {
     }
     savingRef.current = true;
     try {
+      // Goals and (if changed) the clinic schedule go in ONE request, saved in one transaction.
       const workDays = serializeClinicSchedule(schedule);
-      if (workDays !== savedWorkDays) {
-        await saveClinicDays.mutateAsync({ workDays });
-        setSavedWorkDays(workDays);
-        utils.auth.me.invalidate();
-      }
+      const scheduleChanged = workDays !== savedWorkDays;
       await saveGoals.mutateAsync({
         goalYear: year,
         yearlyRevenue: numbers.revenue,
         yearlyOfficeVisits: numbers.visits,
         yearlyNewPatients: numbers.newPatients,
         weeksWorked: numbers.weeksWorked ?? DEFAULT_WEEKS_WORKED,
+        ...(scheduleChanged ? { workDays } : {}),
       });
-      await utils.goals.get.invalidate({ goalYear: year });
+      if (scheduleChanged) {
+        setSavedWorkDays(workDays);
+        utils.auth.me.invalidate();
+      }
+      await utils.goals.get.invalidate();
       toast.success(`${year} goals saved`);
     } catch (error) {
       toast.error(friendlyErrorMessage(error as never, "Could not save your goals. Please try again."));
@@ -200,10 +204,15 @@ export default function Goals() {
     }
   };
 
+  const canGoBack = year > MIN_GOAL_YEAR;
+  const canGoForward = year < MAX_GOAL_YEAR;
   const changeYear = (delta: number) => {
-    setYear((y) => y + delta);
+    const next = clampGoalYear(year + delta);
+    if (next === year) return;
+    setYear(next);
     setLoadedYear(null);
   };
+  const aim = fullDayAim(results);
 
   const fraction = yearElapsedFraction(year, progressQuery.data?.asOf ?? todayKeyLocal());
   const showProgress = progressQuery.data && fraction > 0 && (numbers.visits !== null || numbers.newPatients !== null);
@@ -227,7 +236,8 @@ export default function Goals() {
             <button
               type="button"
               onClick={() => changeYear(-1)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
+              disabled={!canGoBack}
+              className="flex h-11 w-11 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
               aria-label="Previous year"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -236,7 +246,8 @@ export default function Goals() {
             <button
               type="button"
               onClick={() => changeYear(1)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
+              disabled={!canGoForward}
+              className="flex h-11 w-11 disabled:opacity-40 disabled:pointer-events-none items-center justify-center rounded-lg border border-brand-gold/15 text-muted-foreground hover:text-foreground"
               aria-label="Next year"
             >
               <ChevronRight className="h-5 w-5" />
@@ -349,15 +360,15 @@ export default function Goals() {
                   </tbody>
                 </table>
               </div>
-              {results.officeVisits.fullDay !== null && (
+              {aim.officeVisits !== null && (
                 <p className="text-xs text-muted-foreground">
-                  To stay on target, aim for at least <strong className="text-foreground">{wholeNeeded(results.officeVisits.fullDay)} visits</strong>
-                  {results.newPatients.fullDay !== null && (
+                  To stay on target, aim for at least <strong className="text-foreground">{aim.officeVisits} visits</strong>
+                  {aim.newPatients !== null && (
                     <>
-                      {" "}and <strong className="text-foreground">{formatCount(results.newPatients.fullDay)} new patients</strong>
+                      {" "}and <strong className="text-foreground">{aim.newPatients} new patient{aim.newPatients === 1 ? "" : "s"}</strong>
                     </>
                   )}{" "}
-                  on a full day.
+                  on a full day (rounded up to whole patients).
                 </p>
               )}
             </section>
@@ -425,8 +436,8 @@ export default function Goals() {
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">{year === currentYear ? "This year so far" : `${year} actual`}</h2>
                   <p className="text-xs text-muted-foreground mt-1">
-                    From what you've logged in Log Stats, compared with an even pace through the year
-                    {year === currentYear ? ` (${Math.round(fraction * 100)}% of the year has passed)` : ""}.
+                    From what you've logged in Log Stats through {year === currentYear ? "yesterday" : "Dec 31"}, compared with an even pace through the year
+                    {year === currentYear ? ` (${Math.round(fraction * 100)}% of the year done)` : ""}.
                   </p>
                 </div>
                 {!progressQuery.data.hasData ? (
