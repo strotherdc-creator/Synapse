@@ -27,6 +27,7 @@ import {
   BarChart3,
   BookOpen,
   Calendar,
+  Goal,
   LogOut,
   Menu,
   MessageSquare,
@@ -47,6 +48,7 @@ import { SynapseLogo, SynapseLogoInline } from "./SynapseLogo";
 const menuItems = [
   { icon: Sparkles, label: "Today's Plan", path: "/today" },
   { icon: BarChart2, label: "Log Stats", path: "/wwld" },
+  { icon: Goal, label: "Goals", path: "/goals" },
   { icon: BookOpen, label: "Curriculum", path: "/curriculum" },
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },

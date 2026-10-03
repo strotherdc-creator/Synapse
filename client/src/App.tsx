@@ -22,6 +22,7 @@ import Landing from "./pages/Landing";
 import WWLD from "./pages/WWLD";
 import WwldStatSettings from "./pages/WwldStatSettings";
 import WwldHistory from "./pages/WwldHistory";
+import Goals from "./pages/Goals";
 import TodaysGrowthPlan from "./pages/TodaysGrowthPlan";
 import WeeklyReview from "./pages/WeeklyReview";
 import CommunicationCoach from "./pages/CommunicationCoach";
@@ -173,6 +174,7 @@ function AuthenticatedRouter() {
         <Route path="/wwld" component={WWLD} />
         <Route path="/wwld/settings" component={WwldStatSettings} />
         <Route path="/wwld/history" component={WwldHistory} />
+        <Route path="/goals" component={Goals} />
         <Route path="/today" component={TodaysGrowthPlan} />
         <Route path="/review" component={WeeklyReview} />
         <Route path="/communication" component={CommunicationCoach} />
