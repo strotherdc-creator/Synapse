@@ -21,6 +21,7 @@ import {
 } from "../shared/schema";
 import { ENV } from "./_core/env";
 import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
+import { GOALS_MIGRATIONS } from "./goals/migrations";
 import { BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
@@ -122,6 +123,8 @@ export async function runMigrations(additionalMigrations: string[] = []) {
     `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS recall integer NOT NULL DEFAULT 0`,
     // Log Stats settings, custom stats, and tracked-stat provenance (Oct 2026, additive only)
     ...WWLD_STATS_MIGRATIONS,
+    // Goals page: one row per doctor per year (Oct 2026, additive only)
+    ...GOALS_MIGRATIONS,
     ...additionalMigrations,
   ];
   const failures: string[] = [];

@@ -305,6 +305,28 @@ export const wwldCustomStatValues = pgTable(
 );
 export type WwldCustomStatValue = typeof wwldCustomStatValues.$inferSelect;
 
+// ─── Doctor Goals ──────────────────────────────────────────────────
+// One row per doctor per goal year. Goal numbers are nullable: a doctor can save
+// some goals and fill in the rest later. Additive table (server/goals/migrations.ts).
+export const doctorGoals = pgTable(
+  "doctor_goals",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    goalYear: integer("goal_year").notNull(),
+    yearlyRevenue: integer("yearly_revenue"), // whole dollars
+    yearlyOfficeVisits: integer("yearly_office_visits"),
+    yearlyNewPatients: integer("yearly_new_patients"),
+    weeksWorked: integer("weeks_worked").notNull().default(50),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ([
+    unique("doctor_goals_user_year_key").on(table.userId, table.goalYear),
+  ])
+);
+export type DoctorGoals = typeof doctorGoals.$inferSelect;
+
 // ─── Lyle Content Bank ─────────────────────────────────────────────
 // Pre-seeded action lines from the Lyle Algorithm content bank CSV
 // 114 rows: 52 weekly themes + 62 daily action lines

@@ -7,6 +7,19 @@ import { invokeLLM, type ChatMessage } from "./_core/llm";
 import { assertRateLimit } from "./_core/rateLimit";
 import { engagementRouter } from "./engagement/router";
 import * as statSettings from "./wwld/statSettings";
+import * as goals from "./goals/goals";
+import {
+  DEFAULT_WORK_DAYS,
+  MAX_GOAL_NEW_PATIENTS,
+  MAX_GOAL_REVENUE,
+  MAX_GOAL_VISITS,
+  MAX_GOAL_YEAR,
+  MAX_WEEKS_WORKED,
+  MIN_GOAL_YEAR,
+  MIN_WEEKS_WORKED,
+  WORK_DAYS_PATTERN,
+  isValidWorkDays,
+} from "../shared/goals";
 import {
   BUILTIN_STAT_KEYS,
   CUSTOM_STAT_NAME_MAX,
@@ -1241,6 +1254,57 @@ const wwldRouter = router({
 
 // ─── App Router ──────────────────────────────────────────────────────
 
+// ─── Goals Router ────────────────────────────────────────────────────
+// Per-doctor yearly goals. Every procedure is scoped to ctx.user.id; inputs never
+// carry a userId, so one doctor can't read or write another doctor's goals.
+
+const goalYearSchema = z.number().int().min(MIN_GOAL_YEAR).max(MAX_GOAL_YEAR);
+const goalNumber = (max: number) => z.number().int().min(0).max(max).nullable();
+
+const goalsRouter = router({
+  get: protectedProcedure
+    .input(z.object({ goalYear: goalYearSchema }))
+    .query(async ({ ctx, input }) => {
+      const saved = await goals.getGoals(ctx.user.id, input.goalYear);
+      const workDays = (ctx.user as { workDays?: string | null }).workDays || DEFAULT_WORK_DAYS;
+      return { goals: saved, workDays };
+    }),
+  save: protectedProcedure
+    .input(
+      z.object({
+        goalYear: goalYearSchema,
+        yearlyRevenue: goalNumber(MAX_GOAL_REVENUE),
+        yearlyOfficeVisits: goalNumber(MAX_GOAL_VISITS),
+        yearlyNewPatients: goalNumber(MAX_GOAL_NEW_PATIENTS),
+        weeksWorked: z.number().int().min(MIN_WEEKS_WORKED).max(MAX_WEEKS_WORKED),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return goals.saveGoals(ctx.user.id, {
+        goalYear: input.goalYear,
+        yearlyRevenue: input.yearlyRevenue,
+        yearlyOfficeVisits: input.yearlyOfficeVisits,
+        yearlyNewPatients: input.yearlyNewPatients,
+        weeksWorked: input.weeksWorked,
+      });
+    }),
+  /** Same schedule as Profile → Practice Schedule (users.work_days); only that column changes. */
+  saveClinicDays: protectedProcedure
+    .input(z.object({ workDays: z.string().max(100).regex(WORK_DAYS_PATTERN) }))
+    .mutation(async ({ ctx, input }) => {
+      if (!isValidWorkDays(input.workDays)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Set each day of the week once: Full day, Half day, or Closed." });
+      }
+      await goals.saveClinicDays(ctx.user.id, input.workDays);
+      return { workDays: input.workDays };
+    }),
+  getProgress: protectedProcedure
+    .input(z.object({ goalYear: goalYearSchema }))
+    .query(async ({ ctx, input }) => {
+      return goals.getYearProgress(ctx.user.id, input.goalYear);
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: authRouter,
@@ -1256,6 +1320,7 @@ export const appRouter = router({
   coaching: coachingRouter,
   adminStats: adminStatsRouter,
   wwld: wwldRouter,
+  goals: goalsRouter,
   engagement: engagementRouter,
 });
 
