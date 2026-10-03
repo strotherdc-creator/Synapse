@@ -108,10 +108,10 @@ export default function WwldStatSettings() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="readable min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
         <div className="flex items-center gap-3 max-w-2xl mx-auto">
-          <Link href="/wwld" className="text-muted-foreground hover:text-foreground" aria-label="Back to Log Stats">
+          <Link href="/wwld" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border text-foreground hover:bg-muted" aria-label="Back to Log Stats">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <Settings2 className="w-6 h-6 text-[var(--gold)]" />
@@ -134,24 +134,24 @@ export default function WwldStatSettings() {
             {/* Built-in stats */}
             <section className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-3">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Stats to track</h2>
+                <h2 className="text-lg font-bold text-foreground">Stats to track</h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   Uncheck anything you don't track. It disappears from your daily log, but anything you already
                   logged stays saved and still shows in History.
                 </p>
               </div>
-              <div className="divide-y divide-brand-gold/10">
+              <div className="divide-y divide-border">
                 {BUILTIN_STATS.map((stat) => {
                   const id = `stat-${stat.key}`;
                   return (
-                    <label key={stat.key} htmlFor={id} className="flex items-center gap-3 py-3 cursor-pointer">
+                    <label key={stat.key} htmlFor={id} className="flex min-h-14 items-center gap-4 py-3 cursor-pointer">
                       <Checkbox
                         id={id}
                         checked={enabled.has(stat.key)}
                         onCheckedChange={(checked) => toggle(stat.key, checked === true)}
-                        className="size-5"
+                        className="size-6 border-2"
                       />
-                      <span className="flex-1 text-sm font-medium text-foreground">{stat.label}</span>
+                      <span className="flex-1 text-base font-medium text-foreground">{stat.label}</span>
                       <span className="text-xs text-muted-foreground">{stat.alias}</span>
                     </label>
                   );
@@ -163,7 +163,7 @@ export default function WwldStatSettings() {
             <section className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">
+                  <h2 className="text-lg font-bold text-foreground">
                     Your custom stats{" "}
                     <span className="text-muted-foreground font-normal">
                       ({customs.length}/{MAX_CUSTOM_STATS})
@@ -183,34 +183,38 @@ export default function WwldStatSettings() {
 
               <div className="space-y-3">
                 {customs.map((c, index) => (
-                  <div key={c.tempKey} className="flex items-start gap-2">
-                    <div className="flex-1 space-y-1">
+                  <div key={c.tempKey} className="space-y-2 rounded-lg border border-border p-3">
+                    <label className="block text-base font-semibold text-foreground" htmlFor={`custom-name-${c.tempKey}`}>
+                      Custom stat {index + 1}
+                    </label>
+                    <Input
+                      id={`custom-name-${c.tempKey}`}
+                      className="h-12 text-base"
+                      value={c.name}
+                      maxLength={CUSTOM_STAT_NAME_MAX}
+                      placeholder="Name, e.g. Reactivations"
+                      onChange={(e) => updateCustom(c.tempKey, { name: e.target.value })}
+                    />
+                    <div className="flex items-center gap-2">
                       <Input
-                        value={c.name}
-                        maxLength={CUSTOM_STAT_NAME_MAX}
-                        placeholder={`Custom stat ${index + 1} name`}
-                        aria-label={`Custom stat ${index + 1} name`}
-                        onChange={(e) => updateCustom(c.tempKey, { name: e.target.value })}
-                      />
-                    </div>
-                    <div className="w-28 space-y-1">
-                      <Input
+                        className="h-12 flex-1 text-base"
                         value={c.unit}
                         maxLength={CUSTOM_STAT_UNIT_MAX}
                         placeholder="Unit (optional)"
                         aria-label={`Custom stat ${index + 1} unit`}
                         onChange={(e) => updateCustom(c.tempKey, { unit: e.target.value })}
                       />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => removeCustom(c.tempKey)}
+                        aria-label={`Remove custom stat ${index + 1}`}
+                        className="h-12 border-2 border-border px-3 text-base"
+                      >
+                        <Trash2 className="w-5 h-5 mr-1" aria-hidden="true" />
+                        Remove
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeCustom(c.tempKey)}
-                      aria-label={`Remove custom stat ${index + 1}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-muted-foreground" />
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -218,10 +222,9 @@ export default function WwldStatSettings() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={addCustom}
                 disabled={customs.length >= MAX_CUSTOM_STATS}
-                className="w-full"
+                className="w-full h-12 text-base border-2 border-[var(--gold)] text-[var(--gold)]"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 {customs.length >= MAX_CUSTOM_STATS ? `Limit of ${MAX_CUSTOM_STATS} custom stats reached` : "Add custom stat"}
@@ -236,11 +239,11 @@ export default function WwldStatSettings() {
             )}
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setLocation("/wwld")} disabled={save.isPending}>
+              <Button variant="outline" className="flex-1 h-12 text-base border-2 border-foreground/70" onClick={() => setLocation("/wwld")} disabled={save.isPending}>
                 Cancel
               </Button>
               <Button
-                className="flex-1 bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+                className="flex-1 h-12 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
                 onClick={handleSave}
                 disabled={save.isPending || nothingSelected}
               >

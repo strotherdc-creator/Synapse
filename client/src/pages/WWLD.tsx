@@ -201,10 +201,14 @@ const TOOLTIP_STYLE = {
   border: "1px solid oklch(0.26 0.02 155)",
   borderRadius: "8px",
   color: "oklch(0.93 0.01 90)",
-  fontSize: "12px",
+  fontSize: "15px",
 };
 
 const GOLD = "var(--gold, #d4a017)";
+// Chart text: 14px and the brighter muted color (10.7:1 on cards); grid lines 3:1+.
+const AXIS_TICK = { fontSize: 14, fill: "oklch(0.82 0.012 90)" };
+const LEGEND_STYLE = { fontSize: 14 };
+const GRID_STROKE = "oklch(0.45 0.02 155)";
 const GREEN = "var(--primary, #2d6a4f)";
 const GREEN2 = "oklch(0.55 0.10 155)";
 
@@ -322,7 +326,7 @@ export default function WWLD() {
   const existingSession = todayData?.sessions.find((s) => s.sessionType === activeSessionType);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="readable min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-brand-gold/15 px-4 py-4">
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 max-w-2xl mx-auto">
@@ -330,15 +334,14 @@ export default function WWLD() {
             <BarChart2 className="w-6 h-6 text-[var(--gold)]" />
             <div>
               <h1 className="text-xl font-bold text-foreground">WWLD</h1>
-              <p className="text-xs text-muted-foreground">What Would Lyle Do?</p>
+              <p className="text-base text-muted-foreground">What Would Lyle Do?</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <BacklogModal />
             <Button
               onClick={() => openLogForm(new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "end_of_day")}
-              className="bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
-              size="sm"
+              className="h-11 px-4 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
             >
               <Plus className="w-4 h-4 mr-1" />
               Log Stats
@@ -366,19 +369,22 @@ export default function WWLD() {
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Period Tabs */}
-        <div className="flex gap-1 bg-muted rounded-xl p-1 items-center">
+        <div className="grid grid-cols-4 gap-1 bg-muted rounded-xl p-1 border border-border" role="group" aria-label="Time period">
           {(["today", "wtd", "mtd", "ytd", "trends"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${
+              aria-pressed={period === p}
+              className={`min-h-11 text-base rounded-lg transition-all ${
                 p === "trends"
-                  ? period === p
-                    ? "bg-emerald-500 text-white shadow-md text-sm py-2.5"
-                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 text-sm py-2.5"
+                  ? `col-span-4 mt-1 border-2 font-semibold ${
+                      period === p
+                        ? "bg-emerald-400 border-emerald-400 text-black font-bold"
+                        : "border-emerald-400 text-emerald-300 hover:bg-emerald-500/15"
+                    }`
                   : period === p
-                    ? "bg-[var(--gold)] text-black shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[var(--gold)] text-black font-bold shadow-sm underline underline-offset-4 decoration-2"
+                    : "text-foreground font-medium hover:bg-background/40"
               }`}
             >
               {p === "trends" ? "📈 Trends" : PERIOD_LABELS[p]}
@@ -391,11 +397,11 @@ export default function WWLD() {
           <>
             {/* Stat Grid */}
             {isLoading ? (
-              <div className="grid grid-cols-3 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {enabledStats.has("officeVisits") && <StatCard label="Office Visits" alias="OV" value={totals?.officeVisits ?? 0} highlight={true} />}
                 {enabledStats.has("newPatients") && <StatCard label="New Patients" alias="Day 1" value={totals?.newPatients ?? 0} />}
                 {enabledStats.has("recall") && <StatCard label="Recall" alias="RC" value={(totals as any)?.recall ?? 0} />}
@@ -426,11 +432,11 @@ export default function WWLD() {
                     <h3 className="text-sm font-semibold text-foreground mb-4">This Week vs Last Week — Office Visits</h3>
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={weekCompData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                        <XAxis dataKey="day" tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
-                        <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                        <XAxis dataKey="day" tick={AXIS_TICK} />
+                        <YAxis tick={AXIS_TICK} />
                         <Tooltip contentStyle={TOOLTIP_STYLE} />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Legend wrapperStyle={LEGEND_STYLE} />
                         <Bar dataKey="This Week" fill={GOLD} radius={[3, 3, 0, 0]} />
                         <Bar dataKey="Last Week" fill={GREEN2} radius={[3, 3, 0, 0]} />
                       </BarChart>
@@ -447,9 +453,9 @@ export default function WWLD() {
                 <p className="text-xs text-muted-foreground mb-4">Based on separately logged daily stats from the last 30 days</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={analytics.dayOfWeekAverages} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis dataKey="day" tick={AXIS_TICK} />
+                    <YAxis tick={AXIS_TICK} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: number) => [val.toFixed(1), "Avg Visits"]} />
                     <Bar dataKey="avgOfficeVisits" name="Avg Office Visits" fill={GREEN} radius={[3, 3, 0, 0]} />
                   </BarChart>
@@ -463,11 +469,11 @@ export default function WWLD() {
                 <h3 className="text-sm font-semibold text-foreground mb-4">Office Visits — Year to Date</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={periodData.dailyBreakdown.map((d) => ({ ...d, label: formatDate(d.date) }))} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: "oklch(0.65 0.015 90)" }} interval={Math.max(1, Math.floor(periodData.dailyBreakdown.length / 8))} />
-                    <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis dataKey="label" tick={AXIS_TICK} interval={Math.max(1, Math.floor(periodData.dailyBreakdown.length / 5))} />
+                    <YAxis tick={AXIS_TICK} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={LEGEND_STYLE} />
                     <Line type="monotone" dataKey="officeVisits" name="Office Visits" stroke={GOLD} strokeWidth={2} dot={false} />
                     <Line type="monotone" dataKey="newPatients" name="New Patients" stroke={GREEN2} strokeWidth={1.5} dot={false} />
                   </LineChart>
@@ -477,17 +483,18 @@ export default function WWLD() {
 
             {/* Today's Sessions Status */}
             <div className="bg-card border border-brand-gold/15 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Today's Sessions</h3>
+              <h3 className="text-lg font-bold text-foreground mb-2">Today's Sessions</h3>
               <div className="space-y-2">
                 {(["morning", "afternoon", "end_of_day"] as SessionType[]).map((type) => {
                   const logged = type === "morning" ? todayStatus?.morning : type === "afternoon" ? todayStatus?.afternoon : todayStatus?.endOfDay;
                   return (
-                    <div key={type} className="flex items-center justify-between py-2 border-b border-brand-gold/15 last:border-0">
+                    <div key={type} className="flex items-center justify-between gap-2 py-2 border-b border-border last:border-0">
                       <div className="flex items-center gap-2">
-                        {logged ? <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" /> : <Circle className="w-4 h-4 text-muted-foreground" />}
-                        <span className={`text-sm ${logged ? "text-foreground font-medium" : "text-muted-foreground"}`}>{SESSION_TYPE_LABELS[type]}</span>
+                        {logged ? <CheckCircle2 className="w-5 h-5 text-[var(--gold)]" aria-hidden="true" /> : <Circle className="w-5 h-5 text-muted-foreground" aria-hidden="true" />}
+                        <span className="text-base text-foreground font-medium">{SESSION_TYPE_LABELS[type]}</span>
+                        <span className={`text-base ${logged ? "text-[var(--gold)]" : "text-muted-foreground"}`}>{logged ? "· Logged" : "· Not logged"}</span>
                       </div>
-                      <button onClick={() => openLogForm(type)} className="text-xs text-[var(--gold)] hover:text-[var(--gold)]/80 font-semibold transition-colors">
+                      <button onClick={() => openLogForm(type)} className="min-h-11 min-w-16 rounded-lg border-2 border-[var(--gold)] px-4 text-base text-[var(--gold)] hover:bg-[var(--gold)]/10 font-semibold transition-colors">
                         {logged ? "Edit" : "Log"}
                       </button>
                     </div>
@@ -537,11 +544,11 @@ export default function WWLD() {
                 <p className="text-xs text-muted-foreground mb-4">Office visits, new patients, and care plans</p>
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: "oklch(0.65 0.015 90)" }} interval={Math.max(1, Math.floor(trendData.length / 8))} />
-                    <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis dataKey="date" tick={AXIS_TICK} interval={Math.max(1, Math.floor(trendData.length / 5))} />
+                    <YAxis tick={AXIS_TICK} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={LEGEND_STYLE} />
                     <Line type="monotone" dataKey="Office Visits" stroke={GOLD} strokeWidth={2} dot={false} />
                     <Line type="monotone" dataKey="New Patients" stroke={GREEN2} strokeWidth={1.5} dot={false} />
                     <Line type="monotone" dataKey="Care Plans" stroke="oklch(0.65 0.2 25)" strokeWidth={1.5} dot={false} />
@@ -564,14 +571,14 @@ export default function WWLD() {
                 <p className="text-xs text-muted-foreground mb-4">Full clinic days use full-day and weekday benchmarks. Half-days are compared only with the same weekday.</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={analytics.dayOfWeekAverages} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
                     <XAxis dataKey="day" tickFormatter={(day, index) => {
                       const item = analytics.dayOfWeekAverages[index];
                       return item?.scheduleType === "half" ? `${day} · ½` : day;
-                    }} tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    }} tick={AXIS_TICK} />
+                    <YAxis tick={AXIS_TICK} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(val: number) => [val.toFixed(1)]} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={LEGEND_STYLE} />
                     <Bar dataKey="avgOfficeVisits" name="Avg Office Visits" fill={GREEN} radius={[3, 3, 0, 0]} />
                     <Bar dataKey="avgNewPatients" name="Avg New Patients" fill={GOLD} radius={[3, 3, 0, 0]} />
                   </BarChart>
@@ -585,11 +592,11 @@ export default function WWLD() {
                 <h3 className="text-sm font-semibold text-foreground mb-4">This Week vs Last Week</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={weekCompData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 155)" />
-                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "oklch(0.65 0.015 90)" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+                    <XAxis dataKey="day" tick={AXIS_TICK} />
+                    <YAxis tick={AXIS_TICK} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={LEGEND_STYLE} />
                     <Bar dataKey="This Week" fill={GOLD} radius={[3, 3, 0, 0]} />
                     <Bar dataKey="Last Week" fill={GREEN2} radius={[3, 3, 0, 0]} />
                   </BarChart>
@@ -602,7 +609,7 @@ export default function WWLD() {
 
       {/* Log Stats Modal */}
       <Dialog open={logModalOpen} onOpenChange={setLogModalOpen}>
-        <DialogContent className="bg-background border-brand-gold/15 max-w-md mx-auto">
+        <DialogContent className="readable bg-background border-brand-gold/15 max-w-md mx-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {SESSION_TYPE_LABELS[activeSessionType]} — {today}

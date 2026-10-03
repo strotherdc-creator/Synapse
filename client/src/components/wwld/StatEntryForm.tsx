@@ -170,20 +170,21 @@ export function StatEntryForm({
   ) => (
     <div
       key={key}
-      className="flex items-center justify-between bg-card border border-brand-gold/15 rounded-xl px-4 py-3"
+      className="flex flex-col gap-2 bg-card border border-brand-gold/15 rounded-xl px-4 py-3"
     >
-      <div className="flex flex-col min-w-0 pr-2">
-        <span className="text-sm font-semibold text-foreground truncate">{label}</span>
-        {sublabel ? <span className="text-xs text-muted-foreground truncate">{sublabel}</span> : null}
+      {/* Name on its own line (no truncation), then a full-width stepper with 44px+ buttons */}
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <span className="text-base font-semibold text-foreground">{label}</span>
+        {sublabel ? <span className="text-base text-muted-foreground">{sublabel}</span> : null}
       </div>
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3">
         <button
           type="button"
           onClick={onMinus}
-          className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors"
+          className="h-12 w-12 rounded-full border-2 border-border bg-muted flex items-center justify-center hover:bg-accent transition-colors"
           aria-label={`Decrease ${label}`}
         >
-          <Minus className="w-4 h-4 text-foreground" />
+          <Minus className="w-5 h-5 text-foreground" />
         </button>
         <input
           type="number"
@@ -193,15 +194,15 @@ export function StatEntryForm({
           placeholder="–"
           onChange={(e) => onInput(e.target.value)}
           aria-label={label}
-          className="w-16 text-center text-lg font-bold text-foreground bg-transparent border-b border-brand-gold/15 focus:outline-none focus:border-[var(--gold)]"
+          className="h-12 w-full min-w-0 rounded-lg text-center text-2xl font-bold text-foreground bg-background border-2 border-border focus:outline-none focus:border-[var(--gold)]"
         />
         <button
           type="button"
           onClick={onPlus}
-          className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-accent transition-colors"
+          className="h-12 w-12 rounded-full border-2 border-border bg-muted flex items-center justify-center hover:bg-accent transition-colors"
           aria-label={`Increase ${label}`}
         >
-          <Plus className="w-4 h-4 text-foreground" />
+          <Plus className="w-5 h-5 text-foreground" />
         </button>
       </div>
     </div>
@@ -216,7 +217,7 @@ export function StatEntryForm({
         <p className="text-sm text-muted-foreground mt-1">{sessionDate}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 max-h-[55vh] overflow-y-auto">
+      <div className="grid grid-cols-1 gap-3">
         {visibleBuiltins.map((field) =>
           renderRow(
             field.key,
@@ -246,9 +247,9 @@ export function StatEntryForm({
 
       <Link
         href="/wwld/settings"
-        className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-[var(--gold)] transition-colors"
+        className="flex min-h-11 items-center justify-center gap-2 text-base font-semibold text-[var(--gold)] underline underline-offset-4 hover:text-[var(--gold)]/80 transition-colors"
       >
-        <Settings2 className="w-3.5 h-3.5" />
+        <Settings2 className="w-5 h-5" aria-hidden="true" />
         Choose which stats appear here
       </Link>
 
@@ -256,7 +257,7 @@ export function StatEntryForm({
         {onCancel && (
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 h-12 text-base border-2 border-foreground/70"
             onClick={onCancel}
             disabled={logSession.isPending}
           >
@@ -264,7 +265,7 @@ export function StatEntryForm({
           </Button>
         )}
         <Button
-          className="flex-1 bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+          className="flex-1 h-12 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
           onClick={handleSubmit}
           disabled={logSession.isPending}
         >

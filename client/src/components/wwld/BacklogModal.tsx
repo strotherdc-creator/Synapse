@@ -143,12 +143,13 @@ function StatRow({
   max?: number;
 }) {
   return (
-    <div className={cn("flex items-center justify-between gap-2", compact ? "py-1" : "py-2")}>
-      <span className={cn("text-foreground", compact ? "text-xs" : "text-sm")}>{label}</span>
-      <div className="flex items-center gap-1">
+    <div className={cn("flex flex-col gap-2", compact ? "py-2" : "py-3")}>
+      <span className="text-base font-semibold text-foreground">{label}</span>
+      <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3">
         <button
+          type="button"
           onClick={() => onChange(Math.max(0, (value === "" ? 0 : value) - 1))}
-          className="w-7 h-7 rounded-md bg-muted/40 hover:bg-muted/70 text-foreground flex items-center justify-center text-base font-bold transition-colors"
+          className="h-12 w-12 rounded-full border-2 border-border bg-muted text-foreground flex items-center justify-center text-2xl font-bold transition-colors hover:bg-accent"
           aria-label={`Decrease ${label}`}
         >
           −
@@ -159,15 +160,17 @@ function StatRow({
           max={max}
           value={value}
           placeholder="–"
+          aria-label={label}
           onChange={(e) => {
             const v = parseInt(e.target.value, 10);
             if (!isNaN(v) && v >= 0 && v <= max) onChange(v);
           }}
-          className="w-14 text-center bg-muted/20 border border-brand-gold/15 rounded-md text-foreground text-sm py-1 focus:outline-none focus:ring-1 focus:ring-[var(--gold)]"
+          className="h-12 w-full min-w-0 text-center bg-background border-2 border-border rounded-lg text-foreground text-2xl font-bold focus:outline-none focus:border-[var(--gold)]"
         />
         <button
+          type="button"
           onClick={() => onChange(Math.min(max, (value === "" ? 0 : value) + 1))}
-          className="w-7 h-7 rounded-md bg-muted/40 hover:bg-muted/70 text-foreground flex items-center justify-center text-base font-bold transition-colors"
+          className="h-12 w-12 rounded-full border-2 border-border bg-muted text-foreground flex items-center justify-center text-2xl font-bold transition-colors hover:bg-accent"
           aria-label={`Increase ${label}`}
         >
           +
@@ -347,9 +350,9 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
       <div className="space-y-3">
         <button
           onClick={() => { setSelectedDay(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
-          className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
+          className="flex min-h-11 items-center gap-1 text-base font-semibold text-[var(--gold)] hover:opacity-80"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to day list
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" /> Back to day list
         </button>
         <div className="text-center">
           <p className="text-base font-semibold text-foreground">{getDayLabel(selectedDay)}</p>
@@ -372,7 +375,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
         <Button
           onClick={handleSaveDay}
           disabled={saving || selectedDayQuery.isLoading || fields.isLoading}
-          className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+          className="w-full h-12 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           {isEditingSavedDay ? "Save changes to" : "Save"} {getDayLabel(selectedDay)}
@@ -401,16 +404,16 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
                 key={key}
                 onClick={() => selectDay(d)}
                 className={cn(
-                  "flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors text-left",
+                  "flex min-h-12 items-center justify-between px-4 py-3 rounded-lg border-2 transition-colors text-left",
                   saved
-                    ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
+                    ? "border-[var(--gold)] bg-[var(--gold)]/10"
                     : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
                 )}
               >
                 <span className="text-sm font-medium text-foreground">{getDayLabel(d)}</span>
                 <div className="flex items-center gap-2">
-                  {saved && <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" />}
-                  {!saved && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                  {saved && <span className="flex items-center gap-1 text-base font-semibold text-[var(--gold)]"><CheckCircle2 className="w-5 h-5" aria-hidden="true" />Saved</span>}
+                  {!saved && <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />}
                 </div>
               </button>
             );
@@ -421,7 +424,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
       {olderDays.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Older (up to 30 days)</p>
-          <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto">
+          <div className="grid grid-cols-1 gap-1 ">
             {olderDays.map((d) => {
               const key = formatDate(d);
               const saved = savedDays.has(key);
@@ -430,16 +433,16 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
                   key={key}
                   onClick={() => selectDay(d)}
                   className={cn(
-                    "flex items-center justify-between px-3 py-2 rounded-lg border transition-colors text-left",
+                    "flex min-h-12 items-center justify-between px-4 py-3 rounded-lg border-2 transition-colors text-left",
                     saved
-                      ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
+                      ? "border-[var(--gold)] bg-[var(--gold)]/10"
                       : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
                   )}
                 >
                   <span className="text-sm text-foreground">{getDayLabel(d)}</span>
                   <div className="flex items-center gap-2">
-                    {saved && <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" />}
-                    {!saved && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                    {saved && <span className="flex items-center gap-1 text-base font-semibold text-[var(--gold)]"><CheckCircle2 className="w-5 h-5" aria-hidden="true" />Saved</span>}
+                    {!saved && <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />}
                   </div>
                 </button>
               );
@@ -448,7 +451,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      <Button variant="outline" onClick={onDone} className="w-full">
+      <Button variant="outline" onClick={onDone} className="w-full h-12 text-base border-2 border-foreground/70">
         Done
       </Button>
     </div>
@@ -505,9 +508,9 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
       <div className="space-y-3">
         <button
           onClick={() => { setSelectedWeek(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
-          className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
+          className="flex min-h-11 items-center gap-1 text-base font-semibold text-[var(--gold)] hover:opacity-80"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to week list
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" /> Back to week list
         </button>
         <div className="text-center">
           <p className="text-base font-semibold text-foreground">Week of {getWeekLabel(selectedWeek)}</p>
@@ -524,7 +527,7 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
         <Button
           onClick={handleSaveWeek}
           disabled={saving || fields.isLoading}
-          className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+          className="w-full h-12 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           Save Week of {getWeekLabel(selectedWeek)}
@@ -546,9 +549,9 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
               key={key}
               onClick={() => { setSelectedWeek(w); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
               className={cn(
-                "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
+                "flex min-h-14 items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left",
                 saved
-                  ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
+                  ? "border-[var(--gold)] bg-[var(--gold)]/10"
                   : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
               )}
             >
@@ -557,14 +560,14 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
                 <p className="text-xs text-muted-foreground">Mon – Sun</p>
               </div>
               <div className="flex items-center gap-2">
-                {saved && <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" />}
-                {!saved && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                {saved && <span className="flex items-center gap-1 text-base font-semibold text-[var(--gold)]"><CheckCircle2 className="w-5 h-5" aria-hidden="true" />Saved</span>}
+                {!saved && <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />}
               </div>
             </button>
           );
         })}
       </div>
-      <Button variant="outline" onClick={onDone} className="w-full">
+      <Button variant="outline" onClick={onDone} className="w-full h-12 text-base border-2 border-foreground/70">
         Done
       </Button>
     </div>
@@ -624,9 +627,9 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
       <div className="space-y-3">
         <button
           onClick={() => { setSelectedMonth(null); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
-          className="flex items-center gap-1 text-sm text-[var(--gold)] hover:opacity-80"
+          className="flex min-h-11 items-center gap-1 text-base font-semibold text-[var(--gold)] hover:opacity-80"
         >
-          <ChevronLeft className="w-4 h-4" /> Back to month list
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" /> Back to month list
         </button>
         <div className="text-center">
           <p className="text-base font-semibold text-foreground">{label}</p>
@@ -643,7 +646,7 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
         <Button
           onClick={handleSaveMonth}
           disabled={saving || fields.isLoading}
-          className="w-full bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
+          className="w-full h-12 text-base bg-[var(--gold)] hover:bg-[var(--gold)]/90 text-black font-bold"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
           Save {label}
@@ -666,22 +669,22 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
               key={key}
               onClick={() => { setSelectedMonth({ year, month }); setStats({ ...EMPTY_STATS }); setCustom(EMPTY_CUSTOM); }}
               className={cn(
-                "flex items-center justify-between px-4 py-3 rounded-xl border transition-colors text-left",
+                "flex min-h-14 items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left",
                 saved
-                  ? "border-[var(--gold)]/40 bg-[var(--gold)]/10"
+                  ? "border-[var(--gold)] bg-[var(--gold)]/10"
                   : "border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5"
               )}
             >
               <p className="text-sm font-semibold text-foreground">{label}</p>
               <div className="flex items-center gap-2">
-                {saved && <CheckCircle2 className="w-4 h-4 text-[var(--gold)]" />}
-                {!saved && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                {saved && <span className="flex items-center gap-1 text-base font-semibold text-[var(--gold)]"><CheckCircle2 className="w-5 h-5" aria-hidden="true" />Saved</span>}
+                {!saved && <ChevronRight className="w-5 h-5 text-muted-foreground" aria-hidden="true" />}
               </div>
             </button>
           );
         })}
       </div>
-      <Button variant="outline" onClick={onDone} className="w-full">
+      <Button variant="outline" onClick={onDone} className="w-full h-12 text-base border-2 border-foreground/70">
         Done
       </Button>
     </div>
@@ -697,7 +700,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("by-day")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex min-h-16 items-center justify-between px-4 py-4 rounded-xl border-2 border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">By Day</p>
@@ -708,7 +711,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("week-total")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex min-h-16 items-center justify-between px-4 py-4 rounded-xl border-2 border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">Weekly Total</p>
@@ -719,7 +722,7 @@ function ModePicker({ onSelect }: { onSelect: (mode: Exclude<EntryMode, "pick">)
 
       <button
         onClick={() => onSelect("month-total")}
-        className="w-full flex items-center justify-between px-4 py-4 rounded-xl border border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
+        className="w-full flex min-h-16 items-center justify-between px-4 py-4 rounded-xl border-2 border-brand-gold/15 bg-card hover:border-[var(--gold)]/50 hover:bg-[var(--gold)]/5 transition-colors text-left"
       >
         <div>
           <p className="text-sm font-semibold text-foreground">Monthly Total</p>
@@ -756,14 +759,13 @@ export function BacklogModal() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className="flex items-center gap-2 border-[var(--gold)]/30 text-[var(--gold)] hover:bg-[var(--gold)]/10 hover:border-[var(--gold)]/60"
+          className="flex h-11 items-center gap-2 px-4 text-base border-2 border-[var(--gold)] text-[var(--gold)] hover:bg-[var(--gold)]/10"
         >
-          <History className="w-4 h-4" />
+          <History className="w-5 h-5" aria-hidden="true" />
           Log Past Stats
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-background border-brand-gold/15">
+      <DialogContent className="readable max-w-md max-h-[90vh] overflow-y-auto bg-background border-brand-gold/15">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <History className="w-5 h-5 text-[var(--gold)]" />
@@ -788,7 +790,7 @@ export function BacklogModal() {
           {mode !== "pick" && (
             <button
               onClick={() => setMode("pick")}
-              className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center"
+              className="mt-3 w-full min-h-11 text-base font-semibold text-foreground underline underline-offset-4 hover:text-[var(--gold)] transition-colors text-center"
             >
               ← Choose a different entry method
             </button>
