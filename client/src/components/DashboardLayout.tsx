@@ -37,7 +37,6 @@ import {
   Sparkles,
   User,
   Target,
-  Zap,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -52,7 +51,6 @@ const menuItems = [
   { icon: BookOpen, label: "Curriculum", path: "/curriculum" },
   { icon: MessageSquare, label: "AI Coach", path: "/chat" },
   { icon: PenTool, label: "Content Studio", path: "/content" },
-  { icon: Zap, label: "Communication Coach", path: "/communication", badge: "BETA" },
   { icon: Target, label: "WWLD Coach", path: "/wwld-coach", badge: "BETA" },
   { icon: User, label: "Profile", path: "/profile" },
 ];
@@ -112,7 +110,7 @@ function DashboardLayoutContent({
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, openMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -298,6 +296,7 @@ function DashboardLayoutContent({
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Open menu"
+                aria-expanded={openMobile}
                 className="h-11 w-11 shrink-0 rounded-lg bg-surface border border-brand-gold/15 flex items-center justify-center"
               >
                 <Menu className="h-6 w-6 text-foreground" />

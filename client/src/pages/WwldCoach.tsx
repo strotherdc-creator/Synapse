@@ -80,13 +80,13 @@ export default function WwldCoach() {
             </span>
           </h1>
           <p className="text-base text-muted-foreground">
-            Ask about your numbers. Answers stay in What Would Lyle Do — not curriculum or Communication Coach.
+            Ask about your numbers. Answers stay in What Would Lyle Do — not curriculum.
           </p>
         </div>
       </div>
 
       <div className="px-4 py-2 rounded-xl bg-emerald-900/20 border border-emerald-500/30 text-sm text-emerald-200">
-        Uses your logged WWLD stats and Lyle daily line only. For patient reply drafting use Communication Coach; for curriculum use AI Coach.
+        Uses your logged WWLD stats and Lyle daily line only. For curriculum questions use AI Coach.
       </div>
 
       {turns.length === 0 && (

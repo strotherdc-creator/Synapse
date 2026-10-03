@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch, useLocation } from "wouter";
+import { Redirect, Route, Switch, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -25,7 +25,6 @@ import WwldHistory from "./pages/WwldHistory";
 import Goals from "./pages/Goals";
 import TodaysGrowthPlan from "./pages/TodaysGrowthPlan";
 import WeeklyReview from "./pages/WeeklyReview";
-import CommunicationCoach from "./pages/CommunicationCoach";
 import WwldCoach from "./pages/WwldCoach";
 import { DashboardLayoutSkeleton } from "./components/DashboardLayoutSkeleton";
 import ProfileCompletion from "./components/ProfileCompletion";
@@ -177,7 +176,10 @@ function AuthenticatedRouter() {
         <Route path="/goals" component={Goals} />
         <Route path="/today" component={TodaysGrowthPlan} />
         <Route path="/review" component={WeeklyReview} />
-        <Route path="/communication" component={CommunicationCoach} />
+        {/* Communication Coach stays separate from Synapse (Doc, Sep 8): old bookmarks go home, never into the coach. */}
+        <Route path="/communication/*?">
+          <Redirect to="/" replace />
+        </Route>
         <Route path="/wwld-coach" component={WwldCoach} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

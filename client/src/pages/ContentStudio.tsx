@@ -92,13 +92,13 @@ export default function ContentStudio() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Content Type</label>
                 <Select value={contentType} onValueChange={(v) => setContentType(v as ContentType)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0 overflow-hidden [&_[data-slot=select-value]_.ml-2]:hidden">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[calc(100vw-2rem)]">
                     {contentTypes.map((ct) => (
                       <SelectItem key={ct.value} value={ct.value}>
-                        <div>
+                        <div className="whitespace-normal">
                           <span className="font-medium">{ct.label}</span>
                           <span className="text-muted-foreground ml-2 text-xs">
                             — {ct.description}
