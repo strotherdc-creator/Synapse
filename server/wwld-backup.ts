@@ -20,12 +20,35 @@ import { users } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
+/** Plain numbers (e.g. -5, 12.5) are data, not formulas, so they stay as numbers in the spreadsheet. */
+const PURE_NUMBER = /^-?\d+(\.\d+)?$/;
+/** Leading characters Excel / Sheets / LibreOffice treat as the start of a formula. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+
+/**
+ * Neutralize spreadsheet formula injection (CSV injection): a cell that starts with
+ * =, +, -, @, tab or CR gets a leading apostrophe so the spreadsheet shows it as text
+ * instead of running it. Doctor-entered text (names, notes, custom stat names) ends up in
+ * these backups, so this matters.
+ *
+ * Choice: pure numeric values such as -5 or -12.5 (a JS number, or a string that is only an
+ * optional minus sign and digits) are left unprefixed. A bare number can't run anything, and
+ * prefixing would turn real negative numbers into text. Anything else starting with "-",
+ * like "-5+1" or "-cmd", is prefixed.
+ */
+export function neutralizeFormula(value: unknown): string {
+  const s = String(value ?? "");
+  if (typeof value === "number" || typeof value === "bigint") return s;
+  if (PURE_NUMBER.test(s)) return s;
+  return FORMULA_START.test(s) ? `'${s}` : s;
+}
+
 export function toCSV(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "No data";
   const headers = Object.keys(rows[0]);
   const escape = (v: unknown) => {
-    const s = String(v ?? "");
-    return s.includes(",") || s.includes('"') || s.includes("\n")
+    const s = neutralizeFormula(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")
       ? `"${s.replace(/"/g, '""')}"`
       : s;
   };

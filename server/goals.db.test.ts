@@ -98,6 +98,34 @@ describe.skipIf(!TEST_DB)("Goals against real Postgres", () => {
     }
   });
 
+  it("a real lock timeout stops the statement loop at the first timeout", async () => {
+    // Private probe table + a short timeout on our own connection, so this never blocks the
+    // shared migration advisory lock or tables other test files use.
+    const db = await import("./db");
+    await pg.query(`CREATE TABLE IF NOT EXISTS goals_lock_probe_${base} (id INT)`);
+    const holder = await pg.connect();
+    const runner = await pg.connect();
+    try {
+      await holder.query("BEGIN");
+      await holder.query(`LOCK TABLE goals_lock_probe_${base} IN ACCESS EXCLUSIVE MODE`);
+      await runner.query(`SET lock_timeout = '1s'`);
+      const started = Date.now();
+      const failures = await db.runMigrationStatements(runner, ["a", "b", "c"].map(
+        (c) => `ALTER TABLE goals_lock_probe_${base} ADD COLUMN IF NOT EXISTS ${c} INT`,
+      ));
+      const elapsed = Date.now() - started;
+      expect(failures[0]).toMatch(/lock timeout/i);
+      expect(failures[1]).toBe("stopped after lock timeout; 2 remaining migration(s) not attempted");
+      expect(elapsed).toBeLessThan(2_500); // one 1s wait, not three
+    } finally {
+      await holder.query("ROLLBACK");
+      await runner.query("RESET lock_timeout");
+      holder.release();
+      runner.release();
+      await pg.query(`DROP TABLE IF EXISTS goals_lock_probe_${base}`);
+    }
+  }, 20_000);
+
   it("year progress sums only that doctor's logged visits and new patients for the year", async () => {
     const a = base + 3;
     await pg.query(

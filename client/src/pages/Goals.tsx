@@ -23,6 +23,7 @@ import {
   formatCount,
   formatMoney,
   formatMoneyCents,
+  formatYearDone,
   paceTarget,
   parseClinicSchedule,
   parseGoalInput,
@@ -437,7 +438,7 @@ export default function Goals() {
                   <h2 className="text-sm font-semibold text-foreground">{year === currentYear ? "This year so far" : `${year} actual`}</h2>
                   <p className="text-xs text-muted-foreground mt-1">
                     From what you've logged in Log Stats through {year === currentYear ? "yesterday" : "Dec 31"}, compared with an even pace through the year
-                    {year === currentYear ? ` (${Math.round(fraction * 100)}% of the year done)` : ""}.
+                    {year === currentYear ? ` (${formatYearDone(fraction)} of the year done)` : ""}.
                   </p>
                 </div>
                 {!progressQuery.data.hasData ? (

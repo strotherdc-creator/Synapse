@@ -269,7 +269,7 @@ describe("Goals migrations and wiring", () => {
     const db = source("server/db.ts");
     expect(db).toContain("SELECT pg_advisory_lock($1)");
     expect(db).toContain("SELECT pg_advisory_unlock($1)");
-    expect(db.indexOf("pg_advisory_lock($1)")).toBeLessThan(db.indexOf("for (const sql of migrations)"));
+    expect(db.indexOf("pg_advisory_lock($1)")).toBeLessThan(db.indexOf("runMigrationStatements(client, migrations)"));
   });
 
   it("Profile describes half days the way the math counts them", () => {
