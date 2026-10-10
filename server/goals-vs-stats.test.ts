@@ -294,15 +294,15 @@ describe("v2 display: whole numbers, '% of goal', one status line", () => {
     expect(formatWhole("revenue", 12550)).toBe("$12,550");
   });
 
-  it("reads '6 short · 98% of goal', '4 ahead · 144% of goal', '$450 short · 64% of goal'", () => {
+  it("reads '6 short · 98% of goal', '3 ahead · 133% of goal', '$450 short · 64% of goal'", () => {
     expect(describeProgress("officeVisits", 244, 250)).toMatchObject({ state: "short", text: "6 short · 98% of goal", barPct: 97.6 });
-    expect(describeProgress("newPatients", 12, 8.333)).toMatchObject({ state: "ahead", text: "4 ahead · 144% of goal", barPct: 100 });
+    expect(describeProgress("newPatients", 12, 8.333)).toMatchObject({ state: "ahead", text: "3 ahead · 133% of goal", barPct: 100 }); // shown as "12 of 9"
     expect(describeProgress("revenue", 800, 1250)).toMatchObject({ text: "$450 short · 64% of goal" });
   });
 
   it("a difference that rounds to 0 says 'Right on goal' (no '<1%')", () => {
     expect(describeProgress("revenue", 12550, 12549.7).text).toBe("Right on goal");
-    expect(describeProgress("officeVisits", 40, 40.004).text).toBe("Right on goal");
+    expect(describeProgress("officeVisits", 40, 40.004).text).toBe("1 short · 98% of goal"); // shown as "40 of 41"
     expect(describeProgress("officeVisits", 40, 40).text).toBe("Right on goal");
     const all = [describeProgress("revenue", 12550, 12500), describeProgress("newPatients", 1, 0.833)].map((p) => p.text).join(" ");
     expect(all).not.toMatch(/<1%|0\.8/);
@@ -313,5 +313,25 @@ describe("v2 display: whole numbers, '% of goal', one status line", () => {
     expect(c.weekTotal?.officeVisits).toEqual({ value: 140, logged: true });
     expect(c.weekTotal?.revenue).toEqual({ value: 2000, logged: true });
     expect(c.week[0].officeVisits.logged).toBe(false);
+  });
+
+  it("on screen it always adds up: displayed logged − displayed goal = shown difference, and % uses the displayed goal", () => {
+    for (const metric of ["revenue", "officeVisits", "newPatients"] as const) {
+      for (const goal of [0.83, 1, 8.333, 9.5, 25, 40.004, 249.2, 1249.6, 12499.5, 12500, 18000.4]) {
+        for (const actual of [0, 1, 7, 12, 40, 244, 800, 1250, 12550]) {
+          const shownGoal = Math.max(1, displayGoal(metric, goal));
+          const p = describeProgress(metric, actual, goal);
+          const diff = actual - shownGoal;
+          if (diff === 0) {
+            expect(p.text).toBe("Right on goal");
+            continue;
+          }
+          const m = p.text.match(/^\$?([\d,]+) (ahead|short) · (\d+)% of goal$/)!;
+          expect(m, p.text).not.toBeNull();
+          expect(Number(m[1].replace(/,/g, "")) * (m[2] === "ahead" ? 1 : -1)).toBe(diff);
+          expect(Number(m[3])).toBe(Math.round((actual / shownGoal) * 100));
+        }
+      }
+    }
   });
 });

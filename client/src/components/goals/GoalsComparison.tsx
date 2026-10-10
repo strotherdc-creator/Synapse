@@ -93,7 +93,7 @@ export function GoalCard({ item }: { item: MetricComparison }) {
     <div className="rounded-xl border border-border bg-card px-4 py-3" data-metric={item.metric} data-status={p.state}>
       <p className="text-base font-semibold text-foreground">{def.label}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
-        {formatWhole(item.metric, r.actual)} <span className="text-xl font-semibold text-muted-foreground">of {formatWhole(item.metric, displayGoal(item.metric, r.goal))}</span>
+        {formatWhole(item.metric, r.actual)} <span className="text-xl font-semibold text-muted-foreground">of {formatWhole(item.metric, Math.max(1, displayGoal(item.metric, r.goal)))}</span>
       </p>
       <div
         className="mt-2 h-4 w-full overflow-hidden rounded-full border border-border bg-muted"

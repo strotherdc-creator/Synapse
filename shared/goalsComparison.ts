@@ -324,15 +324,20 @@ export type ProgressText = {
   barPct: number;
 };
 
-/** One plain status line. Math uses the UNROUNDED goal; only the display is rounded. */
+/**
+ * One plain status line. The difference and percent use the DISPLAYED goal (whole units, money to
+ * the dollar) and the displayed logged number, so what's on screen always adds up:
+ * "12 of 9" → "3 ahead · 133% of goal".
+ */
 export function describeProgress(metric: GoalMetricKey, actual: number, goal: number): ProgressText {
-  const diff = actual - goal;
-  const roundedDiff = Math.round(Math.abs(diff));
-  const pctOfGoal = Math.round((actual / goal) * 100);
-  const barPct = Math.max(0, Math.min(100, (actual / goal) * 100));
-  if (roundedDiff === 0) return { state: "even", text: "Right on goal", pctOfGoal, barPct };
+  const shownGoal = Math.max(1, displayGoal(metric, goal));
+  const shownActual = Math.round(actual);
+  const diff = shownActual - shownGoal;
+  const pctOfGoal = Math.round((shownActual / shownGoal) * 100);
+  const barPct = Math.max(0, Math.min(100, (shownActual / shownGoal) * 100));
+  if (diff === 0) return { state: "even", text: "Right on goal", pctOfGoal, barPct };
   const state = diff > 0 ? "ahead" : "short";
-  return { state, text: `${formatWhole(metric, roundedDiff)} ${state} · ${pctOfGoal}% of goal`, pctOfGoal, barPct };
+  return { state, text: `${formatWhole(metric, Math.abs(diff))} ${state} · ${pctOfGoal}% of goal`, pctOfGoal, barPct };
 }
 
 export const STATUS_TEXT_V2: Record<"no_goal" | "no_stats" | "not_tracked", string> = {
