@@ -1,11 +1,12 @@
+import { appDateKey } from "@shared/appTime";
+import { GoalsSummary } from "@/components/goals/GoalsComparison";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { friendlyErrorMessage } from "@/lib/friendlyError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Goal, Loader2, Save, TrendingUp } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Goal, Loader2, Save } from "lucide-react";
 import {
   DEFAULT_WEEKS_WORKED,
   HALF_DAY_WEIGHT,
@@ -23,12 +24,9 @@ import {
   formatCount,
   formatMoney,
   formatMoneyCents,
-  formatYearDone,
-  paceTarget,
   parseClinicSchedule,
   parseGoalInput,
   serializeClinicSchedule,
-  yearElapsedFraction,
   type ClinicDayType,
   type ClinicSchedule,
   type GoalBreakdown,
@@ -68,11 +66,6 @@ function MetricRow({ label, value, strong }: { label: string; value: string; str
 }
 
 const toField = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value));
-
-function todayKeyLocal() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function GoalField({
   id,
@@ -117,10 +110,10 @@ function GoalField({
 
 export default function Goals() {
   const utils = trpc.useUtils();
-  const currentYear = new Date().getFullYear();
+  const currentYear = Number(appDateKey().slice(0, 4));
   const [year, setYear] = useState(() => clampGoalYear(currentYear));
   const goalsQuery = trpc.goals.get.useQuery({ goalYear: year });
-  const progressQuery = trpc.goals.getProgress.useQuery({ goalYear: year });
+  const comparisonQuery = trpc.goals.getComparison.useQuery({ goalYear: year });
 
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [schedule, setSchedule] = useState<ClinicSchedule>(parseClinicSchedule(null));
@@ -207,6 +200,7 @@ export default function Goals() {
         utils.auth.me.invalidate();
       }
       await utils.goals.get.invalidate();
+      await utils.goals.getComparison.invalidate();
       toast.success(`${year} goals saved`);
     } catch (error) {
       toast.error(friendlyErrorMessage(error as never, "Could not save your goals. Please try again."));
@@ -225,8 +219,6 @@ export default function Goals() {
   };
   const aim = fullDayAim(results);
 
-  const fraction = yearElapsedFraction(year, progressQuery.data?.asOf ?? todayKeyLocal());
-  const showProgress = progressQuery.data && fraction > 0 && (numbers.visits !== null || numbers.newPatients !== null);
   const dayLabel =
     results.halfDaysPerWeek > 0
       ? `${results.fullDaysPerWeek} full + ${results.halfDaysPerWeek} half day${results.halfDaysPerWeek === 1 ? "" : "s"} a week`
@@ -278,6 +270,9 @@ export default function Goals() {
           )
         ) : (
           <>
+            {/* Goals vs Log Stats: logged vs goal for today / week / month / year (no pace). */}
+            {comparisonQuery.data ? <GoalsSummary data={comparisonQuery.data} /> : null}
+
             {/* Yearly goals */}
             <section className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-4">
               <div>
@@ -428,51 +423,6 @@ export default function Goals() {
                 <p className="text-base text-muted-foreground">52 minus your weeks off for vacation and holidays. Default is 50.</p>
               </div>
             </section>
-
-            {/* This year so far (Log Stats) */}
-            {showProgress && progressQuery.data && (
-              <section className="bg-card border border-brand-gold/15 rounded-xl p-4 space-y-3" data-testid="goal-progress">
-                <div>
-                  <h2 className="text-lg font-bold text-foreground">{year === currentYear ? "This year so far" : `${year} actual`}</h2>
-                  <p className="text-base text-muted-foreground mt-1">
-                    From what you've logged in Log Stats through {year === currentYear ? "yesterday" : "Dec 31"}, compared with an even pace through the year
-                    {year === currentYear ? ` (${formatYearDone(fraction)} of the year done)` : ""}.
-                  </p>
-                </div>
-                {!progressQuery.data.hasData ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nothing logged for {year} yet. <Link href="/wwld" className="text-[var(--gold)] font-semibold">Log your stats</Link> to track your pace.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {[
-                      { label: "Office visits", actual: progressQuery.data.officeVisits, goal: numbers.visits },
-                      { label: "New patients", actual: progressQuery.data.newPatients, goal: numbers.newPatients },
-                    ].map((m) => {
-                      const target = paceTarget(m.goal, fraction);
-                      const ahead = target !== null && m.actual >= target;
-                      return (
-                        <div key={m.label} className="rounded-lg border border-border bg-muted/50 p-4">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <p className="text-base text-muted-foreground">{m.label}</p>
-                            <p className="text-2xl font-bold text-foreground tabular-nums">{m.actual.toLocaleString("en-US")}</p>
-                          </div>
-                          {target === null ? (
-                            <p className="text-base text-muted-foreground mt-1">Add a goal to compare</p>
-                          ) : (
-                            <p className={`mt-2 flex flex-wrap items-center gap-x-2 text-base font-semibold ${ahead ? "text-emerald-400" : "text-amber-300"}`}>
-                              {ahead ? <TrendingUp className="h-5 w-5 shrink-0" aria-hidden="true" /> : <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />}
-                              <span>{ahead ? "On pace" : "Behind pace"}</span>
-                              <span className="font-normal text-foreground">· pace {formatCount(target)}</span>
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            )}
 
             <Button
               onClick={handleSave}

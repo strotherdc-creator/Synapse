@@ -1,3 +1,4 @@
+import { appDateKey } from "@shared/appTime";
 import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -35,14 +36,8 @@ const DAILY_TASKS = [
 ];
 
 function getTodayStr() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  // Synapse's one calendar clock (America/New_York), same as the server.
+  return appDateKey();
 }
 
 export default function DailyRoutine() {

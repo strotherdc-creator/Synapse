@@ -240,6 +240,8 @@ export const wwldSessions = pgTable(
     progressExams: integer("progress_exams").notNull().default(0),
     performanceReviews: integer("performance_reviews").notNull().default(0),
     carePlansSigned: integer("care_plans_signed").notNull().default(0),
+    // Whole dollars collected (Oct 2026). NULL = not logged (never treated as $0).
+    collections: integer("collections"),
     notes: text("notes"),
     // Comma-separated built-in stat keys shown in the log form when this row was saved.
     // NULL = row saved before per-doctor stat settings existed (every built-in stat tracked).

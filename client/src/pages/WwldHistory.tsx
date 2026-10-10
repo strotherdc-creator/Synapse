@@ -1,8 +1,9 @@
+import { appDateKey } from "@shared/appTime";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { BUILTIN_STATS } from "@shared/wwldStats";
+import { BUILTIN_STATS, formatBuiltinStatValue } from "@shared/wwldStats";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 
@@ -23,8 +24,8 @@ function dateKey(year: number, month: number, day: number) {
 }
 
 function getTodayDate(): string {
-  const d = new Date();
-  return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+  // Synapse's calendar (America/New_York), same "today" as the server.
+  return appDateKey();
 }
 
 function formatLongDate(key: string) {
@@ -121,7 +122,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
   const builtinRows = BUILTIN_STATS.flatMap((stat) => {
     const sessions = day.sessions.filter((s) => typeof s.builtin[stat.key] === "number");
     if (sessions.length === 0) return [];
-    return [{ key: stat.key, label: stat.label, alias: stat.alias, value: sessions.reduce((sum, s) => sum + (s.builtin[stat.key] ?? 0), 0) }];
+    return [{ key: stat.key, label: stat.label, alias: stat.alias, value: sessions.reduce((sum, s) => sum + (s.builtin[stat.key] ?? 0), 0), display: "" }].map((r) => ({ ...r, display: formatBuiltinStatValue(stat.key, r.value) }));
   });
   const customIds = Array.from(new Set(day.sessions.flatMap((s) => Object.keys(s.custom))));
   const customRows = customIds
@@ -168,7 +169,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
                 <span className="text-sm text-foreground">{row.label}</span>
                 <span className="text-[11px] text-muted-foreground">{row.alias}</span>
               </div>
-              <span className="text-2xl font-bold text-foreground tabular-nums">{row.value.toLocaleString()}</span>
+              <span className="text-2xl font-bold text-foreground tabular-nums">{"display" in row && row.display ? row.display : row.value.toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -184,7 +185,7 @@ function DayDetail({ dateKeyStr, day, data }: { dateKeyStr: string; day: History
                 <p className="text-muted-foreground">
                   {[
                     ...BUILTIN_STATS.filter((st) => typeof s.builtin[st.key] === "number").map(
-                      (st) => `${st.alias}: ${s.builtin[st.key]}`
+                      (st) => `${st.alias}: ${formatBuiltinStatValue(st.key, s.builtin[st.key] ?? 0)}`
                     ),
                     ...Object.entries(s.custom).map(([id, v]) => `${customById.get(id)?.name ?? "Custom"}: ${v}`),
                   ].join(" · ") || "No values"}

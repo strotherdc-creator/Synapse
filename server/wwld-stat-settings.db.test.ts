@@ -5,6 +5,9 @@
  * Never point this at production.
  */
 import { beforeAll, describe, expect, it } from "vitest";
+import { BUILTIN_STAT_KEYS } from "../shared/wwldStats";
+
+const BUILTIN_STAT_COUNT = BUILTIN_STAT_KEYS.length; // 8 since Collections ($)
 
 const TEST_DB = process.env.TEST_DATABASE_URL;
 
@@ -85,7 +88,7 @@ describe.skipIf(!TEST_DB)("Log Stats settings against real Postgres", () => {
     ).rejects.toBeInstanceOf(ss.StatSettingsError);
     const after = await ss.getStatSettings(user);
     expect(after.hasSavedSettings).toBe(false);
-    expect(after.enabledBuiltinStats).toHaveLength(7);
+    expect(after.enabledBuiltinStats).toHaveLength(BUILTIN_STAT_COUNT);
     expect(after.customStats).toHaveLength(0);
   });
 

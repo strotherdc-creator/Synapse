@@ -8,12 +8,16 @@ import {
   BUILTIN_STATS,
   BUILTIN_STAT_KEYS,
   CUSTOM_STAT_VALUE_MAX,
+  builtinStatMax,
+  builtinStatStep,
+  isNullableBuiltinStat,
   type BuiltinStatKey,
 } from "@shared/wwldStats";
 
 type SessionType = "morning" | "afternoon" | "end_of_day";
 
-type StatValues = Record<BuiltinStatKey, number>;
+// null = left blank (only nullable stats like Collections; blanks are not saved)
+type StatValues = Record<BuiltinStatKey, number | null>;
 
 const SESSION_LABELS: Record<SessionType, string> = {
   morning: "Morning Stats",
@@ -21,12 +25,10 @@ const SESSION_LABELS: Record<SessionType, string> = {
   end_of_day: "End of Day Stats",
 };
 
-const BUILTIN_MAX = 9999;
-
 interface StatEntryFormProps {
   sessionType: SessionType;
   sessionDate: string; // YYYY-MM-DD
-  initialValues?: Partial<StatValues>;
+  initialValues?: Partial<Record<BuiltinStatKey, number | null>>;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -38,14 +40,14 @@ export function StatEntryForm({
   onSuccess,
   onCancel,
 }: StatEntryFormProps) {
-  const [values, setValues] = useState<StatValues>({
-    officeVisits: initialValues?.officeVisits ?? 0,
-    newPatients: initialValues?.newPatients ?? 0,
-    recall: initialValues?.recall ?? 0,
-    testResults: initialValues?.testResults ?? 0,
-    progressExams: initialValues?.progressExams ?? 0,
-    performanceReviews: initialValues?.performanceReviews ?? 0,
-    carePlansSigned: initialValues?.carePlansSigned ?? 0,
+  const [values, setValues] = useState<StatValues>(() => {
+    const init = {} as StatValues;
+    for (const key of BUILTIN_STAT_KEYS) {
+      const v = initialValues?.[key];
+      // Collections starts blank (not $0) unless something was already saved.
+      init[key] = typeof v === "number" ? v : isNullableBuiltinStat(key) ? null : 0;
+    }
+    return init;
   });
   // Custom stat values keyed by custom stat id
   const [customValues, setCustomValues] = useState<Record<number, number>>({});
@@ -86,6 +88,7 @@ export function StatEntryForm({
       utils.wwld.getAnalytics.invalidate();
       utils.wwld.getCustomStatValues.invalidate();
       utils.wwld.getHistory.invalidate();
+      utils.goals.getComparison.invalidate();
       setSubmitted(true);
       setTimeout(() => {
         onSuccess?.();
@@ -93,19 +96,19 @@ export function StatEntryForm({
     },
   });
 
-  const adjust = (key: BuiltinStatKey, delta: number) => {
+  const adjust = (key: BuiltinStatKey, direction: 1 | -1) => {
     setValues((prev) => ({
       ...prev,
-      [key]: Math.max(0, Math.min(BUILTIN_MAX, prev[key] + delta)),
+      [key]: Math.max(0, Math.min(builtinStatMax(key), (prev[key] ?? 0) + direction * builtinStatStep(key))),
     }));
   };
 
   const handleDirectInput = (key: BuiltinStatKey, raw: string) => {
-    const num = parseInt(raw, 10);
+    const num = parseInt(raw.replace(/[$,\s]/g, ""), 10);
     if (!isNaN(num)) {
-      setValues((prev) => ({ ...prev, [key]: Math.max(0, Math.min(BUILTIN_MAX, num)) }));
+      setValues((prev) => ({ ...prev, [key]: Math.max(0, Math.min(builtinStatMax(key), num)) }));
     } else if (raw === "") {
-      setValues((prev) => ({ ...prev, [key]: 0 }));
+      setValues((prev) => ({ ...prev, [key]: isNullableBuiltinStat(key) ? null : 0 }));
     }
   };
 
@@ -129,8 +132,11 @@ export function StatEntryForm({
 
   const handleSubmit = () => {
     // Only send the stats this doctor tracks. Unchecked stats are left untouched on the server.
-    const builtinPayload: Partial<StatValues> = {};
-    for (const stat of visibleBuiltins) builtinPayload[stat.key] = values[stat.key];
+    const builtinPayload: Partial<Record<BuiltinStatKey, number>> = {};
+    for (const stat of visibleBuiltins) {
+      const v = values[stat.key];
+      if (v !== null) builtinPayload[stat.key] = v; // blank Collections = not logged
+    }
     logSession.mutate({
       sessionDate,
       sessionType,
@@ -223,11 +229,11 @@ export function StatEntryForm({
             field.key,
             field.label,
             field.alias,
-            values[field.key],
+            values[field.key] ?? "",
             () => adjust(field.key, -1),
             () => adjust(field.key, 1),
             (raw) => handleDirectInput(field.key, raw),
-            BUILTIN_MAX,
+            builtinStatMax(field.key),
           )
         )}
         {customStats.map((stat) =>

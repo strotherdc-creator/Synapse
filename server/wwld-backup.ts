@@ -121,6 +121,8 @@ async function runBackup() {
         progressExams: wwldSessions.progressExams,
         performanceReviews: wwldSessions.performanceReviews,
         carePlansSigned: wwldSessions.carePlansSigned,
+        // Blank cell = Collections not logged (NULL), never $0.
+        collections: wwldSessions.collections,
         notes: wwldSessions.notes,
         createdAt: wwldSessions.createdAt,
       })

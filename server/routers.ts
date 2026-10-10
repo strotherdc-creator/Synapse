@@ -22,6 +22,7 @@ import {
 } from "../shared/goals";
 import {
   BUILTIN_STAT_KEYS,
+  COLLECTIONS_MAX,
   CUSTOM_STAT_NAME_MAX,
   CUSTOM_STAT_UNIT_MAX,
   CUSTOM_STAT_VALUE_MAX,
@@ -623,7 +624,7 @@ const routineRouter = router({
   // Opening the authenticated app counts as one daily check-in. This is
   // intentionally separate from the number of actions completed that day.
   recordDailyCheckIn: protectedProcedure.mutation(async ({ ctx }) => {
-    const serverDate = db.getCentralDateKey();
+    const serverDate = db.getAppDateKey();
     await db.updateStreak(ctx.user.id, serverDate);
     return { success: true, date: serverDate };
   }),
@@ -643,7 +644,7 @@ const routineRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const serverDate = db.getCentralDateKey();
+      const serverDate = db.getAppDateKey();
       if (input.date !== serverDate) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -1010,6 +1011,8 @@ const wwldRouter = router({
         progressExams: z.number().int().min(0).max(9999).optional(),
         performanceReviews: z.number().int().min(0).max(9999).optional(),
         carePlansSigned: z.number().int().min(0).max(9999).optional(),
+        // Whole dollars collected (Collections ($) built-in stat). Omitted = not logged.
+        collections: z.number().int().min(0).max(COLLECTIONS_MAX).optional(),
         customStats: z
           .array(
             z.object({
@@ -1097,6 +1100,8 @@ const wwldRouter = router({
         progressExams: sessions.reduce((s, r) => s + r.progressExams, 0),
         performanceReviews: sessions.reduce((s, r) => s + r.performanceReviews, 0),
         carePlansSigned: sessions.reduce((s, r) => s + r.carePlansSigned, 0),
+        // null (not $0) when no session today has Collections entered.
+        collections: sessions.reduce<number | null>((s, r) => (r.collections === null || r.collections === undefined ? s : (s ?? 0) + r.collections), null),
       };
       return { sessions, totals };
     }),
@@ -1127,7 +1132,7 @@ const wwldRouter = router({
       const userId = ctx.user.id;
 
       // ── 1. Fetch last 4 weeks of sessions ──────────────────────────
-      const endStr = db.getCentralDateKey();
+      const endStr = db.getAppDateKey();
       const startStr = db.shiftDateKey(endStr, -28);
       const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr, true);
 
@@ -1233,7 +1238,7 @@ const wwldRouter = router({
       }
 
       // ── 6. One shared, stable daily quote ─────────────────────────
-      // Today’s Plan and the WWLD card use the same Central Time daily record.
+      // Today’s Plan and the WWLD card use the same New York calendar daily record.
       // This prevents query refreshes from changing the quote mid-day.
       const dailyContent = await db.getOrCreateDailyLyleQuote(userId, endStr);
 
@@ -1293,6 +1298,13 @@ const goalsRouter = router({
         weeksWorked: input.weeksWorked,
         ...(input.workDays !== undefined ? { workDays: input.workDays } : {}),
       });
+    }),
+  /** Logged stats vs goals for today / this week / this month / this year (read-only). */
+  getComparison: protectedProcedure
+    .input(z.object({ goalYear: goalYearSchema.optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const workDays = (ctx.user as { workDays?: string | null }).workDays || DEFAULT_WORK_DAYS;
+      return goals.getGoalsComparison(ctx.user.id, workDays, input?.goalYear);
     }),
   getProgress: protectedProcedure
     .input(z.object({ goalYear: goalYearSchema }))

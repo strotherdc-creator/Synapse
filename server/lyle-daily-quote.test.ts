@@ -11,8 +11,8 @@ describe("Today’s Plan daily Lyle quote", () => {
     const db = source("server/db.ts");
     const engagement = source("server/engagement/router.ts");
 
-    expect(db).toContain("getDailyLyleQuoteForCentralDate");
-    expect(db).toContain("AT TIME ZONE 'America/Chicago'");
+    expect(db).toContain("getDailyLyleQuoteForAppDate");
+    expect(db).toContain("AT TIME ZONE 'America/New_York'");
     expect(db).toContain('eq(lyleContent.cadence, "daily")');
     expect(db).toContain("getServedContentIds(userId)");
     expect(db).toContain("if (eligible.length === 0) return null");

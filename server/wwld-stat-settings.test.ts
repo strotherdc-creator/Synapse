@@ -32,6 +32,7 @@ describe("Log Stats settings defaults", () => {
       "testResults",
       "performanceReviews",
       "carePlansSigned",
+      "collections",
     ]);
   });
 
@@ -42,9 +43,11 @@ describe("Log Stats settings defaults", () => {
 });
 
 describe("Log Stats tracked-stat provenance (history never invents values)", () => {
-  it("treats legacy rows (NULL) as every built-in stat tracked", () => {
-    expect(trackedBuiltinStats(null)).toEqual(BUILTIN_STAT_KEYS);
-    expect(trackedBuiltinStats(undefined)).toEqual(BUILTIN_STAT_KEYS);
+  it("treats legacy rows (NULL) as every original built-in stat tracked, but never Collections", () => {
+    const original = BUILTIN_STAT_KEYS.filter((k) => k !== "collections");
+    expect(trackedBuiltinStats(null)).toEqual(original);
+    expect(trackedBuiltinStats(undefined)).toEqual(original);
+    expect(trackedBuiltinStats(null)).not.toContain("collections");
   });
 
   it("only reports stats that were on the form when the row was saved", () => {

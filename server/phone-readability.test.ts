@@ -41,8 +41,14 @@ describe("phone readability (Goals + Log Stats)", () => {
     expect(wwld).toContain("aria-pressed");
     const history = source("client/src/pages/WwldHistory.tsx");
     expect(history).toContain("Dot = stats logged");
-    const goals = source("client/src/pages/Goals.tsx");
-    expect(goals).toMatch(/Behind pace|Ahead of pace|On pace/);
+    // Goals vs Log Stats: up/down is a sign + arrow + word, never color alone.
+    const comparison = source("client/src/components/goals/GoalsComparison.tsx");
+    expect(comparison).toContain("ArrowUp");
+    expect(comparison).toContain("ArrowDown");
+    const shared = source("shared/goalsComparison.ts");
+    expect(shared).toContain('"above goal"');
+    expect(shared).toContain('"below goal"');
+    expect(shared).toContain('"right on goal"');
   });
 
   it("Goals year arrows can't be squeezed below 44px", () => {

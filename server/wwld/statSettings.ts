@@ -24,6 +24,7 @@ import {
   normalizeCustomStatName,
   serializeStatKeyList,
   trackedBuiltinStats,
+  isNullableBuiltinStat,
   type BuiltinStatKey,
 } from "../../shared/wwldStats";
 
@@ -366,7 +367,14 @@ export async function getStatsHistoryForYear(userId: number, year: number) {
     session.isBacklogTotal = isBacklogWwldSession(row.notes);
     session.note = row.notes ?? null;
     for (const key of trackedBuiltinStats(row.trackedStats)) {
-      session.builtin[key] = (row as Record<BuiltinStatKey, number>)[key] ?? 0;
+      const value = (row as Record<BuiltinStatKey, number | null>)[key];
+      // Nullable stats (Collections): NULL means not logged, so never show a made-up $0.
+      if (value === null || value === undefined) {
+        if (isNullableBuiltinStat(key)) continue;
+        session.builtin[key] = 0;
+      } else {
+        session.builtin[key] = value;
+      }
     }
   }
   for (const row of customValues) {

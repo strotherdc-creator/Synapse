@@ -1,12 +1,14 @@
+import { appDateKey } from "@shared/appTime";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { TodayGoalsCard } from "@/components/goals/GoalsComparison";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { CheckCircle2, Flame, Trophy, Copy, ArrowLeft, RefreshCw, BarChart2, BookOpen } from "lucide-react";
 
 function getTodayDateKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Synapse's calendar (America/New_York), same "today" as the server.
+  return appDateKey();
 }
 
 export default function TodaysGrowthPlan() {
@@ -26,6 +28,7 @@ export default function TodaysGrowthPlan() {
   const todayKey = getTodayDateKey();
   const wwldTodayQuery = trpc.wwld.getToday.useQuery({ date: todayKey }, { staleTime: 60_000 });
   const wwldStatusQuery = trpc.wwld.getTodayStatus.useQuery({ date: todayKey }, { staleTime: 60_000 });
+  const goalsComparisonQuery = trpc.goals.getComparison.useQuery(undefined, { staleTime: 60_000 });
 
   // Mutations
   const pickMutation = trpc.engagement.pickDailyActions.useMutation({
@@ -233,7 +236,7 @@ export default function TodaysGrowthPlan() {
       <div>
         <h1 className="text-4xl font-bold text-white tracking-tight">Today's Plan</h1>
         <p className="text-xl text-gray-300 mt-2">
-          {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          {new Date(`${todayKey}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })}
         </p>
       </div>
 
@@ -310,6 +313,9 @@ export default function TodaysGrowthPlan() {
           </div>
         </div>
       </button>
+
+      {/* ─── Goals vs Log Stats: today + this week (no pace, straight comparison) ─── */}
+      {goalsComparisonQuery.data ? <TodayGoalsCard data={goalsComparisonQuery.data} /> : null}
 
       {/* Lyle Recommendation */}
       {data?.lyleRecommendation && (
