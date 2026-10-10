@@ -1,7 +1,7 @@
 interface StatCardProps {
   label: string;
   alias: string;
-  value: number;
+  value: number | string;
   highlight?: boolean;
 }
 

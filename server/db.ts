@@ -22,7 +22,8 @@ import {
 import { ENV } from "./_core/env";
 import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
 import { GOALS_MIGRATIONS } from "./goals/migrations";
-import { BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
+import { appDateKey } from "../shared/appTime";
+import { NULLABLE_BUILTIN_STATS, BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
 export function getUserAnswersTable() { return userAnswers; }
@@ -31,16 +32,12 @@ export function getContentHistoryTable() { return contentHistory; }
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
-/** Return the canonical Synapse calendar date in Central Time. */
-export function getCentralDateKey(date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+/**
+ * Return the canonical Synapse calendar date (America/New_York since Oct 2026; was Central).
+ * Same clock as the browser (shared/appTime.ts), so server and client agree on "today".
+ */
+export function getAppDateKey(date = new Date()): string {
+  return appDateKey(date);
 }
 
 /** Move one calendar day backward without depending on the host timezone. */
@@ -790,11 +787,13 @@ export interface WwldSessionInput {
   progressExams?: number;
   performanceReviews?: number;
   carePlansSigned?: number;
+  /** Whole dollars collected. Omitted = left as is; null = cleared back to "not logged" (NULL). */
+  collections?: number | null;
   notes?: string;
 }
 
 /** Built-in stat keys present in a log submission. */
-export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | undefined>>): BuiltinStatKey[] {
+export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | null | undefined>>): BuiltinStatKey[] {
   return BUILTIN_STAT_KEYS.filter((key) => typeof input[key] === "number");
 }
 
@@ -809,6 +808,10 @@ export async function upsertWwldSession(input: WwldSessionInput, executor?: Driz
   const submitted = submittedBuiltinStats(input);
   const submittedValues: Partial<Record<BuiltinStatKey, number>> = {};
   for (const key of submitted) submittedValues[key] = input[key] as number;
+  // Nullable stats (Collections) sent as null are cleared to NULL = "not logged".
+  // (Collections is the only nullable built-in; NULLABLE_BUILTIN_STATS lists it.)
+  const cleared: { collections?: null } = {};
+  if (NULLABLE_BUILTIN_STATS.includes("collections") && input.collections === null) cleared.collections = null;
 
   const existing = await db
     .select()
@@ -828,11 +831,12 @@ export async function upsertWwldSession(input: WwldSessionInput, executor?: Driz
       .update(wwldSessions)
       .set({
         ...submittedValues,
+        ...cleared,
         trackedStats,
         notes: input.notes ?? null,
       })
       .where(eq(wwldSessions.id, existing[0].id));
-    return { ...existing[0], ...submittedValues, trackedStats, notes: input.notes ?? null };
+    return { ...existing[0], ...submittedValues, ...cleared, trackedStats, notes: input.notes ?? null };
   } else {
     const [inserted] = await db
       .insert(wwldSessions)
@@ -875,6 +879,31 @@ export async function getWwldTodayStatus(userId: number, date: string) {
   };
 }
 
+type WwldDayTotals = {
+  date: string;
+  officeVisits: number;
+  newPatients: number;
+  recall: number;
+  testResults: number;
+  progressExams: number;
+  performanceReviews: number;
+  carePlansSigned: number;
+  /** Dollars collected; null when no session that day had Collections entered. */
+  collections: number | null;
+  /** True when a weekly/monthly "Log Past Stats" total is stored on this date (not a real single day). */
+  hasBacklogTotal: boolean;
+};
+
+function emptyDay(date: string): WwldDayTotals {
+  return { date, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0, collections: null, hasBacklogTotal: false };
+}
+
+/** Add nullable money: null + null = null (nothing logged), otherwise a real sum. */
+function addNullable(a: number | null, b: number | null | undefined): number | null {
+  if (b === null || b === undefined) return a;
+  return (a ?? 0) + b;
+}
+
 export async function getWwldTotalsForRange(
   userId: number,
   startDate: string,
@@ -882,7 +911,7 @@ export async function getWwldTotalsForRange(
   excludeBacklogTotals = false
 ) {
   const db = await getDb();
-  if (!db) return { totals: { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 }, dailyBreakdown: [] };
+  if (!db) return { totals: { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0, collections: null as number | null }, dailyBreakdown: [] as WwldDayTotals[] };
 
   const sessions = await db
     .select()
@@ -899,18 +928,19 @@ export async function getWwldTotalsForRange(
   const includedSessions = excludeBacklogTotals
     ? sessions.filter((session) => !isBacklogWwldSession(session.notes))
     : sessions;
-  const byDay: Record<string, { date: string; officeVisits: number; newPatients: number; recall: number; testResults: number; progressExams: number; performanceReviews: number; carePlansSigned: number }> = {};
+  const byDay: Record<string, WwldDayTotals> = {};
   for (const s of includedSessions) {
-    if (!byDay[s.sessionDate]) {
-      byDay[s.sessionDate] = { date: s.sessionDate, officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
-    }
-    byDay[s.sessionDate].officeVisits += s.officeVisits;
-    byDay[s.sessionDate].newPatients += s.newPatients;
-    byDay[s.sessionDate].recall += (s.recall ?? 0);
-    byDay[s.sessionDate].testResults += s.testResults;
-    byDay[s.sessionDate].progressExams += s.progressExams;
-    byDay[s.sessionDate].performanceReviews += s.performanceReviews;
-    byDay[s.sessionDate].carePlansSigned += s.carePlansSigned;
+    if (!byDay[s.sessionDate]) byDay[s.sessionDate] = emptyDay(s.sessionDate);
+    const day = byDay[s.sessionDate];
+    day.officeVisits += s.officeVisits;
+    day.newPatients += s.newPatients;
+    day.recall += (s.recall ?? 0);
+    day.testResults += s.testResults;
+    day.progressExams += s.progressExams;
+    day.performanceReviews += s.performanceReviews;
+    day.carePlansSigned += s.carePlansSigned;
+    day.collections = addNullable(day.collections, s.collections);
+    if (isBacklogWwldSession(s.notes)) day.hasBacklogTotal = true;
   }
 
   const dailyBreakdown = Object.values(byDay).sort((a, b) => a.date.localeCompare(b.date));
@@ -922,6 +952,7 @@ export async function getWwldTotalsForRange(
     progressExams: dailyBreakdown.reduce((sum, d) => sum + d.progressExams, 0),
     performanceReviews: dailyBreakdown.reduce((sum, d) => sum + d.performanceReviews, 0),
     carePlansSigned: dailyBreakdown.reduce((sum, d) => sum + d.carePlansSigned, 0),
+    collections: dailyBreakdown.reduce<number | null>((sum, d) => addNullable(sum, d.collections), null),
   };
 
   return { totals, dailyBreakdown };
@@ -951,7 +982,7 @@ export async function getWwldAnalytics(userId: number, workDaysRaw?: string) {
     };
   }
 
-  const endStr = getCentralDateKey();
+  const endStr = getAppDateKey();
   const startStr = shiftDateKey(endStr, -89);
 
   const sessions = await db
@@ -1153,10 +1184,10 @@ export async function markContentServed(userId: number, contentId: string) {
 }
 
 /**
- * Return the daily Lyle content already assigned to a doctor for one Central
+ * Return the daily Lyle content already assigned to a doctor for one New York
  * Time calendar day. This keeps Today’s Plan and WWLD on the same daily quote.
  */
-export async function getDailyLyleQuoteForCentralDate(userId: number, dateKey: string) {
+export async function getDailyLyleQuoteForAppDate(userId: number, dateKey: string) {
   const db = await getDb();
   if (!db) return null;
 
@@ -1177,7 +1208,7 @@ export async function getDailyLyleQuoteForCentralDate(userId: number, dateKey: s
       eq(lyleContent.cadence, "daily"),
       // Railway/Postgres stores timestamp values in UTC. Convert to CT before
       // deriving the calendar date so a late-night quote cannot persist tomorrow.
-      sql`(((${lyleServedLog.servedAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Chicago')::date) = ${dateKey}::date`,
+      sql`(((${lyleServedLog.servedAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')::date) = ${dateKey}::date`,
     ))
     .orderBy(desc(lyleServedLog.servedAt))
     .limit(1);
@@ -1186,12 +1217,12 @@ export async function getDailyLyleQuoteForCentralDate(userId: number, dateKey: s
 }
 
 /**
- * Assign one daily Lyle quote per doctor per Central Time day. The selected
+ * Assign one daily Lyle quote per doctor per New York calendar day. The selected
  * content is recorded immediately and excluded from that doctor's next 12
  * months of daily quotes. Calling this repeatedly on the same day is stable.
  */
 export async function getOrCreateDailyLyleQuote(userId: number, dateKey: string) {
-  const existing = await getDailyLyleQuoteForCentralDate(userId, dateKey);
+  const existing = await getDailyLyleQuoteForAppDate(userId, dateKey);
   if (existing) return existing;
 
   const db = await getDb();

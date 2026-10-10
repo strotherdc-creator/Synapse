@@ -2,10 +2,13 @@
  * Goals page data access. Every function takes the signed-in doctor's userId from the
  * tRPC context. Callers never pass a userId from the client (no IDOR surface).
  */
-import { and, eq, sql } from "drizzle-orm";
-import { doctorGoals, users } from "../../shared/schema";
-import { getCentralDateKey, getDb, getWwldTotalsForRange } from "../db";
-import { DEFAULT_WEEKS_WORKED, isValidWorkDays, progressThroughDate } from "../../shared/goals";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { doctorGoals, users, wwldSessions } from "../../shared/schema";
+import { getAppDateKey, getDb, getWwldTotalsForRange } from "../db";
+import { DEFAULT_WEEKS_WORKED, isValidWorkDays } from "../../shared/goals";
+import { mondayDateKey } from "../../shared/appTime";
+import { buildGoalsComparison, type GoalsComparison } from "../../shared/goalsComparison";
+import { getStatSettings } from "../wwld/statSettings";
 
 export type GoalsDto = {
   goalYear: number;
@@ -87,23 +90,44 @@ export async function saveGoals(userId: number, input: SaveGoalsInput): Promise<
 }
 
 /**
- * "This year so far": office visits and new patients actually logged in Log Stats
- * (wwld_sessions) from Jan 1 through yesterday (Central, same clock as Log Stats) or Dec 31.
- * Includes past-days (backlog) totals, because those are real logged numbers.
+ * Goals vs Log Stats: logged numbers compared with the goals for today, this week, this month
+ * and this year (New York calendar). Read-only. Straight comparison only (no pace / projection);
+ * see shared/goalsComparison.ts for the rules.
  */
-export async function getYearProgress(userId: number, goalYear: number) {
-  const today = getCentralDateKey();
-  // Count completed days only (through yesterday), matching the pace target.
-  const through = progressThroughDate(goalYear, today);
-  if (!through) {
-    return { asOf: today, through: null, officeVisits: 0, newPatients: 0, hasData: false };
-  }
-  const { totals, dailyBreakdown } = await getWwldTotalsForRange(userId, `${goalYear}-01-01`, through, false);
-  return {
-    asOf: today,
-    through,
-    officeVisits: totals.officeVisits,
-    newPatients: totals.newPatients,
-    hasData: dailyBreakdown.length > 0,
-  };
+export async function getGoalsComparison(
+  userId: number,
+  workDays: string | null | undefined,
+  goalYear?: number,
+): Promise<GoalsComparison> {
+  const today = getAppDateKey();
+  const year = goalYear ?? Number(today.slice(0, 4));
+  const db = await requireDb();
+  const [saved, settings] = await Promise.all([getGoals(userId, year), getStatSettings(userId)]);
+
+  // Current year: from the earlier of Jan 1 and this week's Monday (a week can start in December)
+  // through today. Other years: that whole year (a future year simply has no rows).
+  const yearStart = `${year}-01-01`;
+  const isCurrent = year === Number(today.slice(0, 4));
+  const start = isCurrent ? [yearStart, mondayDateKey(today)].sort()[0] : yearStart;
+  const end = isCurrent ? today : `${year}-12-31`;
+  const rows = await db
+    .select({
+      sessionDate: wwldSessions.sessionDate,
+      notes: wwldSessions.notes,
+      trackedStats: wwldSessions.trackedStats,
+      officeVisits: wwldSessions.officeVisits,
+      newPatients: wwldSessions.newPatients,
+      collections: wwldSessions.collections,
+    })
+    .from(wwldSessions)
+    .where(and(eq(wwldSessions.userId, userId), gte(wwldSessions.sessionDate, start), lte(wwldSessions.sessionDate, end)));
+
+  return buildGoalsComparison({
+    today,
+    goalYear: year,
+    goals: saved,
+    workDays,
+    enabledStats: settings.enabledBuiltinStats,
+    rows,
+  });
 }

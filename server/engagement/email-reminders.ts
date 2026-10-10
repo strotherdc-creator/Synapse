@@ -19,16 +19,16 @@ import { userEngagementPreferences, dailyGrowthPlans, growthActions, users } fro
 import { eq, and, sql } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { isEngagementEnabled } from "./flags";
+import { APP_TIME_ZONE, appDateKey } from "../../shared/appTime";
 
 function todayStr(): string {
-  // Use Central Time (America/Chicago) so the day resets at midnight CT
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  // Synapse's one calendar clock (America/New_York), same "today" as Today's Plan and Log Stats.
+  return appDateKey();
 }
 
 function getDayOfWeek(): string {
-  // Use Central Time day-of-week
-  const ctDay = new Date().toLocaleDateString("en-US", { timeZone: "America/Chicago", weekday: "short" }).toLowerCase().slice(0, 3);
-  return ctDay;
+  // Day of week on the same New York clock.
+  return new Date().toLocaleDateString("en-US", { timeZone: APP_TIME_ZONE, weekday: "short" }).toLowerCase().slice(0, 3);
 }
 
 async function sendDailyReminders() {
@@ -257,16 +257,16 @@ export function scheduleEngagementEmails() {
     sendDailyReminders().catch((err) =>
       console.error("[Engagement Email] Unhandled error in daily reminder:", err)
     );
-  });
+  }, { timezone: APP_TIME_ZONE }); // 7:30 AM New York time, same clock as "today"
 
   // Weekly review — Friday at 5:00 PM
   cron.schedule("0 17 * * 5", () => {
     sendWeeklyReview().catch((err) =>
       console.error("[Engagement Email] Unhandled error in weekly review:", err)
     );
-  });
+  }, { timezone: APP_TIME_ZONE });
 
-  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM");
+  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM (America/New_York)");
 }
 
 export { sendDailyReminders, sendWeeklyReview };

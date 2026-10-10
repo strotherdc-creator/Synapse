@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { neutralizeFormula, toCSV } from "./wwld-backup";
-import { formatYearDone, yearElapsedFraction } from "../shared/goals";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -56,17 +55,6 @@ describe("CSV formula-injection guard (WWLD and doctor-goals backups)", () => {
   });
 });
 
-describe("Goals pace label", () => {
-  it("Jan 2 shows 'under 1%', not 0%", () => {
-    expect(formatYearDone(yearElapsedFraction(2026, "2026-01-02"))).toBe("under 1%");
-    expect(formatYearDone(yearElapsedFraction(2026, "2026-01-01"))).toBe("0%");
-    expect(formatYearDone(yearElapsedFraction(2026, "2026-01-05"))).toBe("1%");
-    expect(formatYearDone(yearElapsedFraction(2026, "2026-07-02"))).toBe("50%");
-    expect(formatYearDone(yearElapsedFraction(2026, "2026-12-31"))).toBe("99%"); // 364/365 is not "100%"
-    expect(formatYearDone(1)).toBe("100%");
-    expect(formatYearDone(Number.NaN)).toBe("0%");
-  });
-});
 
 describe("Migrations stop at the first lock timeout", () => {
   it("stops on SQLSTATE 55P03 and reports what was skipped", async () => {

@@ -126,7 +126,7 @@ describe.skipIf(!TEST_DB)("Goals against real Postgres", () => {
     }
   }, 20_000);
 
-  it("year progress sums only that doctor's logged visits and new patients for the year", async () => {
+  it("year comparison sums only that doctor's logged visits and new patients for the year", async () => {
     const a = base + 3;
     await pg.query(
       `INSERT INTO wwld_sessions (user_id, session_date, session_type, office_visits, new_patients) VALUES
@@ -134,11 +134,11 @@ describe.skipIf(!TEST_DB)("Goals against real Postgres", () => {
        ($2,'2026-01-05','morning',500,50)`,
       [a, a + 1]
     );
-    const p = await goals.getYearProgress(a, 2026);
-    expect(p).toMatchObject({ officeVisits: 35, newPatients: 3, hasData: true });
-    // Today isn't counted until it's over (matches the pace target)
-    await pg.query(`INSERT INTO wwld_sessions (user_id, session_date, session_type, office_visits, new_patients) VALUES ($1,$2,'morning',7,7)`, [a, p.asOf]);
-    expect(await goals.getYearProgress(a, 2026)).toMatchObject({ officeVisits: 35, newPatients: 3, through: p.through });
-    expect((await goals.getYearProgress(a + 7, 2026)).hasData).toBe(false);
+    await goals.saveGoals(a, { goalYear: 2026, yearlyRevenue: null, yearlyOfficeVisits: 1000, yearlyNewPatients: 100, weeksWorked: 50 });
+    const c = await goals.getGoalsComparison(a, null, 2026);
+    const year = c.periods.find((p) => p.period === "year")!;
+    const r = (k: string) => year.metrics.find((m) => m.metric === k)!.result;
+    expect(r("officeVisits")).toMatchObject({ status: "compared", actual: 35 });
+    expect(r("newPatients")).toMatchObject({ status: "compared", actual: 3 });
   });
 });

@@ -11,7 +11,14 @@ import { Button } from "@/components/ui/button";
 import { History, ChevronRight, ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { friendlyErrorMessage } from "@/lib/friendlyError";
-import { BUILTIN_STAT_KEYS, CUSTOM_STAT_VALUE_MAX } from "@shared/wwldStats";
+import { BUILTIN_STAT_KEYS, CUSTOM_STAT_VALUE_MAX, builtinStatMax, builtinStatStep } from "@shared/wwldStats";
+import { appDateKey } from "@shared/appTime";
+
+/** Today on Synapse's calendar (America/New_York) as a local Date at midnight, for the pickers below. */
+function appToday(): Date {
+  const [y, m, d] = appDateKey().split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +33,8 @@ interface StatValues {
   progressExams: number;
   performanceReviews: number;
   carePlansSigned: number;
+  /** Dollars collected; null = left blank (not logged, never saved as $0). */
+  collections: number | null;
 }
 
 const EMPTY_STATS: StatValues = {
@@ -36,6 +45,7 @@ const EMPTY_STATS: StatValues = {
   progressExams: 0,
   performanceReviews: 0,
   carePlansSigned: 0,
+  collections: null,
 };
 
 function sessionToStats(session: Partial<StatValues>): StatValues {
@@ -47,6 +57,7 @@ function sessionToStats(session: Partial<StatValues>): StatValues {
     progressExams: session.progressExams ?? 0,
     performanceReviews: session.performanceReviews ?? 0,
     carePlansSigned: session.carePlansSigned ?? 0,
+    collections: session.collections ?? null,
   };
 }
 
@@ -58,6 +69,7 @@ const STAT_LABELS: { key: keyof StatValues; label: string; short: string }[] = [
   { key: "progressExams", label: "Progress Exams", short: "Progress" },
   { key: "performanceReviews", label: "Performance Reviews", short: "Perf Rev" },
   { key: "carePlansSigned", label: "Care Plans Signed", short: "Care Plans" },
+  { key: "collections", label: "Collections ($)", short: "Collections" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -88,8 +100,7 @@ function getMonthLabel(year: number, month: number): string {
 /** Returns the last N calendar days (excluding today) */
 function getPastDays(n: number): Date[] {
   const days: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = appToday();
   for (let i = 1; i <= n; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
@@ -101,8 +112,7 @@ function getPastDays(n: number): Date[] {
 /** Returns week start dates (Monday) for the last 4 complete weeks */
 function getPastWeeks(): Date[] {
   const weeks: Date[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = appToday();
   // Find last Monday
   const dayOfWeek = today.getDay(); // 0=Sun
   const daysToLastMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -119,7 +129,7 @@ function getPastWeeks(): Date[] {
 /** Returns last 3 months (year, month 0-indexed) */
 function getPastMonths(): { year: number; month: number }[] {
   const result: { year: number; month: number }[] = [];
-  const today = new Date();
+  const today = appToday();
   for (let i = 1; i <= 3; i++) {
     const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
     result.push({ year: d.getFullYear(), month: d.getMonth() });
@@ -135,12 +145,14 @@ function StatRow({
   onChange,
   compact = false,
   max = 9999,
+  step = 1,
 }: {
   label: string;
   value: number | "";
   onChange: (v: number) => void;
   compact?: boolean;
   max?: number;
+  step?: number;
 }) {
   return (
     <div className={cn("flex flex-col gap-2", compact ? "py-2" : "py-3")}>
@@ -148,7 +160,7 @@ function StatRow({
       <div className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3">
         <button
           type="button"
-          onClick={() => onChange(Math.max(0, (value === "" ? 0 : value) - 1))}
+          onClick={() => onChange(Math.max(0, (value === "" ? 0 : value) - step))}
           className="h-12 w-12 rounded-full border-2 border-border bg-muted text-foreground flex items-center justify-center text-2xl font-bold transition-colors hover:bg-accent"
           aria-label={`Decrease ${label}`}
         >
@@ -169,7 +181,7 @@ function StatRow({
         />
         <button
           type="button"
-          onClick={() => onChange(Math.min(max, (value === "" ? 0 : value) + 1))}
+          onClick={() => onChange(Math.min(max, (value === "" ? 0 : value) + step))}
           className="h-12 w-12 rounded-full border-2 border-border bg-muted text-foreground flex items-center justify-center text-2xl font-bold transition-colors hover:bg-accent"
           aria-label={`Increase ${label}`}
         >
@@ -206,8 +218,13 @@ function buildLogPayload(
   customStats: Array<{ id: number }>,
   custom: CustomDraft,
 ) {
-  const builtin: Partial<StatValues> = {};
-  for (const { key } of builtinFields) builtin[key] = stats[key];
+  const builtin: Partial<Record<Exclude<keyof StatValues, "collections">, number>> & { collections?: number | null } = {};
+  for (const { key } of builtinFields) {
+    const v = stats[key];
+    // A blank Collections box is sent as null, which clears any saved value back to "not logged".
+    if (key === "collections") builtin.collections = v;
+    else if (v !== null) builtin[key] = v;
+  }
   return {
     ...builtin,
     customStats: customStats
@@ -237,7 +254,9 @@ function StatFields({
         <StatRow
           key={key}
           label={label}
-          value={stats[key]}
+          value={stats[key] ?? ""}
+          max={builtinStatMax(key)}
+          step={builtinStatStep(key)}
           onChange={(v) => setStats((s) => ({ ...s, [key]: v }))}
         />
       ))}
@@ -322,6 +341,7 @@ function ByDayEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getAnalytics.invalidate();
       utils.wwld.getHistory.invalidate();
       utils.wwld.getCustomStatValues.invalidate();
+      utils.goals.getComparison.invalidate();
     },
   });
 
@@ -478,6 +498,7 @@ function WeekTotalEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getAnalytics.invalidate();
       utils.wwld.getHistory.invalidate();
       utils.wwld.getCustomStatValues.invalidate();
+      utils.goals.getComparison.invalidate();
     },
   });
 
@@ -594,6 +615,7 @@ function MonthTotalEntry({ onDone }: { onDone: () => void }) {
       utils.wwld.getAnalytics.invalidate();
       utils.wwld.getHistory.invalidate();
       utils.wwld.getCustomStatValues.invalidate();
+      utils.goals.getComparison.invalidate();
     },
   });
 

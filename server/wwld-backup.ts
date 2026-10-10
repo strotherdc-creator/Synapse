@@ -1,3 +1,4 @@
+import { APP_TIME_ZONE } from "../shared/appTime";
 /**
  * WWLD Weekly Data Backup
  *
@@ -121,6 +122,8 @@ async function runBackup() {
         progressExams: wwldSessions.progressExams,
         performanceReviews: wwldSessions.performanceReviews,
         carePlansSigned: wwldSessions.carePlansSigned,
+        // Blank cell = Collections not logged (NULL), never $0.
+        collections: wwldSessions.collections,
         notes: wwldSessions.notes,
         createdAt: wwldSessions.createdAt,
       })
@@ -198,7 +201,8 @@ export function scheduleWwldBackup() {
     runBackup().catch((err) =>
       console.error("[WWLD Backup] Unhandled error in backup job:", err)
     );
-  });
+  }, { timezone: APP_TIME_ZONE }); // Sunday 11 PM New York time
+
 
   console.log("[WWLD Backup] Weekly backup scheduled — every Sunday at 11:00 PM");
 }
