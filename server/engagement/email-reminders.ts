@@ -257,16 +257,16 @@ export function scheduleEngagementEmails() {
     sendDailyReminders().catch((err) =>
       console.error("[Engagement Email] Unhandled error in daily reminder:", err)
     );
-  });
+  }, { timezone: APP_TIME_ZONE }); // 7:30 AM New York time, same clock as "today"
 
   // Weekly review — Friday at 5:00 PM
   cron.schedule("0 17 * * 5", () => {
     sendWeeklyReview().catch((err) =>
       console.error("[Engagement Email] Unhandled error in weekly review:", err)
     );
-  });
+  }, { timezone: APP_TIME_ZONE });
 
-  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM");
+  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM (America/New_York)");
 }
 
 export { sendDailyReminders, sendWeeklyReview };

@@ -318,7 +318,7 @@ export type ProgressText = {
   state: "ahead" | "short" | "even";
   /** "6 short · 98% of goal", "$450 short · 64% of goal", "4 ahead · 144% of goal", "Right on goal". */
   text: string;
-  /** logged ÷ goal (unrounded goal), whole percent. */
+  /** Displayed logged ÷ displayed goal, whole percent (floored when short, ceiled when ahead). */
   pctOfGoal: number;
   /** Bar fill, capped at 100. */
   barPct: number;
@@ -333,9 +333,12 @@ export function describeProgress(metric: GoalMetricKey, actual: number, goal: nu
   const shownGoal = Math.max(1, displayGoal(metric, goal));
   const shownActual = Math.round(actual);
   const diff = shownActual - shownGoal;
-  const pctOfGoal = Math.round((shownActual / shownGoal) * 100);
-  const barPct = Math.max(0, Math.min(100, (shownActual / shownGoal) * 100));
-  if (diff === 0) return { state: "even", text: "Right on goal", pctOfGoal, barPct };
+  const ratio = (shownActual / shownGoal) * 100;
+  if (diff === 0) return { state: "even", text: "Right on goal", pctOfGoal: 100, barPct: 100 };
+  // Round toward the status so the line never contradicts itself: short rounds DOWN (249/250 → 99%,
+  // never 100%), ahead rounds UP (251/250 → 101%). A short bar never looks full (max 99%).
+  const pctOfGoal = diff < 0 ? Math.floor(ratio + 1e-9) : Math.ceil(ratio - 1e-9);
+  const barPct = diff < 0 ? Math.max(0, Math.min(99, ratio)) : 100;
   const state = diff > 0 ? "ahead" : "short";
   return { state, text: `${formatWhole(metric, Math.abs(diff))} ${state} · ${pctOfGoal}% of goal`, pctOfGoal, barPct };
 }

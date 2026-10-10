@@ -294,15 +294,15 @@ describe("v2 display: whole numbers, '% of goal', one status line", () => {
     expect(formatWhole("revenue", 12550)).toBe("$12,550");
   });
 
-  it("reads '6 short · 98% of goal', '3 ahead · 133% of goal', '$450 short · 64% of goal'", () => {
-    expect(describeProgress("officeVisits", 244, 250)).toMatchObject({ state: "short", text: "6 short · 98% of goal", barPct: 97.6 });
-    expect(describeProgress("newPatients", 12, 8.333)).toMatchObject({ state: "ahead", text: "3 ahead · 133% of goal", barPct: 100 }); // shown as "12 of 9"
+  it("reads '6 short · 97% of goal', '3 ahead · 134% of goal', '$450 short · 64% of goal'", () => {
+    expect(describeProgress("officeVisits", 244, 250)).toMatchObject({ state: "short", text: "6 short · 97% of goal", barPct: 97.6 });
+    expect(describeProgress("newPatients", 12, 8.333)).toMatchObject({ state: "ahead", text: "3 ahead · 134% of goal", barPct: 100 }); // shown as "12 of 9" (133.3% rounds up when ahead)
     expect(describeProgress("revenue", 800, 1250)).toMatchObject({ text: "$450 short · 64% of goal" });
   });
 
   it("a difference that rounds to 0 says 'Right on goal' (no '<1%')", () => {
     expect(describeProgress("revenue", 12550, 12549.7).text).toBe("Right on goal");
-    expect(describeProgress("officeVisits", 40, 40.004).text).toBe("1 short · 98% of goal"); // shown as "40 of 41"
+    expect(describeProgress("officeVisits", 40, 40.004).text).toBe("1 short · 97% of goal"); // 40/41 = 97.6% // shown as "40 of 41"
     expect(describeProgress("officeVisits", 40, 40).text).toBe("Right on goal");
     const all = [describeProgress("revenue", 12550, 12500), describeProgress("newPatients", 1, 0.833)].map((p) => p.text).join(" ");
     expect(all).not.toMatch(/<1%|0\.8/);
@@ -329,9 +329,44 @@ describe("v2 display: whole numbers, '% of goal', one status line", () => {
           const m = p.text.match(/^\$?([\d,]+) (ahead|short) · (\d+)% of goal$/)!;
           expect(m, p.text).not.toBeNull();
           expect(Number(m[1].replace(/,/g, "")) * (m[2] === "ahead" ? 1 : -1)).toBe(diff);
-          expect(Number(m[3])).toBe(Math.round((actual / shownGoal) * 100));
+          const ratio = (actual / shownGoal) * 100;
+          expect(Number(m[3])).toBe(diff < 0 ? Math.floor(ratio + 1e-9) : Math.ceil(ratio - 1e-9));
+          // The percent never contradicts the word: short < 100%, ahead > 100%.
+          if (diff < 0) expect(Number(m[3])).toBeLessThan(100);
+          else expect(Number(m[3])).toBeGreaterThan(100);
+          if (diff < 0) expect(p.barPct).toBeLessThanOrEqual(99);
         }
       }
     }
+  });
+
+  it("249 of 250 is never '100%', and 251 of 250 is never '100%' (HD QC)", () => {
+    expect(describeProgress("officeVisits", 249, 250)).toMatchObject({ state: "short", text: "1 short · 99% of goal", pctOfGoal: 99, barPct: 99 });
+    expect(describeProgress("officeVisits", 251, 250)).toMatchObject({ state: "ahead", text: "1 ahead · 101% of goal", pctOfGoal: 101, barPct: 100 });
+    expect(describeProgress("revenue", 9_999, 10_000)).toMatchObject({ text: "$1 short · 99% of goal" });
+    expect(describeProgress("revenue", 10_001, 10_000)).toMatchObject({ text: "$1 ahead · 101% of goal" });
+  });
+});
+
+describe("HD QC follow-ups (static)", () => {
+  const src = (f: string) => readFileSync(f, "utf8");
+  it("cron jobs run on New York time", () => {
+    expect(src("server/engagement/email-reminders.ts").match(/\{ timezone: APP_TIME_ZONE \}/g)).toHaveLength(2);
+    expect(src("server/wwld-backup.ts")).toContain("{ timezone: APP_TIME_ZONE }");
+  });
+  it("words, not dashes, for nothing logged", () => {
+    expect(src("client/src/pages/GoalsWeek.tsx")).not.toMatch(/"[–—]"/);
+    expect(src("client/src/pages/GoalsWeek.tsx")).toContain("Not logged");
+    expect(src("client/src/pages/WWLD.tsx")).toContain(': "Not logged"}');
+  });
+  it("Settings: no custom 'Collections' suggestion; 44px checkboxes", () => {
+    const s = src("client/src/pages/WwldStatSettings.tsx");
+    expect(s).not.toContain('"Collections" with unit');
+    expect(s).toContain("size-11");
+  });
+  it("blank Collections is sent as null so it clears; the server accepts null", () => {
+    expect(src("server/routers.ts")).toMatch(/collections: z\.number\(\)[^\n]*\.nullable\(\)\.optional\(\)/);
+    expect(src("client/src/components/wwld/StatEntryForm.tsx")).toContain('if (stat.key === "collections") builtinPayload.collections = v;');
+    expect(src("client/src/components/wwld/BacklogModal.tsx")).toContain('if (key === "collections") builtin.collections = v;');
   });
 });

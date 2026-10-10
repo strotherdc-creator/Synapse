@@ -23,7 +23,7 @@ import { ENV } from "./_core/env";
 import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
 import { GOALS_MIGRATIONS } from "./goals/migrations";
 import { appDateKey } from "../shared/appTime";
-import { BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
+import { NULLABLE_BUILTIN_STATS, BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
 export function getUserAnswersTable() { return userAnswers; }
@@ -787,13 +787,13 @@ export interface WwldSessionInput {
   progressExams?: number;
   performanceReviews?: number;
   carePlansSigned?: number;
-  /** Whole dollars collected. Omitted = not logged (stays NULL on a new row). */
-  collections?: number;
+  /** Whole dollars collected. Omitted = left as is; null = cleared back to "not logged" (NULL). */
+  collections?: number | null;
   notes?: string;
 }
 
 /** Built-in stat keys present in a log submission. */
-export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | undefined>>): BuiltinStatKey[] {
+export function submittedBuiltinStats(input: Partial<Record<BuiltinStatKey, number | null | undefined>>): BuiltinStatKey[] {
   return BUILTIN_STAT_KEYS.filter((key) => typeof input[key] === "number");
 }
 
@@ -808,6 +808,10 @@ export async function upsertWwldSession(input: WwldSessionInput, executor?: Driz
   const submitted = submittedBuiltinStats(input);
   const submittedValues: Partial<Record<BuiltinStatKey, number>> = {};
   for (const key of submitted) submittedValues[key] = input[key] as number;
+  // Nullable stats (Collections) sent as null are cleared to NULL = "not logged".
+  // (Collections is the only nullable built-in; NULLABLE_BUILTIN_STATS lists it.)
+  const cleared: { collections?: null } = {};
+  if (NULLABLE_BUILTIN_STATS.includes("collections") && input.collections === null) cleared.collections = null;
 
   const existing = await db
     .select()
@@ -827,11 +831,12 @@ export async function upsertWwldSession(input: WwldSessionInput, executor?: Driz
       .update(wwldSessions)
       .set({
         ...submittedValues,
+        ...cleared,
         trackedStats,
         notes: input.notes ?? null,
       })
       .where(eq(wwldSessions.id, existing[0].id));
-    return { ...existing[0], ...submittedValues, trackedStats, notes: input.notes ?? null };
+    return { ...existing[0], ...submittedValues, ...cleared, trackedStats, notes: input.notes ?? null };
   } else {
     const [inserted] = await db
       .insert(wwldSessions)

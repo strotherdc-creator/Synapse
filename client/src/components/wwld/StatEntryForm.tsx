@@ -132,10 +132,12 @@ export function StatEntryForm({
 
   const handleSubmit = () => {
     // Only send the stats this doctor tracks. Unchecked stats are left untouched on the server.
-    const builtinPayload: Partial<Record<BuiltinStatKey, number>> = {};
+    const builtinPayload: Partial<Record<Exclude<BuiltinStatKey, "collections">, number>> & { collections?: number | null } = {};
     for (const stat of visibleBuiltins) {
       const v = values[stat.key];
-      if (v !== null) builtinPayload[stat.key] = v; // blank Collections = not logged
+      // A blank Collections box is sent as null, which clears any saved value back to "not logged".
+      if (stat.key === "collections") builtinPayload.collections = v;
+      else if (v !== null) builtinPayload[stat.key] = v;
     }
     logSession.mutate({
       sessionDate,

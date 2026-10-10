@@ -218,10 +218,12 @@ function buildLogPayload(
   customStats: Array<{ id: number }>,
   custom: CustomDraft,
 ) {
-  const builtin: Partial<Record<keyof StatValues, number>> = {};
+  const builtin: Partial<Record<Exclude<keyof StatValues, "collections">, number>> & { collections?: number | null } = {};
   for (const { key } of builtinFields) {
     const v = stats[key];
-    if (v !== null) builtin[key] = v; // blank Collections = not logged
+    // A blank Collections box is sent as null, which clears any saved value back to "not logged".
+    if (key === "collections") builtin.collections = v;
+    else if (v !== null) builtin[key] = v;
   }
   return {
     ...builtin,

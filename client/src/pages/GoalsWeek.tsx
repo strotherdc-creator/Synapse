@@ -11,9 +11,13 @@ import { formatWhole, type MetricActual } from "@shared/goalsComparison";
 
 type Cols = { visits: boolean; np: boolean; money: boolean };
 
-function cell(metric: "officeVisits" | "newPatients" | "revenue", a: MetricActual, show: boolean, empty: string) {
+function cell(metric: "officeVisits" | "newPatients" | "revenue", a: MetricActual, show: boolean) {
   if (!show) return null;
-  return <td className="py-3 pl-2 text-right text-lg tabular-nums">{a.logged ? formatWhole(metric, a.value) : empty}</td>;
+  return a.logged ? (
+    <td className="py-3 pl-2 text-right text-lg tabular-nums">{formatWhole(metric, a.value)}</td>
+  ) : (
+    <td className="py-3 pl-2 text-right text-base text-muted-foreground">Not logged</td>
+  );
 }
 
 export default function GoalsWeek() {
@@ -66,25 +70,34 @@ export default function GoalsWeek() {
               </thead>
               <tbody>
                 {data.week.map((d) => {
-                  const empty = d.future ? "" : "–";
+                  const span = (cols.visits ? 1 : 0) + (cols.np ? 1 : 0) + (cols.money ? 1 : 0);
+                  const anyLogged = d.officeVisits.logged || d.newPatients.logged || d.revenue.logged;
+                  // A whole day with nothing logged gets ONE plain line instead of a row of blanks.
+                  const wholeRow = d.future ? "Coming up" : !anyLogged ? (d.dayType === "off" ? "Day off" : "Not logged") : null;
                   return (
                     <tr key={d.date} className="border-b border-border" data-date={d.date}>
                       <td className="py-3 text-lg font-semibold">
                         {weekdayShort(d.date)} {shortDate(d.date).split(" ")[1]}
-                        {d.dayType === "off" ? <span className="block text-base font-normal text-muted-foreground">Day off</span> : null}
+                        {d.dayType === "off" && anyLogged ? <span className="block text-base font-normal text-muted-foreground">Day off</span> : null}
                       </td>
-                      {cell("officeVisits", d.officeVisits, cols.visits, empty)}
-                      {cell("newPatients", d.newPatients, cols.np, empty)}
-                      {cell("revenue", d.revenue, cols.money, empty)}
+                      {wholeRow !== null && span > 0 ? (
+                        <td colSpan={span} className="py-3 pl-2 text-right text-base text-muted-foreground">{wholeRow}</td>
+                      ) : (
+                        <>
+                          {cell("officeVisits", d.officeVisits, cols.visits)}
+                          {cell("newPatients", d.newPatients, cols.np)}
+                          {cell("revenue", d.revenue, cols.money)}
+                        </>
+                      )}
                     </tr>
                   );
                 })}
                 {data.weekTotal ? (
                   <tr className="font-bold" data-row="total">
                     <td className="py-3 text-lg">Week total</td>
-                    {cell("officeVisits", data.weekTotal.officeVisits, cols.visits, "–")}
-                    {cell("newPatients", data.weekTotal.newPatients, cols.np, "–")}
-                    {cell("revenue", data.weekTotal.revenue, cols.money, "–")}
+                    {cell("officeVisits", data.weekTotal.officeVisits, cols.visits)}
+                    {cell("newPatients", data.weekTotal.newPatients, cols.np)}
+                    {cell("revenue", data.weekTotal.revenue, cols.money)}
                   </tr>
                 ) : null}
               </tbody>

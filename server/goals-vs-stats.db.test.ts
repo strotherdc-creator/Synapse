@@ -99,4 +99,36 @@ describe.skipIf(!TEST_DB)("Goals vs Log Stats against real Postgres", () => {
     expect(t.totals.collections).toBeNull();
     expect(t.totals.officeVisits).toBe(31);
   });
+
+  it("Collections can be cleared back to 'not logged': save $500 → clear → reload shows Not logged", async () => {
+    const user = base + 5;
+    const today = db.getAppDateKey();
+    const { appRouter } = await import("./routers");
+    const caller = appRouter.createCaller({
+      user: { id: user, clerkId: `clerk_${user}`, email: null, name: "Doc", role: "user", workDays: null, createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
+      req: {} as never,
+      res: {} as never,
+    } as never);
+    await caller.wwld.logSession({ sessionDate: today, sessionType: "morning", officeVisits: 10, collections: 500 });
+    expect((await pg.query(`SELECT collections FROM wwld_sessions WHERE user_id=$1`, [user])).rows[0].collections).toBe(500);
+
+    // The form sends null for an emptied box; the server writes NULL (other stats untouched).
+    await caller.wwld.logSession({ sessionDate: today, sessionType: "morning", officeVisits: 10, collections: null });
+    const row = (await pg.query(`SELECT collections, office_visits FROM wwld_sessions WHERE user_id=$1`, [user])).rows[0];
+    expect(row).toEqual({ collections: null, office_visits: 10 });
+
+    // Reload: history, totals and the goals comparison all read "not logged", never $500 or $0.
+    const year = Number(today.slice(0, 4));
+    const h = await statSettings.getStatsHistoryForYear(user, year);
+    expect("collections" in h.days.find((d) => d.date === today)!.sessions[0].builtin).toBe(false);
+    expect((await caller.wwld.getToday({ date: today })).totals.collections).toBeNull();
+    await goals.saveGoals(user, { goalYear: year, yearlyRevenue: 500_000, yearlyOfficeVisits: 5_000, yearlyNewPatients: 100, weeksWorked: 50 });
+    const c = await goals.getGoalsComparison(user, "mon:full,tue:full,wed:full,thu:full,fri:full,sat:full,sun:full");
+    expect(c.periods.find((p) => p.period === "day")!.metrics.find((m) => m.metric === "revenue")!.result.status).toBe("no_stats");
+
+    // Omitting collections leaves a saved value alone (only an explicit null clears).
+    await caller.wwld.logSession({ sessionDate: today, sessionType: "morning", officeVisits: 11, collections: 700 });
+    await caller.wwld.logSession({ sessionDate: today, sessionType: "morning", officeVisits: 12 });
+    expect((await pg.query(`SELECT collections FROM wwld_sessions WHERE user_id=$1`, [user])).rows[0].collections).toBe(700);
+  });
 });

@@ -149,7 +149,8 @@ export default function WwldStatSettings() {
                         id={id}
                         checked={enabled.has(stat.key)}
                         onCheckedChange={(checked) => toggle(stat.key, checked === true)}
-                        className="size-6 border-2"
+                        // 44px visual + hit target (phone readability)
+                        className="size-11 rounded-lg border-2 [&_svg]:size-7"
                       />
                       <span className="flex-1 text-base font-medium text-foreground">{stat.label}</span>
                       <span className="text-xs text-muted-foreground">{stat.alias}</span>
@@ -171,7 +172,7 @@ export default function WwldStatSettings() {
                   </h2>
                   <p className="text-xs text-muted-foreground mt-1">
                     Add up to {MAX_CUSTOM_STATS} numbers you want to track yourself (for example "Reactivations"
-                    or "Collections" with unit "$"). Removing one hides it from your log; its past numbers stay in
+                    or "Massages"). Collections ($) is already a built-in stat above. Removing one hides it from your log; its past numbers stay in
                     History.
                   </p>
                 </div>

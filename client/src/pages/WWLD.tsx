@@ -405,7 +405,7 @@ export default function WWLD() {
                     label="Collections"
                     alias="Revenue · $"
                     // Blank (never $0) when no Collections were entered in this period.
-                    value={typeof (totals as { collections?: number | null } | undefined)?.collections === "number" ? formatBuiltinStatValue("collections", (totals as { collections: number }).collections) : "—"}
+                    value={typeof (totals as { collections?: number | null } | undefined)?.collections === "number" ? formatBuiltinStatValue("collections", (totals as { collections: number }).collections) : "Not logged"}
                   />
                 )}
               </div>

@@ -1012,7 +1012,7 @@ const wwldRouter = router({
         performanceReviews: z.number().int().min(0).max(9999).optional(),
         carePlansSigned: z.number().int().min(0).max(9999).optional(),
         // Whole dollars collected (Collections ($) built-in stat). Omitted = not logged.
-        collections: z.number().int().min(0).max(COLLECTIONS_MAX).optional(),
+        collections: z.number().int().min(0).max(COLLECTIONS_MAX).nullable().optional(), // null = clear back to "not logged"
         customStats: z
           .array(
             z.object({
@@ -1305,11 +1305,6 @@ const goalsRouter = router({
     .query(async ({ ctx, input }) => {
       const workDays = (ctx.user as { workDays?: string | null }).workDays || DEFAULT_WORK_DAYS;
       return goals.getGoalsComparison(ctx.user.id, workDays, input?.goalYear);
-    }),
-  getProgress: protectedProcedure
-    .input(z.object({ goalYear: goalYearSchema }))
-    .query(async ({ ctx, input }) => {
-      return goals.getYearProgress(ctx.user.id, input.goalYear);
     }),
 });
 

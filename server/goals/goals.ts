@@ -5,7 +5,7 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { doctorGoals, users, wwldSessions } from "../../shared/schema";
 import { getAppDateKey, getDb, getWwldTotalsForRange } from "../db";
-import { DEFAULT_WEEKS_WORKED, isValidWorkDays, progressThroughDate } from "../../shared/goals";
+import { DEFAULT_WEEKS_WORKED, isValidWorkDays } from "../../shared/goals";
 import { mondayDateKey } from "../../shared/appTime";
 import { buildGoalsComparison, type GoalsComparison } from "../../shared/goalsComparison";
 import { getStatSettings } from "../wwld/statSettings";
@@ -87,28 +87,6 @@ export async function saveGoals(userId: number, input: SaveGoalsInput): Promise<
   const saved = await getGoals(userId, input.goalYear);
   if (!saved) throw new Error("Goals save did not persist");
   return saved;
-}
-
-/**
- * "This year so far": office visits and new patients actually logged in Log Stats
- * (wwld_sessions) from Jan 1 through yesterday (New York, same clock as Log Stats) or Dec 31.
- * Includes past-days (backlog) totals, because those are real logged numbers.
- */
-export async function getYearProgress(userId: number, goalYear: number) {
-  const today = getAppDateKey();
-  // Count completed days only (through yesterday), matching the pace target.
-  const through = progressThroughDate(goalYear, today);
-  if (!through) {
-    return { asOf: today, through: null, officeVisits: 0, newPatients: 0, hasData: false };
-  }
-  const { totals, dailyBreakdown } = await getWwldTotalsForRange(userId, `${goalYear}-01-01`, through, false);
-  return {
-    asOf: today,
-    through,
-    officeVisits: totals.officeVisits,
-    newPatients: totals.newPatients,
-    hasData: dailyBreakdown.length > 0,
-  };
 }
 
 /**
