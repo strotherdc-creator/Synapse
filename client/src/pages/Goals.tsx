@@ -432,6 +432,9 @@ export default function Goals() {
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
               {saving ? "Saving..." : `Save ${year} goals`}
             </Button>
+            {comparisonQuery.data ? (
+              <p className="text-base text-muted-foreground">Day, week and month goals are your yearly goal split up as shown above.</p>
+            ) : null}
           </>
         )}
       </div>

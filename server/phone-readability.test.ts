@@ -46,9 +46,10 @@ describe("phone readability (Goals + Log Stats)", () => {
     expect(comparison).toContain("ArrowUp");
     expect(comparison).toContain("ArrowDown");
     const shared = source("shared/goalsComparison.ts");
-    expect(shared).toContain('"above goal"');
-    expect(shared).toContain('"below goal"');
-    expect(shared).toContain('"right on goal"');
+    expect(shared).toContain("Right on goal");
+    expect(shared).toMatch(/"ahead" : "short"/);
+    expect(comparison).toContain("aria-pressed={on}");
+    expect(comparison).toContain("min-h-12");
   });
 
   it("Goals year arrows can't be squeezed below 44px", () => {

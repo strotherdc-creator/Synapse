@@ -28,9 +28,9 @@ import { dateKeysBetween, dayOfWeek, mondayDateKey, monthStartKey, shiftDateKey,
 import { trackedBuiltinStats, type BuiltinStatKey } from "./wwldStats";
 
 export const GOAL_METRICS = [
+  { key: "revenue", label: "Revenue", unit: "", unitOne: "", stat: "collections" },
   { key: "officeVisits", label: "Office visits", unit: "visits", unitOne: "visit", stat: "officeVisits" },
   { key: "newPatients", label: "New patients", unit: "new patients", unitOne: "new patient", stat: "newPatients" },
-  { key: "revenue", label: "Revenue", unit: "", unitOne: "", stat: "collections" },
 ] as const satisfies ReadonlyArray<{ key: string; label: string; unit: string; unitOne: string; stat: BuiltinStatKey }>;
 export type GoalMetricKey = (typeof GOAL_METRICS)[number]["key"];
 
@@ -183,6 +183,8 @@ export type GoalsComparison = {
   hasGoals: boolean;
   periods: PeriodComparison[];
   week: WeekDayRow[];
+  /** This week's totals (includes weekly/monthly Log Past Stats totals), for the week list's total row. */
+  weekTotal: PeriodActuals | null;
 };
 
 function fullRangeFor(period: PeriodKey, today: string): PeriodRange {
@@ -228,6 +230,7 @@ export function buildGoalsComparison(args: {
 
   const periods: PeriodComparison[] = [];
   const week: WeekDayRow[] = [];
+  let weekTotal: PeriodActuals | null = null;
   if (yearMode === "current") {
     const ranges = periodRanges(today);
     const todayType = scheduledDayType(today, workDays);
@@ -241,12 +244,13 @@ export function buildGoalsComparison(args: {
       const a = sumActuals(inRange({ start: date, end: date }), { excludeBacklogTotals: true });
       week.push({ date, dayType: scheduledDayType(date, workDays), future: date > today, ...a });
     }
+    weekTotal = sumActuals(inRange(ranges.week), { excludeBacklogTotals: false });
   } else {
     const range = { start: `${goalYear}-01-01`, end: `${goalYear}-12-31` };
     const actuals = sumActuals(yearMode === "past" ? inRange(range) : [], { excludeBacklogTotals: false });
     periods.push({ period: "year", range, fullRange: range, dayType: "full", soFar: false, metrics: metricsFor("year", actuals, "full") });
   }
-  return { asOf: today, goalYear, yearMode, hasGoals, periods, week };
+  return { asOf: today, goalYear, yearMode, hasGoals, periods, week, weekTotal };
 }
 
 // ─── Display (plain English) ─────────────────────────────────────────
@@ -297,3 +301,44 @@ export const PERIOD_GOAL_NOUN: Record<PeriodKey, string> = {
   month: "full month's",
   year: "full year's",
 };
+
+// ─── v2 display (Doc, Oct 10 4:05pm): whole numbers, "% of goal", one status line ───
+
+/** Goal shown in whole units: visits/patients rounded UP to a whole, money to the nearest dollar. */
+export function displayGoal(metric: GoalMetricKey, goal: number): number {
+  return metric === "revenue" ? Math.round(goal) : Math.ceil(goal - 1e-9);
+}
+
+export function formatWhole(metric: GoalMetricKey, value: number): string {
+  const n = Math.round(value);
+  return metric === "revenue" ? `$${n.toLocaleString("en-US")}` : n.toLocaleString("en-US");
+}
+
+export type ProgressText = {
+  state: "ahead" | "short" | "even";
+  /** "6 short · 98% of goal", "$450 short · 64% of goal", "4 ahead · 144% of goal", "Right on goal". */
+  text: string;
+  /** logged ÷ goal (unrounded goal), whole percent. */
+  pctOfGoal: number;
+  /** Bar fill, capped at 100. */
+  barPct: number;
+};
+
+/** One plain status line. Math uses the UNROUNDED goal; only the display is rounded. */
+export function describeProgress(metric: GoalMetricKey, actual: number, goal: number): ProgressText {
+  const diff = actual - goal;
+  const roundedDiff = Math.round(Math.abs(diff));
+  const pctOfGoal = Math.round((actual / goal) * 100);
+  const barPct = Math.max(0, Math.min(100, (actual / goal) * 100));
+  if (roundedDiff === 0) return { state: "even", text: "Right on goal", pctOfGoal, barPct };
+  const state = diff > 0 ? "ahead" : "short";
+  return { state, text: `${formatWhole(metric, roundedDiff)} ${state} · ${pctOfGoal}% of goal`, pctOfGoal, barPct };
+}
+
+export const STATUS_TEXT_V2: Record<"no_goal" | "no_stats" | "not_tracked", string> = {
+  no_goal: "No goal set",
+  no_stats: "Nothing logged yet",
+  not_tracked: "Not tracked",
+};
+
+export const PERIOD_TABS: Record<PeriodKey, string> = { day: "Today", week: "Week", month: "Month", year: "Year" };

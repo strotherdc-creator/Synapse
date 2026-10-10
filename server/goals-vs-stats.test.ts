@@ -14,6 +14,9 @@ import {
   yearStartKey,
 } from "../shared/appTime";
 import {
+  describeProgress,
+  displayGoal,
+  formatWhole,
   buildGoalsComparison,
   compare,
   describeDelta,
@@ -38,6 +41,10 @@ import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
 const SCHEDULE = "mon:full,tue:full,wed:half,thu:full,fri:full,sat:off,sun:off"; // 4.5 days/week
 const GOALS = { yearlyRevenue: 900_000, yearlyOfficeVisits: 9_000, yearlyNewPatients: 450, weeksWorked: 50 };
 const ALL = [...BUILTIN_STAT_KEYS];
+
+function res(p: { metrics: { metric: string; result: unknown }[] }, k: string) {
+  return p.metrics.find((m) => m.metric === k)!.result as { status: string } & Record<string, unknown>;
+}
 
 function row(date: string, p: Partial<ComparisonSessionRow> = {}): ComparisonSessionRow {
   return { sessionDate: date, notes: null, trackedStats: "officeVisits,newPatients,collections", officeVisits: 0, newPatients: 0, collections: null, ...p };
@@ -171,11 +178,11 @@ describe("missing data is never filled in", () => {
       rows: [row("2026-10-05", { officeVisits: 38, collections: 4_000 }), row(today, { officeVisits: 22 })],
     });
     const day = c.periods.find((p) => p.period === "day")!;
-    expect(day.metrics.map((m) => m.result.status)).toEqual(["compared", "no_goal", "no_stats"]);
-    expect(day.metrics[0].result).toMatchObject({ actual: 22, goal: 40, diff: -18 });
+    expect(day.metrics.map((m) => m.result.status)).toEqual(["no_stats", "compared", "no_goal"]); // Revenue, Office visits, New patients
+    expect(res(day, "officeVisits")).toMatchObject({ actual: 22, goal: 40, diff: -18 });
     const week = c.periods.find((p) => p.period === "week")!;
-    expect(week.metrics[0].result).toMatchObject({ actual: 60, goal: 180 }); // full week's goal, no pro-rating
-    expect(week.metrics[2].result).toMatchObject({ actual: 4_000, goal: 18_000 });
+    expect(res(week, "officeVisits")).toMatchObject({ actual: 60, goal: 180 }); // full week's goal, no pro-rating
+    expect(res(week, "revenue")).toMatchObject({ actual: 4_000, goal: 18_000 });
     expect(c.week.map((d) => d.future)).toEqual([false, false, false, false, true, true, true]);
     expect(JSON.stringify(c)).not.toMatch(/pace|projected|estimate/i);
   });
@@ -183,7 +190,7 @@ describe("missing data is never filled in", () => {
   it("a day off shows 'Day off · no daily goal' but the week still compares", () => {
     const c = buildGoalsComparison({ today: "2026-10-10", goalYear: 2026, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows: [row("2026-10-06", { officeVisits: 40 })] });
     expect(c.periods[0].metrics.every((m) => m.result.status === "day_off")).toBe(true);
-    expect(c.periods[1].metrics[0].result.status).toBe("compared");
+    expect(res(c.periods[1], "officeVisits").status).toBe("compared");
   });
 
   it("no goals at all → hasGoals false and every result 'No goal set'", () => {
@@ -196,9 +203,9 @@ describe("missing data is never filled in", () => {
     const past = buildGoalsComparison({ today: "2026-10-08", goalYear: 2025, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows: [row("2025-03-03", { officeVisits: 9_500 })] });
     expect(past.yearMode).toBe("past");
     expect(past.periods.map((p) => p.period)).toEqual(["year"]);
-    expect(past.periods[0].metrics[0].result).toMatchObject({ actual: 9_500, goal: 9_000, diff: 500 });
+    expect(res(past.periods[0], "officeVisits")).toMatchObject({ actual: 9_500, goal: 9_000, diff: 500 });
     const future = buildGoalsComparison({ today: "2026-10-08", goalYear: 2027, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows: [] });
-    expect(future.periods[0].metrics[0].result.status).toBe("no_stats");
+    expect(res(future.periods[0], "officeVisits").status).toBe("no_stats");
   });
 
   it("weekly/monthly Log Past Stats totals count toward week, month and year, never a day", () => {
@@ -207,7 +214,7 @@ describe("missing data is never filled in", () => {
     expect(sumActuals(rows, { excludeBacklogTotals: true }).officeVisits).toEqual({ value: 30, logged: true });
     expect(sumActuals(rows, { excludeBacklogTotals: false }).officeVisits).toEqual({ value: 180, logged: true });
     const c = buildGoalsComparison({ today, goalYear: 2026, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows });
-    expect(c.periods.map((p) => (p.metrics[0].result as { actual: number }).actual)).toEqual([30, 180, 180, 180]);
+    expect(c.periods.map((p) => (res(p, "officeVisits") as { actual: number }).actual)).toEqual([30, 180, 180, 180]);
     expect(c.week[0].officeVisits.value).toBe(30);
   });
 
@@ -215,8 +222,8 @@ describe("missing data is never filled in", () => {
     const c = buildGoalsComparison({ today: "2027-01-01", goalYear: 2027, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows: [row("2026-12-29", { officeVisits: 40 }), row("2027-01-01", { officeVisits: 10 })] });
     const week = c.periods.find((p) => p.period === "week")!;
     expect(week.range.start).toBe("2026-12-28");
-    expect(week.metrics[0].result).toMatchObject({ actual: 50 });
-    expect(c.periods.find((p) => p.period === "year")!.metrics[0].result).toMatchObject({ actual: 10 });
+    expect(res(week, "officeVisits")).toMatchObject({ actual: 50 });
+    expect(res(c.periods.find((p) => p.period === "year")!, "officeVisits")).toMatchObject({ actual: 10 });
   });
 });
 
@@ -225,7 +232,7 @@ describe("unchecked stats and the Collections ($) mapping", () => {
     const enabled = enabledBuiltinStats("collections,newPatients");
     const c = buildGoalsComparison({ today: "2026-10-08", goalYear: 2026, goals: GOALS, workDays: SCHEDULE, enabledStats: enabled, rows: [row("2026-10-08", { officeVisits: 40 })] });
     for (const p of c.periods) {
-      expect(p.metrics.map((m) => m.result.status)).toEqual(["compared", "not_tracked", "not_tracked"]);
+      expect(p.metrics.map((m) => m.result.status)).toEqual(["not_tracked", "compared", "not_tracked"]);
     }
   });
 
@@ -275,5 +282,36 @@ describe("unchecked stats and the Collections ($) mapping", () => {
     const m = WWLD_STATS_MIGRATIONS.filter((s) => /collections/i.test(s));
     expect(m).toEqual(["ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS collections INTEGER"]);
     expect(WWLD_STATS_MIGRATIONS.join("\n")).not.toMatch(/\bDROP\b|\bDELETE\b|\bUPDATE\b|ALTER COLUMN/i);
+  });
+});
+
+describe("v2 display: whole numbers, '% of goal', one status line", () => {
+  it("rounds goals for display only (visits/patients up, money to the dollar) and never shows 0.8", () => {
+    expect(displayGoal("newPatients", 0.833)).toBe(1);
+    expect(displayGoal("officeVisits", 249.2)).toBe(250);
+    expect(displayGoal("officeVisits", 250)).toBe(250);
+    expect(displayGoal("revenue", 1249.6)).toBe(1250);
+    expect(formatWhole("revenue", 12550)).toBe("$12,550");
+  });
+
+  it("reads '6 short · 98% of goal', '4 ahead · 144% of goal', '$450 short · 64% of goal'", () => {
+    expect(describeProgress("officeVisits", 244, 250)).toMatchObject({ state: "short", text: "6 short · 98% of goal", barPct: 97.6 });
+    expect(describeProgress("newPatients", 12, 8.333)).toMatchObject({ state: "ahead", text: "4 ahead · 144% of goal", barPct: 100 });
+    expect(describeProgress("revenue", 800, 1250)).toMatchObject({ text: "$450 short · 64% of goal" });
+  });
+
+  it("a difference that rounds to 0 says 'Right on goal' (no '<1%')", () => {
+    expect(describeProgress("revenue", 12550, 12549.7).text).toBe("Right on goal");
+    expect(describeProgress("officeVisits", 40, 40.004).text).toBe("Right on goal");
+    expect(describeProgress("officeVisits", 40, 40).text).toBe("Right on goal");
+    const all = [describeProgress("revenue", 12550, 12500), describeProgress("newPatients", 1, 0.833)].map((p) => p.text).join(" ");
+    expect(all).not.toMatch(/<1%|0\.8/);
+  });
+
+  it("week total row includes Log Past Stats weekly totals", () => {
+    const c = buildGoalsComparison({ today: "2026-10-07", goalYear: 2026, goals: GOALS, workDays: SCHEDULE, enabledStats: ALL, rows: [row("2026-10-05", { notes: "Weekly total (backlog entry)", officeVisits: 100 }), row("2026-10-06", { officeVisits: 40, collections: 2000 })] });
+    expect(c.weekTotal?.officeVisits).toEqual({ value: 140, logged: true });
+    expect(c.weekTotal?.revenue).toEqual({ value: 2000, logged: true });
+    expect(c.week[0].officeVisits.logged).toBe(false);
   });
 });

@@ -6,35 +6,14 @@
 import { Link } from "wouter";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { PeriodCard, shortDate, weekdayShort } from "@/components/goals/GoalsComparison";
-import { formatMetricValue, type WeekDayRow } from "@shared/goalsComparison";
+import { shortDate, weekdayShort } from "@/components/goals/GoalsComparison";
+import { formatWhole, type MetricActual } from "@shared/goalsComparison";
 
-const DAY_TYPE_TEXT = { full: "full day", half: "half day", off: "day off" } as const;
+type Cols = { visits: boolean; np: boolean; money: boolean };
 
-function DayLine({ day, enabled }: { day: WeekDayRow; enabled: Set<string> }) {
-  const parts: string[] = [];
-  if (enabled.has("officeVisits") && day.officeVisits.logged) parts.push(`${formatMetricValue("officeVisits", day.officeVisits.value)} visits`);
-  if (enabled.has("newPatients") && day.newPatients.logged) parts.push(`${formatMetricValue("newPatients", day.newPatients.value)} new patients`);
-  if (enabled.has("revenue") && day.revenue.logged) parts.push(formatMetricValue("revenue", day.revenue.value));
-  const anyLogged = day.officeVisits.logged || day.newPatients.logged || day.revenue.logged;
-  const right = day.future
-    ? "Not here yet"
-    : parts.length > 0
-      ? parts.join(" · ")
-      : anyLogged
-        ? "Logged (no goal stats)"
-        : day.dayType === "off"
-          ? "Day off · no daily goal"
-          : "No stats logged";
-  const muted = day.future || parts.length === 0;
-  return (
-    <li className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border py-2" data-date={day.date}>
-      <span className="text-base font-semibold text-foreground">
-        {weekdayShort(day.date)} {shortDate(day.date)} <span className="font-normal text-muted-foreground">· {DAY_TYPE_TEXT[day.dayType]}</span>
-      </span>
-      <span className={`text-base tabular-nums ${muted ? "text-muted-foreground" : "font-semibold text-foreground"}`}>{right}</span>
-    </li>
-  );
+function cell(metric: "officeVisits" | "newPatients" | "revenue", a: MetricActual, show: boolean, empty: string) {
+  if (!show) return null;
+  return <td className="py-3 pl-2 text-right text-lg tabular-nums">{a.logged ? formatWhole(metric, a.value) : empty}</td>;
 }
 
 export default function GoalsWeek() {
@@ -42,7 +21,8 @@ export default function GoalsWeek() {
   const data = query.data;
   const week = data?.periods.find((p) => p.period === "week");
   // Which goal metrics are tracked (a stat unchecked in Log Stats shows "Not tracked" above).
-  const enabled = new Set<string>((week?.metrics ?? []).filter((m) => m.result.status !== "not_tracked").map((m) => m.metric));
+  const tracked = new Set<string>((week?.metrics ?? []).filter((m) => m.result.status !== "not_tracked").map((m) => m.metric));
+  const cols: Cols = { visits: tracked.has("officeVisits"), np: tracked.has("newPatients"), money: tracked.has("revenue") };
 
   return (
     <div className="readable min-h-screen bg-background">
@@ -56,7 +36,7 @@ export default function GoalsWeek() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-foreground">This week vs your goals</h1>
+            <h1 className="text-xl font-bold text-foreground">This week, day by day</h1>
             {data && data.week.length === 7 ? (
               <p className="text-base text-muted-foreground">
                 {weekdayShort(data.week[0].date)} {shortDate(data.week[0].date)} – {weekdayShort(data.week[6].date)} {shortDate(data.week[6].date)}
@@ -74,21 +54,42 @@ export default function GoalsWeek() {
         ) : query.isError || !data || !week ? (
           <p className="py-8 text-center text-base text-destructive">Could not load this week. Please refresh.</p>
         ) : (
-          <>
-            <PeriodCard period={week} titleOverride="This week so far" />
-            <section className="rounded-xl border border-brand-gold/15 bg-card p-4" aria-labelledby="week-days-heading">
-              <h2 id="week-days-heading" className="text-xl font-bold text-foreground">
-                Day by day
-              </h2>
-              <p className="text-base text-muted-foreground">What you logged each day. Weekly or monthly totals from Log Past Stats count in the week, not in a day.</p>
-              <ul className="mt-2">
-                {data.week.map((d) => (
-                  <DayLine key={d.date} day={d} enabled={enabled} />
-                ))}
-              </ul>
-            </section>
-            <p className="text-base text-muted-foreground">The week's goal is your yearly goal ÷ weeks worked, from your Goals page.</p>
-          </>
+          <section className="rounded-xl border border-border bg-card px-3 py-2" aria-label="Each day this week">
+            <table className="w-full text-foreground">
+              <thead>
+                <tr className="border-b border-border text-base text-muted-foreground">
+                  <th className="py-2 text-left font-semibold">Day</th>
+                  {cols.visits ? <th className="py-2 pl-2 text-right font-semibold">Visits</th> : null}
+                  {cols.np ? <th className="py-2 pl-2 text-right font-semibold">New pts</th> : null}
+                  {cols.money ? <th className="py-2 pl-2 text-right font-semibold">Collected</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {data.week.map((d) => {
+                  const empty = d.future ? "" : "–";
+                  return (
+                    <tr key={d.date} className="border-b border-border" data-date={d.date}>
+                      <td className="py-3 text-lg font-semibold">
+                        {weekdayShort(d.date)} {shortDate(d.date).split(" ")[1]}
+                        {d.dayType === "off" ? <span className="block text-base font-normal text-muted-foreground">Day off</span> : null}
+                      </td>
+                      {cell("officeVisits", d.officeVisits, cols.visits, empty)}
+                      {cell("newPatients", d.newPatients, cols.np, empty)}
+                      {cell("revenue", d.revenue, cols.money, empty)}
+                    </tr>
+                  );
+                })}
+                {data.weekTotal ? (
+                  <tr className="font-bold" data-row="total">
+                    <td className="py-3 text-lg">Week total</td>
+                    {cell("officeVisits", data.weekTotal.officeVisits, cols.visits, "–")}
+                    {cell("newPatients", data.weekTotal.newPatients, cols.np, "–")}
+                    {cell("revenue", data.weekTotal.revenue, cols.money, "–")}
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </section>
         )}
       </div>
     </div>
