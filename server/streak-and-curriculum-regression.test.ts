@@ -1,16 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getCentralDateKey, previousDateKey } from "./db";
+import { getAppDateKey, previousDateKey } from "./db";
 
 function source(relativePath: string) {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8");
 }
 
 describe("Synapse streak calendar", () => {
-  it("uses the Central Time calendar at the UTC boundary", () => {
-    expect(getCentralDateKey(new Date("2026-08-26T04:30:00.000Z"))).toBe("2026-08-25");
-    expect(getCentralDateKey(new Date("2026-08-26T05:30:00.000Z"))).toBe("2026-08-26");
+  it("uses the New York calendar at the UTC boundary", () => {
+    expect(getAppDateKey(new Date("2026-08-26T03:30:00.000Z"))).toBe("2026-08-25");
+    expect(getAppDateKey(new Date("2026-08-26T04:30:00.000Z"))).toBe("2026-08-26");
     expect(previousDateKey("2026-03-01")).toBe("2026-02-28");
   });
 

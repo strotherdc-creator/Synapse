@@ -37,7 +37,8 @@ import {
   CalendarDays,
   SlidersHorizontal,
 } from "lucide-react";
-import { BUILTIN_STAT_KEYS } from "@shared/wwldStats";
+import { BUILTIN_STAT_KEYS, formatBuiltinStatValue } from "@shared/wwldStats";
+import { appDateKey, mondayDateKey, monthStartKey, yearStartKey } from "@shared/appTime";
 import {
   ResponsiveContainer,
   BarChart,
@@ -53,28 +54,18 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Today in Synapse's calendar (America/New_York), the same "today" the server uses. */
 function getTodayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return appDateKey();
 }
 
+/** Period ranges on the New York calendar; weeks run Monday–Sunday. */
 function getDateRange(period: "today" | "wtd" | "mtd" | "ytd"): { start: string; end: string } {
-  const today = new Date();
   const end = getTodayDate();
   if (period === "today") return { start: end, end };
-  if (period === "wtd") {
-    const day = today.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diff);
-    const start = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
-    return { start, end };
-  }
-  if (period === "mtd") {
-    const start = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-    return { start, end };
-  }
-  return { start: `${today.getFullYear()}-01-01`, end };
+  if (period === "wtd") return { start: mondayDateKey(end), end };
+  if (period === "mtd") return { start: monthStartKey(end), end };
+  return { start: yearStartKey(end), end };
 }
 
 function fillWeekDays(
@@ -409,6 +400,14 @@ export default function WWLD() {
                 {enabledStats.has("progressExams") && <StatCard label="Progress Exams" alias="PE" value={totals?.progressExams ?? 0} />}
                 {enabledStats.has("performanceReviews") && <StatCard label="Performance Reviews" alias="PR" value={totals?.performanceReviews ?? 0} />}
                 {enabledStats.has("carePlansSigned") && <StatCard label="Care Plans Signed" alias="CPS" value={totals?.carePlansSigned ?? 0} highlight={true} />}
+                {enabledStats.has("collections") && (
+                  <StatCard
+                    label="Collections"
+                    alias="Revenue · $"
+                    // Blank (never $0) when no Collections were entered in this period.
+                    value={typeof (totals as { collections?: number | null } | undefined)?.collections === "number" ? formatBuiltinStatValue("collections", (totals as { collections: number }).collections) : "Not logged"}
+                  />
+                )}
               </div>
             )}
 
@@ -628,6 +627,7 @@ export default function WWLD() {
                     progressExams: existingSession.progressExams,
                     performanceReviews: existingSession.performanceReviews,
                     carePlansSigned: existingSession.carePlansSigned,
+                    collections: existingSession.collections ?? null,
                   }
                 : undefined
             }

@@ -37,4 +37,7 @@ export const WWLD_STATS_MIGRATIONS: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_wwld_custom_stats_user ON wwld_custom_stats(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_wwld_custom_stat_values_user_date ON wwld_custom_stat_values(user_id, session_date)`,
+  // Collections ($) built-in stat (Goals vs Log Stats, Oct 2026). Nullable with no default, so
+  // existing rows stay NULL (= "not logged") and Postgres adds it without rewriting the table.
+  `ALTER TABLE wwld_sessions ADD COLUMN IF NOT EXISTS collections INTEGER`,
 ];

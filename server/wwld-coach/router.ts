@@ -16,7 +16,7 @@ const MAX_HISTORY_MESSAGES = 12;
 const MAX_HISTORY_CONTENT = 2000;
 
 async function buildWwldContext(userId: number): Promise<string> {
-  const endStr = db.getCentralDateKey();
+  const endStr = db.getAppDateKey();
   const startStr = db.shiftDateKey(endStr, -28);
   const { totals, dailyBreakdown } = await db.getWwldTotalsForRange(
     userId,
@@ -45,7 +45,7 @@ async function buildWwldContext(userId: number): Promise<string> {
   }
 
   return `
-CONTEXT — this doctor's WWLD data only (Central Time window ${startStr} → ${endStr}):
+CONTEXT — this doctor's WWLD data only (New York time window ${startStr} → ${endStr}):
 28-day totals (excluding backlog corrections): OV ${totals.officeVisits}, NP ${totals.newPatients}, recall ${totals.recall}, test results ${totals.testResults}, progress exams ${totals.progressExams}, performance reviews ${totals.performanceReviews}, care plans signed ${totals.carePlansSigned}.
 Work days with stats in range: ${workDaysLogged}.
 Last up to 7 logged days:

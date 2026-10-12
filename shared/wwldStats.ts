@@ -15,11 +15,41 @@ export const BUILTIN_STATS = [
   { key: "progressExams", label: "Progress Exams", alias: "PE" },
   { key: "performanceReviews", label: "Performance Reviews", alias: "PR" },
   { key: "carePlansSigned", label: "Care Plans Signed", alias: "CPS" },
+  // Added Oct 2026 for Goals vs Log Stats (revenue's "actual"). Whole dollars. Unlike the stats
+  // above, the column is NULL when not logged, so "no collections entered" is never read as $0.
+  { key: "collections", label: "Collections ($)", alias: "Revenue" },
 ] as const;
 
 export type BuiltinStatKey = (typeof BUILTIN_STATS)[number]["key"];
 
 export const BUILTIN_STAT_KEYS: BuiltinStatKey[] = BUILTIN_STATS.map((s) => s.key);
+
+/**
+ * Built-in stats whose column is NULL (not 0) when nothing was entered. Rows saved before such a
+ * stat existed never count it as tracked, and a NULL value is "not logged", never 0.
+ */
+export const NULLABLE_BUILTIN_STATS: readonly BuiltinStatKey[] = ["collections"];
+
+export function isNullableBuiltinStat(key: string): boolean {
+  return (NULLABLE_BUILTIN_STATS as readonly string[]).includes(key);
+}
+
+/** Largest value accepted for one session of a built-in stat. */
+export const BUILTIN_STAT_MAX = 9999;
+export const COLLECTIONS_MAX = 10_000_000;
+export function builtinStatMax(key: BuiltinStatKey): number {
+  return key === "collections" ? COLLECTIONS_MAX : BUILTIN_STAT_MAX;
+}
+
+/** How much the − / + buttons move a built-in stat (dollars move in $100 steps). */
+export function builtinStatStep(key: BuiltinStatKey): number {
+  return key === "collections" ? 100 : 1;
+}
+
+/** Display a built-in stat value (Collections as dollars). */
+export function formatBuiltinStatValue(key: BuiltinStatKey, value: number): string {
+  return key === "collections" ? `$${Math.round(value).toLocaleString("en-US")}` : value.toLocaleString("en-US");
+}
 
 export const MAX_CUSTOM_STATS = 3;
 export const CUSTOM_STAT_NAME_MAX = 60;
@@ -59,7 +89,8 @@ export function enabledBuiltinStats(hiddenRaw: string | null | undefined): Built
  * rows were logged with the full form, so every built-in stat counts as tracked.
  */
 export function trackedBuiltinStats(trackedRaw: string | null | undefined): BuiltinStatKey[] {
-  if (trackedRaw === null || trackedRaw === undefined) return [...BUILTIN_STAT_KEYS];
+  // Legacy rows predate the nullable stats (e.g. Collections), so those never count as tracked.
+  if (trackedRaw === null || trackedRaw === undefined) return BUILTIN_STAT_KEYS.filter((k) => !isNullableBuiltinStat(k));
   return parseStatKeyList(trackedRaw);
 }
 
@@ -73,7 +104,13 @@ export function mergeTrackedStats(
   existingRaw: string | null | undefined,
   submitted: Iterable<string>,
 ): string | null {
-  if (existingRaw === null || existingRaw === undefined) return null;
+  if (existingRaw === null || existingRaw === undefined) {
+    // Legacy row = every original stat tracked. Adding a nullable stat (Collections) makes the
+    // list explicit so the new stat counts as tracked from now on.
+    const submittedList = [...submitted];
+    if (!submittedList.some((k) => isNullableBuiltinStat(k))) return null;
+    return serializeStatKeyList([...trackedBuiltinStats(null), ...submittedList]);
+  }
   const merged = new Set<string>([...parseStatKeyList(existingRaw), ...submitted]);
   return serializeStatKeyList(merged);
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appDateKey } from "../../shared/appTime";
 import { protectedProcedure, router } from "../_core/trpc";
 import { isEngagementEnabled } from "./flags";
 import { TRPCError } from "@trpc/server";
@@ -66,8 +67,8 @@ export const ACTION_CATEGORIES = [
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function todayStr(): string {
-  // Use Central Time (America/Chicago) so the day resets at midnight CT
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  // Synapse's one calendar clock (America/New_York), same "today" as Log Stats and Goals.
+  return appDateKey();
 }
 
 function guardFeature(feature: Parameters<typeof isEngagementEnabled>[0], clerkId?: string) {

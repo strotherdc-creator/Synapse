@@ -1,16 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getCentralDateKey, previousDateKey } from "./db";
+import { getAppDateKey, previousDateKey } from "./db";
 
 function source(relativePath: string) {
   return readFileSync(resolve(process.cwd(), relativePath), "utf8");
 }
 
 describe("daily check-in streak", () => {
-  it("uses the Central Time calendar so one check-in per calendar day can advance the streak", () => {
-    expect(getCentralDateKey(new Date("2026-08-27T04:30:00.000Z"))).toBe("2026-08-26");
-    expect(getCentralDateKey(new Date("2026-08-27T05:30:00.000Z"))).toBe("2026-08-27");
+  it("uses the New York calendar so one check-in per calendar day can advance the streak", () => {
+    expect(getAppDateKey(new Date("2026-08-27T03:30:00.000Z"))).toBe("2026-08-26");
+    expect(getAppDateKey(new Date("2026-08-27T04:30:00.000Z"))).toBe("2026-08-27");
     expect(previousDateKey("2026-08-27")).toBe("2026-08-26");
   });
 

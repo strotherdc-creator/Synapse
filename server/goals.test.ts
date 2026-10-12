@@ -7,7 +7,7 @@ import path from "node:path";
 vi.mock("./goals/goals", () => ({
   getGoals: vi.fn(async () => null),
   saveGoals: vi.fn(async (_userId: number, input: Record<string, unknown>) => ({ ...input, updatedAt: null })),
-  getYearProgress: vi.fn(async () => ({ asOf: "2026-10-03", officeVisits: 0, newPatients: 0, hasData: false })),
+  getGoalsComparison: vi.fn(async () => ({ asOf: "2026-10-03", goalYear: 2026, yearMode: "current", hasGoals: false, periods: [], week: [], weekTotal: null })),
 }));
 
 import * as goalsData from "./goals/goals";
@@ -19,19 +19,16 @@ import {
   calculateGoals,
   clampGoalYear,
   fullDayAim,
-  progressThroughDate,
   formatCount,
   formatMoney,
   formatMoneyCents,
   isValidWorkDays,
-  paceTarget,
   parseClinicSchedule,
   parseGoalInput,
   safeDivide,
   scheduleCounts,
   serializeClinicSchedule,
   wholeNeeded,
-  yearElapsedFraction,
 } from "../shared/goals";
 
 const fiveFull = parseClinicSchedule("mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off");
@@ -123,25 +120,6 @@ describe("Goals math", () => {
     expect(parseGoalInput("-5")).toBeNull();
   });
 
-  it("this-year pace counts completed days only (today is not counted in full)", () => {
-    expect(yearElapsedFraction(2026, "2026-01-01")).toBe(0);
-    expect(yearElapsedFraction(2026, "2026-01-02")).toBeCloseTo(1 / 365, 10);
-    expect(yearElapsedFraction(2026, "2026-12-31")).toBeCloseTo(364 / 365, 10);
-    expect(yearElapsedFraction(2027, "2026-10-03")).toBe(0);
-    expect(yearElapsedFraction(2025, "2026-10-03")).toBe(1);
-    expect(yearElapsedFraction(2028, "2028-12-31")).toBeCloseTo(365 / 366, 10); // leap year
-    expect(paceTarget(3650, yearElapsedFraction(2026, "2026-01-11"))).toBeCloseTo(100, 6);
-    expect(paceTarget(null, 0.5)).toBeNull();
-  });
-
-  it("actual totals cover the same completed days as the pace (through yesterday)", () => {
-    expect(progressThroughDate(2026, "2026-10-03")).toBe("2026-10-02");
-    expect(progressThroughDate(2026, "2026-03-01")).toBe("2026-02-28");
-    expect(progressThroughDate(2028, "2028-03-01")).toBe("2028-02-29");
-    expect(progressThroughDate(2026, "2026-01-01")).toBeNull();
-    expect(progressThroughDate(2027, "2026-10-03")).toBeNull();
-    expect(progressThroughDate(2025, "2026-10-03")).toBe("2025-12-31");
-  });
 
   it("year picker is clamped to the range the server accepts", () => {
     expect(clampGoalYear(2101)).toBe(2100);
@@ -190,7 +168,7 @@ describe("goals router auth and ownership", () => {
     const caller = appRouter.createCaller(ctxFor(null));
     await expect(caller.goals.get({ goalYear: 2026 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(caller.goals.save(validSave)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(caller.goals.getProgress({ goalYear: 2026 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.goals.getComparison({ goalYear: 2026 })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     expect(goalsData.saveGoals).not.toHaveBeenCalled();
   });
 
@@ -215,13 +193,13 @@ describe("goals router auth and ownership", () => {
     expect((appRouter as unknown as { _def: { record: { goals: Record<string, unknown> } } })._def.record.goals).not.toHaveProperty("saveClinicDays");
   });
 
-  it("get and getProgress are scoped to the signed-in doctor", async () => {
+  it("get and getComparison are scoped to the signed-in doctor", async () => {
     const caller = appRouter.createCaller(ctxFor({ id: 7, workDays: "mon:full,tue:half,wed:off,thu:full,fri:full,sat:off,sun:off" }));
     const got = await caller.goals.get({ goalYear: 2026, userId: 99 } as { goalYear: number });
     expect(vi.mocked(goalsData.getGoals).mock.calls[0][0]).toBe(7);
     expect(got).toEqual({ goals: null, workDays: "mon:full,tue:half,wed:off,thu:full,fri:full,sat:off,sun:off" });
-    await caller.goals.getProgress({ goalYear: 2026, userId: 99 } as { goalYear: number });
-    expect(vi.mocked(goalsData.getYearProgress).mock.calls[0][0]).toBe(7);
+    await caller.goals.getComparison({ goalYear: 2026, userId: 99 } as { goalYear: number });
+    expect(vi.mocked(goalsData.getGoalsComparison).mock.calls[0][0]).toBe(7);
   });
 
   it("new doctors start with no goals and the default schedule (nothing invented)", async () => {
@@ -295,5 +273,13 @@ describe("Goals migrations and wiring", () => {
   it("Goals is in the sidebar and routed at /goals", () => {
     expect(source("client/src/components/DashboardLayout.tsx")).toContain('label: "Goals", path: "/goals"');
     expect(source("client/src/App.tsx")).toContain('<Route path="/goals" component={Goals} />');
+  });
+});
+
+describe("no pace code left (Doc: compare actuals with goals only)", () => {
+  it("pace helpers and the getProgress endpoint are gone", () => {
+    const shared = readFileSync(path.resolve(__dirname, "../shared/goals.ts"), "utf8");
+    expect(shared).not.toMatch(/paceTarget|yearElapsedFraction|progressThroughDate|formatYearDone/);
+    expect((appRouter as unknown as { _def: { record: { goals: Record<string, unknown> } } })._def.record.goals).not.toHaveProperty("getProgress");
   });
 });

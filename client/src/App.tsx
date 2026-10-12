@@ -1,3 +1,4 @@
+import { appDateKey } from "@shared/appTime";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +24,7 @@ import WWLD from "./pages/WWLD";
 import WwldStatSettings from "./pages/WwldStatSettings";
 import WwldHistory from "./pages/WwldHistory";
 import Goals from "./pages/Goals";
+import GoalsWeek from "./pages/GoalsWeek";
 import TodaysGrowthPlan from "./pages/TodaysGrowthPlan";
 import WeeklyReview from "./pages/WeeklyReview";
 import CommunicationCoach from "./pages/CommunicationCoach";
@@ -32,8 +34,8 @@ import ProfileCompletion from "./components/ProfileCompletion";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 function getTodayDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Synapse's calendar (America/New_York), same "today" as the server.
+  return appDateKey();
 }
 
 /**
@@ -96,7 +98,7 @@ function DailyActionPopup() {
 
   useEffect(() => {
     // A streak represents an authenticated daily check-in. The server uses the
-    // Central Time date and makes repeated visits on the same day idempotent.
+    // New York calendar date and makes repeated visits on the same day idempotent.
     recordDailyCheckIn();
   }, [recordDailyCheckIn]);
 
@@ -175,6 +177,7 @@ function AuthenticatedRouter() {
         <Route path="/wwld/settings" component={WwldStatSettings} />
         <Route path="/wwld/history" component={WwldHistory} />
         <Route path="/goals" component={Goals} />
+        <Route path="/goals/week" component={GoalsWeek} />
         <Route path="/today" component={TodaysGrowthPlan} />
         <Route path="/review" component={WeeklyReview} />
         <Route path="/communication" component={CommunicationCoach} />
