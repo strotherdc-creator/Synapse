@@ -249,40 +249,48 @@ export default function TodaysGrowthPlan() {
         <div className="flex items-center gap-2">
           <Flame className="h-7 w-7 text-orange-400" />
           <span className="text-2xl font-bold text-gold">{streak?.currentStreak ?? 0}</span>
-          <span className="text-base text-gray-400">check-in streak</span>
+          <span className="text-base font-medium text-gray-100">check-in streak</span>
         </div>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-emerald-400" />
           <span className="text-2xl font-bold text-gold">{completedActions.length}</span>
-          <span className="text-base text-gray-400">done today</span>
+          <span className="text-base font-medium text-gray-100">done today</span>
         </div>
       </div>
 
       {/* ─── PRIMARY NEXT ACTION (front door CTA) ─── */}
-      <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/30 p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <BookOpen className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Your next action</p>
-            <p className="text-xl font-bold text-white mt-1 leading-snug">
-              {currentAction?.title
-                ?? data?.lyleRecommendation?.actionText
-                ?? (curriculum && !curriculum.allComplete
-                  ? "Continue your curriculum"
-                  : sessionsLogged < 3
-                    ? "Log today's WWLD stats"
-                    : "Pick one action for today")}
-            </p>
-          </div>
+      {nextStep && (currentAction ? currentAction.sourceRef === "curriculum_lesson" : !!curriculum && !curriculum.allComplete) ? (
+        // Curriculum is next: the same full-width blue Continue button as Home and Curriculum.
+        <div className="space-y-2">
+          <p className="text-base font-bold text-emerald-200">Your next action</p>
+          <ContinueCurriculumButton />
         </div>
-        <button
-          type="button"
-          onClick={handlePrimaryCta}
-          className="w-full py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-2"
-        >
-          {primaryCtaLabel}
-        </button>
-      </div>
+      ) : (
+        <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/30 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <BookOpen className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-emerald-200">Your next action</p>
+              <p className="text-xl font-bold text-white mt-1 leading-snug">
+                {currentAction?.title
+                  ?? data?.lyleRecommendation?.actionText
+                  ?? (curriculum && !curriculum.allComplete
+                    ? "Continue your curriculum"
+                    : sessionsLogged < 3
+                      ? "Log today's WWLD stats"
+                      : "Pick one action for today")}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handlePrimaryCta}
+            className="w-full min-h-[56px] py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+          >
+            {primaryCtaLabel}
+          </button>
+        </div>
+      )}
 
       {/* ─── WWLD / Log Stats (nearby, one click) ─── */}
       <button
@@ -294,26 +302,26 @@ export default function TodaysGrowthPlan() {
           <div className="flex items-center gap-2">
             <BarChart2 className="h-5 w-5 text-[var(--gold)]" />
             <div>
-              <p className="text-sm font-bold text-foreground">WWLD · Log Stats</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-lg font-bold text-foreground">WWLD · Log Stats</p>
+              <p className="text-base text-gray-100">
                 {sessionsLogged}/3 sessions logged today
               </p>
             </div>
           </div>
-          <span className="text-sm font-semibold text-[var(--gold)]">Open →</span>
+          <span className="inline-flex items-center min-h-[44px] px-2 whitespace-nowrap text-base font-bold text-[var(--gold)]">Open →</span>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-3">
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.officeVisits ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Visits</p>
+            <p className="text-base font-medium text-gray-100">Visits</p>
           </div>
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.newPatients ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">New Pts</p>
+            <p className="text-base font-medium text-gray-100">New Pts</p>
           </div>
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.carePlansSigned ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Care Plans</p>
+            <p className="text-base font-medium text-gray-100">Care Plans</p>
           </div>
         </div>
       </button>
@@ -338,7 +346,8 @@ export default function TodaysGrowthPlan() {
         </span>
         <button
           onClick={() => setShowTopicPicker(!showTopicPicker)}
-          className="text-lg text-gray-400 hover:text-white underline"
+          type="button"
+          className="min-h-[44px] px-3 text-lg font-semibold text-gray-100 hover:text-white underline"
         >
           Change
         </button>
@@ -384,7 +393,8 @@ export default function TodaysGrowthPlan() {
             </span>
             <button
               onClick={() => setShowTopicPicker(!showTopicPicker)}
-              className="text-sm text-gray-400 hover:text-white underline"
+              type="button"
+              className="min-h-[44px] px-3 text-base font-semibold text-gray-100 hover:text-white underline"
             >
               Change
             </button>
@@ -543,7 +553,6 @@ export default function TodaysGrowthPlan() {
       {/* ─── CURRICULUM REMINDER ─── */}
       {curriculum && !curriculum.allComplete && (
         <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 space-y-4">
-          <ContinueCurriculumButton />
           <p className="text-base text-gray-300">
             Complete your modules to unlock fully customized scripts and positioning.
           </p>

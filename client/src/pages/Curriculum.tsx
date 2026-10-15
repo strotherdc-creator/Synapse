@@ -86,7 +86,7 @@ export default function Curriculum() {
                     <Card className="bg-card border-brand-gold/30 hover:border-primary transition-colors">{content}</Card>
                   </button>
                 ) : (
-                  <Card className="bg-card/60 border-dashed border-brand-gold/20" aria-disabled="true">
+                  <Card className="bg-card/60 border-2 border-dashed border-gray-400/70" aria-disabled="true">
                     {content}
                   </Card>
                 )}

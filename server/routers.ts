@@ -98,8 +98,10 @@ async function assertModuleUnlocked(userId: number, moduleId: number, isAdmin: b
 
 /**
  * A learner may only open, complete or answer a lesson that is published, sits in a published
- * module, and whose module is unlocked (admins bypass). Hidden or locked lessons look like
- * "not found" so they can't be probed by ID. Returns the lesson.
+ * module, and whose module is unlocked (admins bypass). Draft lessons, lessons in draft modules
+ * and lesson/module mismatches return NOT_FOUND; lessons in a published but still-locked module
+ * return FORBIDDEN ("Complete previous modules…", from assertModuleUnlocked). Neither leaks
+ * lesson content. Returns the lesson.
  */
 async function assertLessonAccessible(
   user: { id: number; role: string },

@@ -16,14 +16,14 @@ export function ContinueCurriculumButton({ className = "" }: { className?: strin
     <button
       type="button"
       onClick={() => setLocation(next.href)}
-      className={`w-full min-h-[56px] text-left rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-4 flex items-center gap-3 shadow-lg transition-colors ${className}`}
+      className={`w-full min-h-[56px] text-left rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-4 py-4 flex items-center gap-2 shadow-lg transition-colors ${className}`}
       data-testid="continue-curriculum"
     >
       <span className="flex-1 min-w-0">
-        <span className="block text-xl font-bold leading-snug">{next.label}</span>
+        <span className="block whitespace-nowrap text-[clamp(1rem,4.7vw,1.25rem)] font-bold leading-snug">{next.label}</span>
         <span className="block text-base text-blue-50 mt-0.5">{next.moduleTitle}</span>
       </span>
-      <ChevronRight className="h-7 w-7 shrink-0" aria-hidden="true" />
+      <ChevronRight className="h-6 w-6 shrink-0" aria-hidden="true" />
     </button>
   );
 }

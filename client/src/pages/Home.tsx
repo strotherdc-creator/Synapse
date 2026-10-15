@@ -192,7 +192,7 @@ export default function Home() {
                   <Card className="bg-card border-brand-gold/30 hover:border-primary transition-colors">{body}</Card>
                 </button>
               ) : (
-                <Card key={mod.id} className="bg-card/60 border-dashed border-brand-gold/20" aria-disabled="true">
+                <Card key={mod.id} className="bg-card/60 border-2 border-dashed border-gray-400/70" aria-disabled="true">
                   {body}
                 </Card>
               );

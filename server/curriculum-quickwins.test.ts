@@ -58,6 +58,18 @@ describe("Communication Coach link inputs", () => {
       expect(safeReturnPath(bad as string)).toBeNull();
     }
   });
+  it("rejects paths that normalise to protocol-relative URLs", () => {
+    for (const bad of ["/..//evil.com", "/.//evil.com", "/a/..//evil.com", "/../..//evil.com/x", "/%2e%2e//evil.com", "/..\\evil.com"]) {
+      expect(safeReturnPath(bad)).toBeNull();
+    }
+    // Idempotent on every allowed value.
+    for (const ok of ["/today", "/a/../today", "/curriculum/2?x=1"]) {
+      const once = safeReturnPath(ok);
+      expect(once).not.toBeNull();
+      expect(safeReturnPath(once)).toBe(once);
+    }
+  });
+
   it("cleans and caps text settings", () => {
     expect(safeLinkText("  hello\u0000 ")).toBe("hello");
     expect(safeLinkText("x".repeat(900))).toHaveLength(500);
@@ -78,5 +90,24 @@ describe("readable pages", () => {
     for (const f of ["Curriculum", "ModuleCoaching", "ModuleDetail", "LessonView", "Home"]) {
       expect(readFileSync(`client/src/pages/${f}.tsx`, "utf8")).toMatch(/className="readable /);
     }
+  });
+});
+
+describe("Today's Plan readability (HD QC round 2)", () => {
+  const plan = readFileSync("client/src/pages/TodaysGrowthPlan.tsx", "utf8");
+  it("no tiny or dim text on the flagged lines, 44px Change/Open targets", () => {
+    expect(plan).not.toContain("text-[10px]");
+    expect(plan).not.toMatch(/text-xs font-bold text-emerald-300 uppercase tracking-wide">Your next action/);
+    expect(plan).not.toContain('text-xs text-muted-foreground">');
+    expect(plan).not.toMatch(/text-base text-gray-400">(check-in streak|done today)/);
+    expect(plan.match(/min-h-\[44px\] px-3 text-(lg|base) font-semibold text-gray-100[^"]*underline/g)).toHaveLength(2);
+    expect(plan).toContain("min-h-[44px] px-2 whitespace-nowrap text-base font-bold text-[var(--gold)]\">Open →");
+  });
+  it("uses the one shared blue Continue button, once, and its label never wraps", () => {
+    expect(plan.match(/<ContinueCurriculumButton \/>/g)).toHaveLength(1);
+    expect(readFileSync("client/src/components/curriculum/ContinueCurriculumButton.tsx", "utf8")).toContain("whitespace-nowrap");
+  });
+  it("locked module cards have a 2px bright border", () => {
+    expect(readFileSync("client/src/pages/Curriculum.tsx", "utf8")).toContain("border-2 border-dashed border-gray-400/70");
   });
 });

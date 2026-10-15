@@ -19,7 +19,10 @@ export function safeReturnPath(raw: string | null | undefined): string | null {
   try {
     const url = new URL(value, PLACEHOLDER_ORIGIN);
     if (url.origin !== PLACEHOLDER_ORIGIN) return null;
-    return `${url.pathname}${url.search}${url.hash}`;
+    const out = `${url.pathname}${url.search}${url.hash}`;
+    // Normalising can turn "/..//evil.com" into "//evil.com" (protocol-relative): re-check the result.
+    if (!out.startsWith("/") || out.startsWith("//") || out.startsWith("/\\") || /[\\\u0000-\u001f\u007f]/.test(out)) return null;
+    return out;
   } catch {
     return null;
   }
