@@ -19,7 +19,16 @@ export function detectBrowserTimeZone(): string | null {
   }
 }
 
-/** Saved profile zone if valid, else the detected browser zone, else New York. */
+/**
+ * The zone the SERVER uses for this doctor: the saved profile zone if valid, else New York.
+ * The browser uses exactly this (never the phone's zone until it has been saved), so both
+ * sides always agree on "today" — e.g. Log Stats' same-day check never rejects an entry.
+ */
+export function serverMatchingTimeZone(saved: string | null | undefined): string {
+  return resolveTimeZone(saved);
+}
+
+/** Suggested zone for the Profile picker: saved zone if valid, else this device's, else New York. */
 export function chooseClientTimeZone(saved: string | null | undefined): string {
   if (isValidTimeZone(saved)) return saved;
   return detectBrowserTimeZone() ?? DEFAULT_TIME_ZONE;

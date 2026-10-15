@@ -55,6 +55,16 @@ describe("zone validation and fallback", () => {
   });
 });
 
+describe("client zone matches the server until saved", () => {
+  it("serverMatchingTimeZone = saved zone if valid, else New York (never the phone's zone)", async () => {
+    const { serverMatchingTimeZone } = await import("../client/src/lib/userTime");
+    expect(serverMatchingTimeZone(null)).toBe(NY);
+    expect(serverMatchingTimeZone("")).toBe(NY);
+    expect(serverMatchingTimeZone("Bogus/Zone")).toBe(NY);
+    expect(serverMatchingTimeZone(SYDNEY)).toBe(SYDNEY);
+  });
+});
+
 describe("day boundaries follow each doctor's own zone", () => {
   it("same instant, different 'today' in LA, NY, London and Sydney", () => {
     const instant = new Date("2026-10-15T06:30:00Z");
@@ -199,7 +209,12 @@ describe("wiring: every server date uses the requesting doctor's zone", () => {
     expect(src("server/wwld-coach/router.ts")).toContain("buildWwldContext(user.id, user.timezone)");
     expect(src("server/db.ts")).not.toContain("AT TIME ZONE 'America/New_York'");
     const reminders = src("server/engagement/email-reminders.ts");
-    expect(reminders).toContain("mondayDateKey(zonedClock(now, zone).dateKey)");
+    expect(reminders).toContain("const weekStartStr = mondayDateKey(localDate);");
+    expect(reminders).toContain("const localDate = zonedClock(now, zone).dateKey;");
+    // Claim in the send-log before sending; one query joins users; per-recipient try/catch.
+    expect(reminders.indexOf("claimReminderSend(db, r.userId, kind, localDate)")).toBeLessThan(reminders.indexOf("getTransporter().sendMail"));
+    expect(reminders).toContain(".innerJoin(users, eq(users.id, userEngagementPreferences.userId))");
+    expect(reminders).not.toContain("db.select().from(users).where(eq(users.id, pref.userId))");
     expect(reminders).not.toContain("toISOString()");
   });
 
@@ -209,6 +224,16 @@ describe("wiring: every server date uses the requesting doctor's zone", () => {
     }
     expect(src("client/src/App.tsx")).toContain('source: "detected"');
     expect(src("client/src/pages/Profile.tsx")).toContain('source: "manual"');
+  });
+
+  it("the browser stays on the server's zone (NY) until the detected zone is saved; set in an effect", () => {
+    const app = src("client/src/App.tsx");
+    expect(app).toContain("const zone = serverMatchingTimeZone(saved);");
+    expect(app).not.toContain("chooseClientTimeZone");
+    expect(app).toMatch(/useLayoutEffect\(\(\) => \{\s*setClientTimeZone\(zone\);/);
+    expect(app).not.toMatch(/\n  if \(user\) setClientTimeZone/);
+    expect(app).toContain("if (loading || (user && !zoneReady))");
+    expect(src("client/src/pages/Profile.tsx")).not.toContain("setClientTimeZone(");
   });
 
   it("users.timezone is nullable with no default; no data backfill", () => {

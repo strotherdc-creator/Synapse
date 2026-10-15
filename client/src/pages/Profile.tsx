@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { chooseClientTimeZone, detectBrowserTimeZone, listTimeZones, setClientTimeZone } from "@/lib/userTime";
+import { chooseClientTimeZone, detectBrowserTimeZone, listTimeZones } from "@/lib/userTime";
 import { toast } from "sonner";
 
 export default function Profile() {
@@ -83,8 +83,8 @@ export default function Profile() {
   }, [timeZone]);
   const detectedZone = detectBrowserTimeZone();
   const saveZoneMutation = trpc.profile.setTimeZone.useMutation({
-    onSuccess: (res) => {
-      setClientTimeZone(res.timezone);
+    onSuccess: () => {
+      // App switches the browser clock once the refreshed profile carries the saved zone.
       toast.success("Time zone saved");
       // Every "today", week, month and year depends on the zone: refresh everything.
       utils.invalidate();

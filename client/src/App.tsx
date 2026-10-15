@@ -1,11 +1,11 @@
-import { chooseClientTimeZone, detectBrowserTimeZone, setClientTimeZone, userDateKey } from "@/lib/userTime";
+import { detectBrowserTimeZone, serverMatchingTimeZone, setClientTimeZone, userDateKey } from "@/lib/userTime";
 import { isValidTimeZone } from "@shared/appTime";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
@@ -194,11 +194,20 @@ function AuthenticatedRouter() {
  * Keeps the browser on the doctor's own calendar: uses the saved profile zone, and if none is
  * saved yet, saves the browser's detected zone once (it never overwrites a hand-picked zone).
  */
-function useDoctorTimeZone(user: { timezone?: string | null } | null | undefined) {
+function useDoctorTimeZone(user: { timezone?: string | null } | null | undefined): boolean {
   const saved = user?.timezone ?? null;
-  if (user) setClientTimeZone(chooseClientTimeZone(saved));
+  // Same zone as the server: saved zone, or New York until the detected zone is SAVED.
+  const zone = serverMatchingTimeZone(saved);
+  const [appliedZone, setAppliedZone] = useState<string | null>(null);
+  // Apply in a layout effect (not during render), before the pages below mount and read it.
+  useLayoutEffect(() => {
+    setClientTimeZone(zone);
+    setAppliedZone(zone);
+  }, [zone]);
+
   const utils = trpc.useUtils();
   const { mutate: saveZone } = trpc.profile.setTimeZone.useMutation({
+    // Only after the server has the zone do we refetch the profile and switch the browser to it.
     onSuccess: () => utils.auth.me.invalidate(),
   });
   const needsSave = Boolean(user) && !isValidTimeZone(saved);
@@ -207,13 +216,15 @@ function useDoctorTimeZone(user: { timezone?: string | null } | null | undefined
     const detected = detectBrowserTimeZone();
     if (detected) saveZone({ timezone: detected, source: "detected" });
   }, [needsSave, saveZone]);
+
+  return appliedZone === zone;
 }
 
 function AppRouter() {
   const { user, loading } = useAuth();
-  useDoctorTimeZone(user as { timezone?: string | null } | null);
+  const zoneReady = useDoctorTimeZone(user as { timezone?: string | null } | null);
 
-  if (loading) {
+  if (loading || (user && !zoneReady)) {
     return <DashboardLayoutSkeleton />;
   }
 
