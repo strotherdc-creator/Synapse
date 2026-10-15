@@ -40,12 +40,11 @@ export default function ModuleDetail() {
   const isLoading = modLoading || lessonsLoading;
 
   return (
-    <div className="space-y-6">
+    <div className="readable space-y-6">
       <Button
         variant="ghost"
-        size="sm"
         onClick={() => setLocation("/curriculum")}
-        className="text-muted-foreground hover:text-foreground -ml-2"
+        className="min-h-[44px] text-base text-muted-foreground hover:text-foreground -ml-2"
       >
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to Curriculum

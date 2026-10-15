@@ -71,7 +71,9 @@ describe("draft disclosure and completeStep integrity", () => {
   it("hides unpublished modules and lessons from non-admins on getById", () => {
     const router = source("server/routers.ts");
     expect(router).toContain('mod.status !== "published" && ctx.user.role !== "admin"');
-    expect(router).toContain('lesson.status !== "published" && ctx.user.role !== "admin"');
+    // Lessons go through one gate (published lesson + published, unlocked module; admins bypass).
+    expect(router).toContain('(!isAdmin && lesson.status !== "published")');
+    expect(router).toContain("return assertLessonAccessible(ctx.user, input.id);");
   });
 
   it("requires step.moduleId to match input.moduleId on completeStep", () => {
