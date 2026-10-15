@@ -38,7 +38,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { BUILTIN_STAT_KEYS, formatBuiltinStatValue } from "@shared/wwldStats";
-import { appDateKey, mondayDateKey, monthStartKey, yearStartKey } from "@shared/appTime";
+import { mondayDateKey, monthStartKey, yearStartKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import {
   ResponsiveContainer,
   BarChart,
@@ -54,12 +55,12 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Today in Synapse's calendar (America/New_York), the same "today" the server uses. */
+/** Today in the doctor's own calendar (profile time zone), the same "today" the server uses. */
 function getTodayDate(): string {
-  return appDateKey();
+  return userDateKey();
 }
 
-/** Period ranges on the New York calendar; weeks run Monday–Sunday. */
+/** Period ranges on the doctor's own calendar; weeks run Monday–Sunday. */
 function getDateRange(period: "today" | "wtd" | "mtd" | "ytd"): { start: string; end: string } {
   const end = getTodayDate();
   if (period === "today") return { start: end, end };

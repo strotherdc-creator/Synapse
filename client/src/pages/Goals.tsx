@@ -1,4 +1,4 @@
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import { GoalsSummary } from "@/components/goals/GoalsComparison";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -110,7 +110,7 @@ function GoalField({
 
 export default function Goals() {
   const utils = trpc.useUtils();
-  const currentYear = Number(appDateKey().slice(0, 4));
+  const currentYear = Number(userDateKey().slice(0, 4));
   const [year, setYear] = useState(() => clampGoalYear(currentYear));
   const goalsQuery = trpc.goals.get.useQuery({ goalYear: year });
   const comparisonQuery = trpc.goals.getComparison.useQuery({ goalYear: year });

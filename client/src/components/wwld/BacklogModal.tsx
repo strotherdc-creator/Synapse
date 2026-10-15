@@ -12,11 +12,11 @@ import { History, ChevronRight, ChevronLeft, CheckCircle2, Loader2 } from "lucid
 import { cn } from "@/lib/utils";
 import { friendlyErrorMessage } from "@/lib/friendlyError";
 import { BUILTIN_STAT_KEYS, CUSTOM_STAT_VALUE_MAX, builtinStatMax, builtinStatStep } from "@shared/wwldStats";
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 
-/** Today on Synapse's calendar (America/New_York) as a local Date at midnight, for the pickers below. */
+/** Today on the doctor's own calendar (profile time zone) as a local Date at midnight, for the pickers below. */
 function appToday(): Date {
-  const [y, m, d] = appDateKey().split("-").map(Number);
+  const [y, m, d] = userDateKey().split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 

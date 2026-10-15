@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { appDateKey } from "../../shared/appTime";
+import { appDateKey, resolveTimeZone, shiftDateKey } from "../../shared/appTime";
 import { protectedProcedure, router } from "../_core/trpc";
 import { isEngagementEnabled } from "./flags";
 import { TRPCError } from "@trpc/server";
@@ -66,9 +66,15 @@ export const ACTION_CATEGORIES = [
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
-function todayStr(): string {
-  // Synapse's one calendar clock (America/New_York), same "today" as Log Stats and Goals.
-  return appDateKey();
+function todayStr(zone?: string | null): string {
+  // The doctor's own calendar (users.timezone), same "today" as Log Stats and Goals.
+  return appDateKey(new Date(), resolveTimeZone(zone));
+}
+
+/** 1-based day of the year for a YYYY-MM-DD key (calendar math, no host time zone). */
+function dayOfYearFor(dateKey: string): number {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / 86400000);
 }
 
 function guardFeature(feature: Parameters<typeof isEngagementEnabled>[0], clerkId?: string) {
@@ -282,7 +288,7 @@ export const engagementRouter = router({
       }
 
       // Delete today's plan so it regenerates with the new topic
-      const date = todayStr();
+      const date = todayStr(ctx.user.timezone);
       await dbInstance.delete(growthActions).where(and(eq(growthActions.userId, ctx.user.id), eq(growthActions.actionDate, date)));
       await dbInstance.delete(dailyGrowthPlans).where(and(eq(dailyGrowthPlans.userId, ctx.user.id), eq(dailyGrowthPlans.planDate, date)));
 
@@ -297,7 +303,7 @@ export const engagementRouter = router({
       const dbInstance = await db.getDb();
       if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
 
-      const date = todayStr();
+      const date = todayStr(ctx.user.timezone);
       const userId = ctx.user.id;
 
       // Validate all keys
@@ -310,7 +316,7 @@ export const engagementRouter = router({
 
       // Get or auto-assign topic
       const topic = await ensureUserTopic(dbInstance, userId, ctx.user.email ?? "");
-      const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      const dayOfYear = dayOfYearFor(date);
 
       // Check for existing plan for today
       const [existingPlan] = await dbInstance
@@ -395,7 +401,7 @@ export const engagementRouter = router({
     const dbInstance = await db.getDb();
     if (!dbInstance) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-    const date = todayStr();
+    const date = todayStr(ctx.user.timezone);
     const userId = ctx.user.id;
 
     // Get user's topic (auto-assign if needed)
@@ -411,7 +417,7 @@ export const engagementRouter = router({
     if (!existing) {
       // No plan yet — doctor needs to pick actions
       // Also get the Lyle recommendation for display
-      const lyleAction = await getLyleRecommendation(userId, date);
+      const lyleAction = await getLyleRecommendation(userId, date, ctx.user.timezone);
       return {
         status: "needs_pick" as const,
         topic: { id: topic.id, label: topic.label, shortLabel: topic.shortLabel },
@@ -427,7 +433,7 @@ export const engagementRouter = router({
       .where(and(eq(growthActions.planId, existing.id), eq(growthActions.userId, userId)))
       .orderBy(asc(growthActions.sortOrder));
 
-    const lyleAction = await getLyleRecommendation(userId, date);
+    const lyleAction = await getLyleRecommendation(userId, date, ctx.user.timezone);
 
     const completedCount = actions.filter(a => a.status === "completed").length;
 
@@ -538,7 +544,7 @@ export const engagementRouter = router({
         .where(eq(growthActions.id, input.actionId));
 
       // One completed growth action counts as daily activity for the streak.
-      const date = todayStr();
+      const date = todayStr(ctx.user.timezone);
       await db.updateStreak(ctx.user.id, date);
 
       await dbInstance.insert(engagementEvents).values({
@@ -567,9 +573,8 @@ export const engagementRouter = router({
 
       if (!action) throw new TRPCError({ code: "NOT_FOUND", message: "Action not found" });
 
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+      // "Tomorrow" on the doctor's own calendar.
+      const tomorrowStr = shiftDateKey(todayStr(ctx.user.timezone), 1);
 
       await dbInstance
         .update(growthActions)
@@ -648,7 +653,7 @@ export const engagementRouter = router({
 
       // Get topic and use a shifted day index for different content
       const topic = await ensureUserTopic(dbInstance, ctx.user.id, ctx.user.email ?? "");
-      const baseDayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+      const baseDayOfYear = dayOfYearFor(todayStr(ctx.user.timezone));
       const shiftedDay = baseDayOfYear + Math.floor(Math.random() * 5) + 1;
       const content = getActionContent(action.sourceRef ?? action.source, topic, shiftedDay, ctx.user as UserProfile);
 
@@ -762,8 +767,8 @@ export const engagementRouter = router({
 
 // ─── Lyle Recommendation Helper ────────────────────────────────────
 
-async function getLyleRecommendation(userId: number, date: string) {
-  const contentRow = await db.getOrCreateDailyLyleQuote(userId, date);
+async function getLyleRecommendation(userId: number, date: string, zone?: string | null) {
+  const contentRow = await db.getOrCreateDailyLyleQuote(userId, date, zone);
   if (!contentRow) return null;
 
   return {

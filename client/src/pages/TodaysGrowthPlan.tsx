@@ -1,4 +1,4 @@
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { TodayGoalsCard } from "@/components/goals/GoalsComparison";
@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import { CheckCircle2, Flame, Trophy, Copy, ArrowLeft, RefreshCw, BarChart2, BookOpen } from "lucide-react";
 
 function getTodayDateKey(): string {
-  // Synapse's calendar (America/New_York), same "today" as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same "today" as the server.
+  return userDateKey();
 }
 
 export default function TodaysGrowthPlan() {

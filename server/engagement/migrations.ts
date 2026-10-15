@@ -74,6 +74,8 @@ export const ENGAGEMENT_MIGRATIONS: string[] = [
   `ALTER TABLE user_engagement_preferences ADD COLUMN IF NOT EXISTS selected_topic_id VARCHAR(50)`,
   // Practice profile fields on users table
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_name TEXT`,
+  // Per-doctor time zone (Oct 15 2026). Nullable, no default, no backfill.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(64)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS state VARCHAR(50)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)`,

@@ -1,4 +1,5 @@
-import { appDateKey } from "@shared/appTime";
+import { chooseClientTimeZone, detectBrowserTimeZone, setClientTimeZone, userDateKey } from "@/lib/userTime";
+import { isValidTimeZone } from "@shared/appTime";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,8 +35,8 @@ import ProfileCompletion from "./components/ProfileCompletion";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 function getTodayDate(): string {
-  // Synapse's calendar (America/New_York), same "today" as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same "today" as the server.
+  return userDateKey();
 }
 
 /**
@@ -98,7 +99,7 @@ function DailyActionPopup() {
 
   useEffect(() => {
     // A streak represents an authenticated daily check-in. The server uses the
-    // New York calendar date and makes repeated visits on the same day idempotent.
+    // doctor's own calendar date and makes repeated visits on the same day idempotent.
     recordDailyCheckIn();
   }, [recordDailyCheckIn]);
 
@@ -189,8 +190,28 @@ function AuthenticatedRouter() {
   );
 }
 
+/**
+ * Keeps the browser on the doctor's own calendar: uses the saved profile zone, and if none is
+ * saved yet, saves the browser's detected zone once (it never overwrites a hand-picked zone).
+ */
+function useDoctorTimeZone(user: { timezone?: string | null } | null | undefined) {
+  const saved = user?.timezone ?? null;
+  if (user) setClientTimeZone(chooseClientTimeZone(saved));
+  const utils = trpc.useUtils();
+  const { mutate: saveZone } = trpc.profile.setTimeZone.useMutation({
+    onSuccess: () => utils.auth.me.invalidate(),
+  });
+  const needsSave = Boolean(user) && !isValidTimeZone(saved);
+  useEffect(() => {
+    if (!needsSave) return;
+    const detected = detectBrowserTimeZone();
+    if (detected) saveZone({ timezone: detected, source: "detected" });
+  }, [needsSave, saveZone]);
+}
+
 function AppRouter() {
   const { user, loading } = useAuth();
+  useDoctorTimeZone(user as { timezone?: string | null } | null);
 
   if (loading) {
     return <DashboardLayoutSkeleton />;

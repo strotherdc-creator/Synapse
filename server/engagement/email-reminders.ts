@@ -19,22 +19,32 @@ import { userEngagementPreferences, dailyGrowthPlans, growthActions, users } fro
 import { eq, and, sql } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { isEngagementEnabled } from "./flags";
-import { APP_TIME_ZONE, appDateKey } from "../../shared/appTime";
+import { mondayDateKey, resolveTimeZone, weekdayShort, zonedClock } from "../../shared/appTime";
 
-function todayStr(): string {
-  // Synapse's one calendar clock (America/New_York), same "today" as Today's Plan and Log Stats.
-  return appDateKey();
+/** How often the reminder job wakes up. Every zone offset in use is a multiple of 15 minutes. */
+export const REMINDER_TICK_MINUTES = 15;
+export const DAILY_REMINDER = { minutes: 7 * 60 + 30, weekdays: [1, 2, 3, 4, 5] } as const; // 7:30 AM Mon–Fri
+export const WEEKLY_REVIEW = { minutes: 17 * 60, weekdays: [5] } as const; // 5:00 PM Friday
+
+/**
+ * True when `now` falls in the [target, target + tick) window of the doctor's own local
+ * clock on one of the given weekdays (0 = Sunday). Each doctor matches exactly one tick per
+ * day, so an every-15-minutes job sends each email once at that doctor's local time.
+ */
+export function isLocalSendWindow(
+  now: Date,
+  zone: string | null | undefined,
+  rule: { minutes: number; weekdays: readonly number[] },
+  tickMinutes = REMINDER_TICK_MINUTES,
+): boolean {
+  const clock = zonedClock(now, resolveTimeZone(zone));
+  if (!rule.weekdays.includes(clock.weekday)) return false;
+  return clock.minutes >= rule.minutes && clock.minutes < rule.minutes + tickMinutes;
 }
 
-function getDayOfWeek(): string {
-  // Day of week on the same New York clock.
-  return new Date().toLocaleDateString("en-US", { timeZone: APP_TIME_ZONE, weekday: "short" }).toLowerCase().slice(0, 3);
-}
-
-async function sendDailyReminders() {
+async function sendDailyReminders(now: Date = new Date()) {
   if (!isEngagementEnabled("email")) {
-    console.log("[Engagement Email] Feature flag disabled — skipping.");
-    return;
+    return; // flag off (checked every tick; stay quiet)
   }
 
   if (!ENV.smtpUser || !ENV.smtpPass) {
@@ -49,9 +59,6 @@ async function sendDailyReminders() {
   }
 
   try {
-    const today = todayStr();
-    const dayOfWeek = getDayOfWeek();
-
     // Get all users with email enabled
     const prefs = await db
       .select({
@@ -65,16 +72,22 @@ async function sendDailyReminders() {
     let sentCount = 0;
 
     for (const pref of prefs) {
-      // Skip quiet days
-      if (pref.quietDays && pref.quietDays.split(",").includes(dayOfWeek)) continue;
-
       // Skip if no email address
       if (!pref.emailAddress) continue;
 
-      // Check pilot allowlist
       const user = await db.select().from(users).where(eq(users.id, pref.userId)).limit(1);
       if (user.length === 0) continue;
 
+      // Only doctors whose own local time is 7:30 AM on a weekday right now.
+      const zone = resolveTimeZone(user[0].timezone);
+      if (!isLocalSendWindow(now, zone, DAILY_REMINDER)) continue;
+      const today = zonedClock(now, zone).dateKey;
+      const dayOfWeek = weekdayShort(today);
+
+      // Skip quiet days
+      if (pref.quietDays && pref.quietDays.split(",").includes(dayOfWeek)) continue;
+
+      // Check pilot allowlist
       if (ENV.engagementPilotClerkIds.length > 0 && !ENV.engagementPilotClerkIds.includes(user[0].clerkId)) {
         continue;
       }
@@ -133,16 +146,15 @@ async function sendDailyReminders() {
       sentCount++;
     }
 
-    console.log(`[Engagement Email] Daily reminders sent to ${sentCount} user(s).`);
+    if (sentCount > 0) console.log(`[Engagement Email] Daily reminders sent to ${sentCount} user(s).`);
   } catch (err) {
     console.error("[Engagement Email] Failed:", err);
   }
 }
 
-async function sendWeeklyReview() {
+async function sendWeeklyReview(now: Date = new Date()) {
   if (!isEngagementEnabled("weeklyReview")) {
-    console.log("[Engagement Email] Weekly review flag disabled — skipping.");
-    return;
+    return; // flag off (checked every tick; stay quiet)
   }
 
   if (!ENV.smtpUser || !ENV.smtpPass) {
@@ -175,10 +187,12 @@ async function sendWeeklyReview() {
         continue;
       }
 
-      // Count this week's completed actions
-      const weekStart = new Date();
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
-      const weekStartStr = weekStart.toISOString().slice(0, 10);
+      // Only doctors whose own local time is Friday 5:00 PM right now.
+      const zone = resolveTimeZone(user[0].timezone);
+      if (!isLocalSendWindow(now, zone, WEEKLY_REVIEW)) continue;
+
+      // This week = Monday–Sunday on the doctor's own calendar.
+      const weekStartStr = mondayDateKey(zonedClock(now, zone).dateKey);
 
       const completedThisWeek = await db
         .select({ count: sql<number>`count(*)` })
@@ -233,7 +247,7 @@ async function sendWeeklyReview() {
       sentCount++;
     }
 
-    console.log(`[Engagement Email] Weekly reviews sent to ${sentCount} user(s).`);
+    if (sentCount > 0) console.log(`[Engagement Email] Weekly reviews sent to ${sentCount} user(s).`);
   } catch (err) {
     console.error("[Engagement Email] Weekly review failed:", err);
   }
@@ -243,8 +257,8 @@ async function sendWeeklyReview() {
  * Schedule engagement email jobs.
  * Call once from server startup.
  *
- * Daily reminder: every weekday at 7:30 AM server time
- * Weekly review: every Friday at 5:00 PM server time
+ * One job every 15 minutes (UTC). Each run picks the doctors whose OWN local time is
+ * 7:30 AM on a weekday (daily reminder) or 5:00 PM Friday (weekly review).
  */
 export function scheduleEngagementEmails() {
   if (!ENV.isProduction) {
@@ -252,21 +266,17 @@ export function scheduleEngagementEmails() {
     return;
   }
 
-  // Daily reminder — weekdays at 7:30 AM
-  cron.schedule("30 7 * * 1-5", () => {
-    sendDailyReminders().catch((err) =>
+  cron.schedule(`*/${REMINDER_TICK_MINUTES} * * * *`, () => {
+    const now = new Date();
+    sendDailyReminders(now).catch((err) =>
       console.error("[Engagement Email] Unhandled error in daily reminder:", err)
     );
-  }, { timezone: APP_TIME_ZONE }); // 7:30 AM New York time, same clock as "today"
-
-  // Weekly review — Friday at 5:00 PM
-  cron.schedule("0 17 * * 5", () => {
-    sendWeeklyReview().catch((err) =>
+    sendWeeklyReview(now).catch((err) =>
       console.error("[Engagement Email] Unhandled error in weekly review:", err)
     );
-  }, { timezone: APP_TIME_ZONE });
+  }, { timezone: "UTC" });
 
-  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM (America/New_York)");
+  console.log("[Engagement Email] Scheduled — every 15 min; daily 7:30 AM weekdays and weekly review Friday 5:00 PM in each doctor's own time zone");
 }
 
 export { sendDailyReminders, sendWeeklyReview };

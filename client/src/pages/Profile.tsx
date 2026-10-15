@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { chooseClientTimeZone, detectBrowserTimeZone, listTimeZones, setClientTimeZone } from "@/lib/userTime";
 import { toast } from "sonner";
 
 export default function Profile() {
@@ -71,6 +72,25 @@ export default function Profile() {
   };
 
   const isOnboarding = !(user as any)?.profileComplete;
+
+  // ── Time zone: the doctor's own calendar for today / week / month / year ──
+  const savedZone = (user as { timezone?: string | null } | null)?.timezone ?? null;
+  const [timeZone, setTimeZone] = useState(() => chooseClientTimeZone(savedZone));
+  useEffect(() => { setTimeZone(chooseClientTimeZone(savedZone)); }, [savedZone]);
+  const zoneOptions = useMemo(() => {
+    const all = listTimeZones();
+    return all.includes(timeZone) ? all : [timeZone, ...all];
+  }, [timeZone]);
+  const detectedZone = detectBrowserTimeZone();
+  const saveZoneMutation = trpc.profile.setTimeZone.useMutation({
+    onSuccess: (res) => {
+      setClientTimeZone(res.timezone);
+      toast.success("Time zone saved");
+      // Every "today", week, month and year depends on the zone: refresh everything.
+      utils.invalidate();
+    },
+    onError: (error) => toast.error(error.message || "Failed to save time zone"),
+  });
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -181,6 +201,41 @@ export default function Profile() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Time zone */}
+      {!isOnboarding && (
+        <Card className="bg-card border-brand-gold/15">
+          <CardHeader><CardTitle className="text-foreground">Time zone</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-base text-foreground/90">
+              Your day, week, month and year in Synapse follow this time zone.
+            </p>
+            <Label htmlFor="profile-timezone" className="text-base">Time zone</Label>
+            <select
+              id="profile-timezone"
+              value={timeZone}
+              onChange={(e) => setTimeZone(e.target.value)}
+              className="w-full min-h-[44px] rounded-md border border-input bg-background px-3 text-base text-foreground"
+            >
+              {zoneOptions.map((z) => (
+                <option key={z} value={z}>{z.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+            {detectedZone && detectedZone !== timeZone && (
+              <Button type="button" variant="outline" className="min-h-[44px] text-base" onClick={() => setTimeZone(detectedZone)}>
+                Use this device's zone ({detectedZone.replace(/_/g, " ")})
+              </Button>
+            )}
+            <Button
+              className="min-h-[44px] text-base"
+              onClick={() => saveZoneMutation.mutate({ timezone: timeZone, source: "manual" })}
+              disabled={saveZoneMutation.isPending || timeZone === savedZone}
+            >
+              <Save className="h-4 w-4 mr-2" />{saveZoneMutation.isPending ? "Saving..." : "Save time zone"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bio */}
       {!isOnboarding && (

@@ -1,12 +1,12 @@
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { BarChart2, X } from "lucide-react";
 
 function getTodayDate(): string {
-  // Synapse's calendar (America/New_York), same "today" as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same "today" as the server.
+  return userDateKey();
 }
 
 function getCurrentSessionType(): "morning" | "afternoon" | "end_of_day" {
