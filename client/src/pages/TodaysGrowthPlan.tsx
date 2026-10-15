@@ -332,7 +332,7 @@ export default function TodaysGrowthPlan() {
       {/* Lyle Recommendation */}
       {data?.lyleRecommendation && (
         <div className="bg-amber-900/30 border border-amber-500/40 rounded-xl px-4 py-3">
-          <p className="text-xs font-bold text-amber-300 uppercase tracking-wide">💡 Lyle says</p>
+          <p className="text-base font-bold text-amber-200">💡 Lyle says</p>
           <p className="text-base font-semibold text-white mt-1 leading-relaxed break-words">
             {data.lyleRecommendation.actionText}
           </p>
@@ -376,7 +376,7 @@ export default function TodaysGrowthPlan() {
                 }`}
               >
                 <p className="text-xl font-bold text-white">{t.label}</p>
-                <p className="text-lg text-gray-300 mt-1">{t.description}</p>
+                <p className="text-lg text-gray-100 mt-1">{t.description}</p>
               </button>
             ))}
           </div>
@@ -506,7 +506,7 @@ export default function TodaysGrowthPlan() {
                   <span className="text-3xl">{cat.icon}</span>
                   <div className="flex-1">
                     <p className="text-xl font-bold text-white">{cat.label}</p>
-                    <p className="text-base text-gray-400 mt-1">{cat.description}</p>
+                    <p className="text-base text-gray-100 mt-1">{cat.description}</p>
                   </div>
                   {completedActions.some((a: any) => a.sourceRef === cat.key) && (
                     <CheckCircle2 className="h-7 w-7 text-emerald-400 shrink-0" />

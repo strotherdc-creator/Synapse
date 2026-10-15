@@ -20,7 +20,20 @@ export function ContinueCurriculumButton({ className = "" }: { className?: strin
       data-testid="continue-curriculum"
     >
       <span className="flex-1 min-w-0">
-        <span className="block whitespace-nowrap text-[clamp(1rem,4.7vw,1.25rem)] font-bold leading-snug">{next.label}</span>
+        {/* Fixed 20px text; if it can't fit, it wraps only between "Continue:" and "Module X, Step Y". */}
+        <span className="block text-xl font-bold leading-snug">
+          {(() => {
+            const [head, tail] = next.label.split(": ");
+            return tail ? (
+              <>
+                <span className="whitespace-nowrap">{head}:</span>{" "}
+                <span className="whitespace-nowrap">{tail}</span>
+              </>
+            ) : (
+              next.label
+            );
+          })()}
+        </span>
         <span className="block text-base text-blue-50 mt-0.5">{next.moduleTitle}</span>
       </span>
       <ChevronRight className="h-6 w-6 shrink-0" aria-hidden="true" />

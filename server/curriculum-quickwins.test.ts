@@ -107,6 +107,15 @@ describe("Today's Plan readability (HD QC round 2)", () => {
     expect(plan.match(/<ContinueCurriculumButton \/>/g)).toHaveLength(1);
     expect(readFileSync("client/src/components/curriculum/ContinueCurriculumButton.tsx", "utf8")).toContain("whitespace-nowrap");
   });
+  it("Lyle label 16px; picker descriptions bright; Continue label wraps only between its two parts", () => {
+    expect(plan).toContain('text-base font-bold text-amber-200">💡 Lyle says');
+    expect(plan).toContain('text-base text-gray-100 mt-1">{cat.description}');
+    expect(plan).toContain('text-lg text-gray-100 mt-1">{t.description}');
+    const btn = readFileSync("client/src/components/curriculum/ContinueCurriculumButton.tsx", "utf8");
+    expect(btn).not.toContain("clamp(");
+    expect(btn).toContain('<span className="whitespace-nowrap">{tail}</span>');
+  });
+
   it("locked module cards have a 2px bright border", () => {
     expect(readFileSync("client/src/pages/Curriculum.tsx", "utf8")).toContain("border-2 border-dashed border-gray-400/70");
   });
