@@ -46,7 +46,7 @@ export function buildWeeklyStatEmail(input: { name: string | null; comparison: G
     ? "You haven't set your goals yet. Set them once and this email will show your week against them."
     : "Here's your week so far against your goals:";
   const nudge = "Log in and log your numbers so these stay up to date.";
-  const saveLine = "Save this link, the address is a bit unusual:";
+  const saveLine = "Bookmark this link to Synapse:";
 
   const text = [
     `Hi ${name},`,
@@ -85,7 +85,7 @@ ${noGoals ? `<p style="margin:0 0 20px">${btn(goalsUrl, "Set your goals")}</p>` 
 <p style="font-size:16px;margin:0 0 20px;word-break:break-all"><a href="${SYNAPSE_URL}" style="color:#2563eb">${SYNAPSE_URL}</a></p>
 <p style="font-size:16px;margin:0">- Synapse</p>
 </div>
-<p style="font-size:14px;color:#6b7280;margin:16px 4px 0">To stop these emails, update your preferences in Synapse &gt; Profile.</p>
+<p style="font-size:14px;color:#374151;margin:16px 4px 0">To stop these emails, update your preferences in Synapse &gt; Profile.</p>
 </div></body></html>`;
 
   return { subject: WEEKLY_SUBJECT, text, html };

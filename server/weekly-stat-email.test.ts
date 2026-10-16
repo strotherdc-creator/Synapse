@@ -28,7 +28,7 @@ describe("weekly stat email", () => {
     expect(m.subject.startsWith("Synapse")).toBe(true);
     for (const body of [m.text, m.html]) {
       expect(body).toContain(SYNAPSE_URL);
-      expect(body).toContain("Save this link, the address is a bit unusual");
+      expect(body).toContain("Bookmark this link to Synapse:");
       expect(body).toContain("Log in and log your numbers");
     }
     expect(m.text).toContain("Visits: 244 of 250");
