@@ -21,7 +21,7 @@ describe("WWLD schedule-aware comparisons", () => {
     const router = source("server/routers.ts");
     const page = source("client/src/pages/WWLD.tsx");
 
-    expect(router).toContain("db.getWwldAnalytics(ctx.user.id, (ctx.user as any).workDays)");
+    expect(router).toContain("db.getWwldAnalytics(ctx.user.id, (ctx.user as any).workDays, ctx.user.timezone)");
     expect(router).not.toContain("Weight half days 2x");
     expect(page).toContain("Schedule-Aware Day Patterns");
     expect(page).toContain("Half-days are compared only with the same weekday");

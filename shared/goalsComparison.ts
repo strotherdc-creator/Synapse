@@ -83,7 +83,7 @@ export function sumActuals(rows: ComparisonSessionRow[], opts: { excludeBacklogT
 
 export type PeriodRange = { start: string; end: string };
 
-/** Period boundaries in the app's calendar (New York), from today's date key. Weeks are Mon–Sun. */
+/** Period boundaries in the doctor's own calendar, from today's date key. Weeks are Mon–Sun. */
 export function periodRanges(today: string): Record<PeriodKey, PeriodRange> {
   return {
     day: { start: today, end: today },

@@ -21,6 +21,9 @@ export const users = pgTable("users", {
   state: varchar("state", { length: 50 }),
   phone: varchar("phone", { length: 30 }),
   website: text("website"),
+  // Doctor's own IANA time zone (e.g. "Europe/London"). NULL = not yet detected; the app
+  // falls back to America/New_York until the browser saves it. No default on purpose.
+  timezone: varchar("timezone", { length: 64 }),
   workDays: varchar("work_days", { length: 100 }).default("mon:full,tue:full,wed:full,thu:full,fri:full,sat:off,sun:off"), // day:full|half|off
   facebookUrl: text("facebook_url"),
   instagramHandle: varchar("instagram_handle", { length: 100 }),

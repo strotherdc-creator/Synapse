@@ -74,6 +74,18 @@ export const ENGAGEMENT_MIGRATIONS: string[] = [
   `ALTER TABLE user_engagement_preferences ADD COLUMN IF NOT EXISTS selected_topic_id VARCHAR(50)`,
   // Practice profile fields on users table
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS practice_name TEXT`,
+  // Per-doctor time zone (Oct 15 2026). Nullable, no default, no backfill.
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(64)`,
+  // Reminder send-log (Oct 15 2026): one row per doctor per kind per local date. Inserted BEFORE
+  // sending; a duplicate insert means another process already sent it, so we skip.
+  `CREATE TABLE IF NOT EXISTS reminder_send_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    kind VARCHAR(20) NOT NULL,
+    local_date VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    UNIQUE(user_id, kind, local_date)
+  )`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS state VARCHAR(50)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)`,

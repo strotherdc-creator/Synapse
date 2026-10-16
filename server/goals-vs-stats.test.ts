@@ -350,8 +350,12 @@ describe("v2 display: whole numbers, '% of goal', one status line", () => {
 
 describe("HD QC follow-ups (static)", () => {
   const src = (f: string) => readFileSync(f, "utf8");
-  it("cron jobs run on New York time", () => {
-    expect(src("server/engagement/email-reminders.ts").match(/\{ timezone: APP_TIME_ZONE \}/g)).toHaveLength(2);
+  it("reminder cron ticks in UTC and picks each doctor's local time; backup stays on a fixed zone", () => {
+    const reminders = src("server/engagement/email-reminders.ts");
+    expect(reminders).toContain('{ timezone: "UTC" }');
+    expect(reminders).toContain('runReminderTick("daily", DAILY_REMINDER, now');
+    expect(reminders).toContain('runReminderTick("weekly", WEEKLY_REVIEW, now');
+    expect(reminders).toContain("isLocalSendWindow(now, zone, rule)");
     expect(src("server/wwld-backup.ts")).toContain("{ timezone: APP_TIME_ZONE }");
   });
   it("words, not dashes, for nothing logged", () => {

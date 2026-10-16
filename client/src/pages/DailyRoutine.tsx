@@ -1,4 +1,4 @@
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import { useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,8 @@ const DAILY_TASKS = [
 ];
 
 function getTodayStr() {
-  // Synapse's one calendar clock (America/New_York), same as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same as the server.
+  return userDateKey();
 }
 
 export default function DailyRoutine() {

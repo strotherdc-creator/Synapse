@@ -22,7 +22,7 @@ import {
 import { ENV } from "./_core/env";
 import { WWLD_STATS_MIGRATIONS } from "./wwld/migrations";
 import { GOALS_MIGRATIONS } from "./goals/migrations";
-import { appDateKey } from "../shared/appTime";
+import { appDateKey, isValidTimeZone, resolveTimeZone } from "../shared/appTime";
 import { NULLABLE_BUILTIN_STATS, BUILTIN_STAT_KEYS, mergeTrackedStats, serializeStatKeyList, type BuiltinStatKey } from "../shared/wwldStats";
 
 // Table accessors for use by engagement router (avoids circular imports)
@@ -33,11 +33,16 @@ let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
 /**
- * Return the canonical Synapse calendar date (America/New_York since Oct 2026; was Central).
- * Same clock as the browser (shared/appTime.ts), so server and client agree on "today".
+ * Return the Synapse calendar date in the doctor's own time zone (users.timezone; invalid or
+ * missing falls back to America/New_York). Same clock as the browser (shared/appTime.ts).
  */
-export function getAppDateKey(date = new Date()): string {
-  return appDateKey(date);
+export function getAppDateKey(date = new Date(), zone?: string | null): string {
+  return appDateKey(date, resolveTimeZone(zone));
+}
+
+/** The requesting doctor's resolved IANA zone. */
+export function userTimeZone(user: { timezone?: string | null } | null | undefined): string {
+  return resolveTimeZone(user?.timezone ?? null);
 }
 
 /** Move one calendar day backward without depending on the host timezone. */
@@ -236,6 +241,21 @@ export async function updateUserProfile(userId: number, data: { name?: string; b
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+/**
+ * Save a doctor's IANA time zone. `onlyIfUnset` is used for browser auto-detect so it never
+ * overwrites a zone the doctor picked by hand. Returns true when a row was updated.
+ */
+export async function setUserTimeZone(userId: number, zone: string, onlyIfUnset: boolean): Promise<boolean> {
+  if (!isValidTimeZone(zone)) throw new Error("Invalid time zone");
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const where = onlyIfUnset
+    ? and(eq(users.id, userId), sql`(${users.timezone} IS NULL OR ${users.timezone} = '')`)
+    : eq(users.id, userId);
+  const rows = await db.update(users).set({ timezone: zone, updatedAt: new Date() }).where(where).returning({ id: users.id });
+  return rows.length > 0;
 }
 
 // ─── Modules ─────────────────────────────────────────────────────────
@@ -963,7 +983,7 @@ export function isBacklogWwldSession(notes: string | null | undefined): boolean 
   return notes === "Weekly total (backlog entry)" || notes === "Monthly total (backlog entry)";
 }
 
-export async function getWwldAnalytics(userId: number, workDaysRaw?: string) {
+export async function getWwldAnalytics(userId: number, workDaysRaw?: string, zone?: string | null) {
   const db = await getDb();
   const empty = { officeVisits: 0, newPatients: 0, recall: 0, testResults: 0, progressExams: 0, performanceReviews: 0, carePlansSigned: 0 };
   const workSchedule = parseWorkSchedule(workDaysRaw);
@@ -982,7 +1002,7 @@ export async function getWwldAnalytics(userId: number, workDaysRaw?: string) {
     };
   }
 
-  const endStr = getAppDateKey();
+  const endStr = getAppDateKey(new Date(), zone);
   const startStr = shiftDateKey(endStr, -89);
 
   const sessions = await db
@@ -1184,10 +1204,11 @@ export async function markContentServed(userId: number, contentId: string) {
 }
 
 /**
- * Return the daily Lyle content already assigned to a doctor for one New York
+ * Return the daily Lyle content already assigned to a doctor for one local
  * Time calendar day. This keeps Today’s Plan and WWLD on the same daily quote.
  */
-export async function getDailyLyleQuoteForAppDate(userId: number, dateKey: string) {
+export async function getDailyLyleQuoteForAppDate(userId: number, dateKey: string, zone?: string | null) {
+  const tz = resolveTimeZone(zone);
   const db = await getDb();
   if (!db) return null;
 
@@ -1206,9 +1227,9 @@ export async function getDailyLyleQuoteForAppDate(userId: number, dateKey: strin
     .where(and(
       eq(lyleServedLog.userId, userId),
       eq(lyleContent.cadence, "daily"),
-      // Railway/Postgres stores timestamp values in UTC. Convert to CT before
-      // deriving the calendar date so a late-night quote cannot persist tomorrow.
-      sql`(((${lyleServedLog.servedAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/New_York')::date) = ${dateKey}::date`,
+      // Railway/Postgres stores timestamp values in UTC. Convert to the doctor's own zone
+      // (validated IANA name, bound as a parameter) before deriving the calendar date.
+      sql`(((${lyleServedLog.servedAt} AT TIME ZONE 'UTC') AT TIME ZONE ${tz})::date) = ${dateKey}::date`,
     ))
     .orderBy(desc(lyleServedLog.servedAt))
     .limit(1);
@@ -1217,12 +1238,12 @@ export async function getDailyLyleQuoteForAppDate(userId: number, dateKey: strin
 }
 
 /**
- * Assign one daily Lyle quote per doctor per New York calendar day. The selected
+ * Assign one daily Lyle quote per doctor per calendar day in that doctor's own zone. The selected
  * content is recorded immediately and excluded from that doctor's next 12
  * months of daily quotes. Calling this repeatedly on the same day is stable.
  */
-export async function getOrCreateDailyLyleQuote(userId: number, dateKey: string) {
-  const existing = await getDailyLyleQuoteForAppDate(userId, dateKey);
+export async function getOrCreateDailyLyleQuote(userId: number, dateKey: string, zone?: string | null) {
+  const existing = await getDailyLyleQuoteForAppDate(userId, dateKey, zone);
   if (existing) return existing;
 
   const db = await getDb();

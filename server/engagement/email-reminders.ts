@@ -19,232 +19,224 @@ import { userEngagementPreferences, dailyGrowthPlans, growthActions, users } fro
 import { eq, and, sql } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { isEngagementEnabled } from "./flags";
-import { APP_TIME_ZONE, appDateKey } from "../../shared/appTime";
+import { mondayDateKey, resolveTimeZone, weekdayShort, zonedClock } from "../../shared/appTime";
 
-function todayStr(): string {
-  // Synapse's one calendar clock (America/New_York), same "today" as Today's Plan and Log Stats.
-  return appDateKey();
+/** How often the reminder job wakes up. Every zone offset in use is a multiple of 15 minutes. */
+export const REMINDER_TICK_MINUTES = 15;
+export const DAILY_REMINDER = { minutes: 7 * 60 + 30, weekdays: [1, 2, 3, 4, 5] } as const; // 7:30 AM Mon–Fri
+export const WEEKLY_REVIEW = { minutes: 17 * 60, weekdays: [5] } as const; // 5:00 PM Friday
+
+/**
+ * True when `now` falls in the [target, target + tick) window of the doctor's own local
+ * clock on one of the given weekdays (0 = Sunday). Each doctor matches exactly one tick per
+ * day, so an every-15-minutes job sends each email once at that doctor's local time.
+ */
+export function isLocalSendWindow(
+  now: Date,
+  zone: string | null | undefined,
+  rule: { minutes: number; weekdays: readonly number[] },
+  tickMinutes = REMINDER_TICK_MINUTES,
+): boolean {
+  const clock = zonedClock(now, resolveTimeZone(zone));
+  if (!rule.weekdays.includes(clock.weekday)) return false;
+  return clock.minutes >= rule.minutes && clock.minutes < rule.minutes + tickMinutes;
 }
 
-function getDayOfWeek(): string {
-  // Day of week on the same New York clock.
-  return new Date().toLocaleDateString("en-US", { timeZone: APP_TIME_ZONE, weekday: "short" }).toLowerCase().slice(0, 3);
+export type ReminderKind = "daily" | "weekly";
+
+type Db = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+/**
+ * Claim one reminder send in reminder_send_log BEFORE sending. Returns true only for the one
+ * process whose insert succeeded; any duplicate (overlapping deploy, restart, second replica)
+ * gets false and must not send.
+ */
+export async function claimReminderSend(db: Db, userId: number, kind: ReminderKind, localDate: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    INSERT INTO reminder_send_log (user_id, kind, local_date)
+    VALUES (${userId}, ${kind}, ${localDate})
+    ON CONFLICT (user_id, kind, local_date) DO NOTHING
+    RETURNING id`);
+  const rows = (result as unknown as { rows?: unknown[] }).rows ?? (Array.isArray(result) ? result : []);
+  return rows.length > 0;
 }
 
-async function sendDailyReminders() {
-  if (!isEngagementEnabled("email")) {
-    console.log("[Engagement Email] Feature flag disabled — skipping.");
-    return;
-  }
+/** Email-enabled doctors with their user row, in ONE query (no per-doctor lookups). */
+async function loadReminderRecipients(db: Db) {
+  return db
+    .select({
+      userId: userEngagementPreferences.userId,
+      emailAddress: userEngagementPreferences.emailAddress,
+      quietDays: userEngagementPreferences.quietDays,
+      name: users.name,
+      clerkId: users.clerkId,
+      timezone: users.timezone,
+    })
+    .from(userEngagementPreferences)
+    .innerJoin(users, eq(users.id, userEngagementPreferences.userId))
+    .where(eq(userEngagementPreferences.emailEnabled, true));
+}
 
+type Recipient = Awaited<ReturnType<typeof loadReminderRecipients>>[number];
+
+function inPilot(r: Recipient): boolean {
+  return ENV.engagementPilotClerkIds.length === 0 || ENV.engagementPilotClerkIds.includes(r.clerkId);
+}
+
+let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+function getTransporter() {
+  transporter ??= nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: ENV.smtpUser, pass: ENV.smtpPass },
+  });
+  return transporter;
+}
+
+/**
+ * Shared per-tick loop: picks recipients whose local time matches `rule`, claims the send in
+ * the log, then sends. Each recipient has its own try/catch so one bad address can't stop the rest.
+ */
+async function runReminderTick(
+  kind: ReminderKind,
+  rule: { minutes: number; weekdays: readonly number[] },
+  now: Date,
+  buildMail: (db: Db, r: Recipient, localDate: string) => Promise<{ subject: string; text: string } | null>,
+) {
   if (!ENV.smtpUser || !ENV.smtpPass) {
-    console.warn("[Engagement Email] SMTP not configured — skipping.");
+    console.warn(`[Engagement Email] SMTP not configured — skipping ${kind}.`);
     return;
   }
-
   const db = await getDb();
   if (!db) {
-    console.error("[Engagement Email] Database not available — skipping.");
+    console.error(`[Engagement Email] Database not available — skipping ${kind}.`);
     return;
   }
 
+  let recipients: Recipient[];
   try {
-    const today = todayStr();
-    const dayOfWeek = getDayOfWeek();
-
-    // Get all users with email enabled
-    const prefs = await db
-      .select({
-        userId: userEngagementPreferences.userId,
-        emailAddress: userEngagementPreferences.emailAddress,
-        quietDays: userEngagementPreferences.quietDays,
-      })
-      .from(userEngagementPreferences)
-      .where(eq(userEngagementPreferences.emailEnabled, true));
-
-    let sentCount = 0;
-
-    for (const pref of prefs) {
-      // Skip quiet days
-      if (pref.quietDays && pref.quietDays.split(",").includes(dayOfWeek)) continue;
-
-      // Skip if no email address
-      if (!pref.emailAddress) continue;
-
-      // Check pilot allowlist
-      const user = await db.select().from(users).where(eq(users.id, pref.userId)).limit(1);
-      if (user.length === 0) continue;
-
-      if (ENV.engagementPilotClerkIds.length > 0 && !ENV.engagementPilotClerkIds.includes(user[0].clerkId)) {
-        continue;
-      }
-
-      // Get today's plan actions
-      const plan = await db
-        .select()
-        .from(dailyGrowthPlans)
-        .where(and(eq(dailyGrowthPlans.userId, pref.userId), eq(dailyGrowthPlans.planDate, today)))
-        .limit(1);
-
-      let actionsText = "Open Synapse to see your personalized growth plan for today.";
-
-      if (plan.length > 0) {
-        const actions = await db
-          .select()
-          .from(growthActions)
-          .where(and(eq(growthActions.planId, plan[0].id), eq(growthActions.status, "pending")));
-
-        if (actions.length > 0) {
-          actionsText = actions.map((a, i) => {
-            const prefix = a.required ? "⭐" : `${i + 1}.`;
-            const time = a.estimateMinutes ? ` (~${a.estimateMinutes} min)` : "";
-            return `${prefix} ${a.title}${time}`;
-          }).join("\n");
-        }
-      }
-
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: ENV.smtpUser, pass: ENV.smtpPass },
-      });
-
-      await transporter.sendMail({
-        from: `"Synapse Growth" <${ENV.smtpUser}>`,
-        to: pref.emailAddress,
-        subject: `Your Growth Plan for Today — ${today}`,
-        text: [
-          `Good morning, ${user[0].name || "Doctor"}!`,
-          ``,
-          `Here's your growth plan for today:`,
-          ``,
-          actionsText,
-          ``,
-          `Focus: New Patients & Referrals`,
-          ``,
-          `Open Synapse to view details, scripts, and mark actions complete:`,
-          `https://synapse-production-daae.up.railway.app/today`,
-          ``,
-          `— Synapse`,
-          ``,
-          `To stop these emails, update your preferences in Synapse > Profile.`,
-        ].join("\n"),
-      });
-
-      sentCount++;
-    }
-
-    console.log(`[Engagement Email] Daily reminders sent to ${sentCount} user(s).`);
+    recipients = await loadReminderRecipients(db);
   } catch (err) {
-    console.error("[Engagement Email] Failed:", err);
+    console.error(`[Engagement Email] Could not load ${kind} recipients:`, err);
+    return;
   }
+
+  let sent = 0;
+  let failed = 0;
+  for (const r of recipients) {
+    try {
+      if (!r.emailAddress || !inPilot(r)) continue;
+      const zone = resolveTimeZone(r.timezone);
+      if (!isLocalSendWindow(now, zone, rule)) continue;
+      const localDate = zonedClock(now, zone).dateKey;
+      if (kind === "daily" && r.quietDays && r.quietDays.split(",").includes(weekdayShort(localDate))) continue;
+
+      const mail = await buildMail(db, r, localDate);
+      if (!mail) continue;
+      // Claim first; only the process that inserted the row sends.
+      if (!(await claimReminderSend(db, r.userId, kind, localDate))) continue;
+
+      await getTransporter().sendMail({ from: `"Synapse Growth" <${ENV.smtpUser}>`, to: r.emailAddress, ...mail });
+      sent++;
+    } catch (err) {
+      failed++;
+      console.error(`[Engagement Email] ${kind} send failed for user ${r.userId}:`, err instanceof Error ? err.message : err);
+    }
+  }
+  if (sent > 0 || failed > 0) console.log(`[Engagement Email] ${kind}: sent ${sent}, failed ${failed}.`);
 }
 
-async function sendWeeklyReview() {
-  if (!isEngagementEnabled("weeklyReview")) {
-    console.log("[Engagement Email] Weekly review flag disabled — skipping.");
-    return;
-  }
+async function sendDailyReminders(now: Date = new Date()) {
+  if (!isEngagementEnabled("email")) return; // flag off (checked every tick; stay quiet)
+  await runReminderTick("daily", DAILY_REMINDER, now, async (db, r, today) => {
+    const plan = await db
+      .select()
+      .from(dailyGrowthPlans)
+      .where(and(eq(dailyGrowthPlans.userId, r.userId), eq(dailyGrowthPlans.planDate, today)))
+      .limit(1);
 
-  if (!ENV.smtpUser || !ENV.smtpPass) {
-    console.warn("[Engagement Email] SMTP not configured — skipping weekly review.");
-    return;
-  }
-
-  const db = await getDb();
-  if (!db) return;
-
-  try {
-    // Get all users with email enabled
-    const prefs = await db
-      .select({
-        userId: userEngagementPreferences.userId,
-        emailAddress: userEngagementPreferences.emailAddress,
-      })
-      .from(userEngagementPreferences)
-      .where(eq(userEngagementPreferences.emailEnabled, true));
-
-    let sentCount = 0;
-
-    for (const pref of prefs) {
-      if (!pref.emailAddress) continue;
-
-      const user = await db.select().from(users).where(eq(users.id, pref.userId)).limit(1);
-      if (user.length === 0) continue;
-
-      if (ENV.engagementPilotClerkIds.length > 0 && !ENV.engagementPilotClerkIds.includes(user[0].clerkId)) {
-        continue;
+    let actionsText = "Open Synapse to see your personalized growth plan for today.";
+    if (plan.length > 0) {
+      const actions = await db
+        .select()
+        .from(growthActions)
+        .where(and(eq(growthActions.planId, plan[0].id), eq(growthActions.status, "pending")));
+      if (actions.length > 0) {
+        actionsText = actions.map((a, i) => {
+          const prefix = a.required ? "⭐" : `${i + 1}.`;
+          const time = a.estimateMinutes ? ` (~${a.estimateMinutes} min)` : "";
+          return `${prefix} ${a.title}${time}`;
+        }).join("\n");
       }
-
-      // Count this week's completed actions
-      const weekStart = new Date();
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
-      const weekStartStr = weekStart.toISOString().slice(0, 10);
-
-      const completedThisWeek = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(growthActions)
-        .where(and(
-          eq(growthActions.userId, pref.userId),
-          eq(growthActions.status, "completed"),
-          sql`${growthActions.actionDate} >= ${weekStartStr}`
-        ));
-
-      const totalThisWeek = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(growthActions)
-        .where(and(
-          eq(growthActions.userId, pref.userId),
-          sql`${growthActions.actionDate} >= ${weekStartStr}`
-        ));
-
-      const completed = Number(completedThisWeek[0]?.count ?? 0);
-      const total = Number(totalThisWeek[0]?.count ?? 0);
-
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: ENV.smtpUser, pass: ENV.smtpPass },
-      });
-
-      await transporter.sendMail({
-        from: `"Synapse Growth" <${ENV.smtpUser}>`,
-        to: pref.emailAddress,
-        subject: `Your Weekly Growth Review — Week of ${weekStartStr}`,
-        text: [
-          `Hi ${user[0].name || "Doctor"},`,
-          ``,
-          `Here's your weekly growth summary:`,
-          ``,
-          `Actions completed: ${completed} of ${total}`,
-          `Completion rate: ${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
-          ``,
-          completed >= total && total > 0
-            ? `Outstanding week! You completed every growth action. Keep this momentum going.`
-            : completed > 0
-            ? `Good progress this week. Every action you take builds your practice.`
-            : `This week was quiet. Even one small action next week moves the needle.`,
-          ``,
-          `Open Synapse for next week's plan:`,
-          `https://synapse-production-daae.up.railway.app/today`,
-          ``,
-          `— Synapse`,
-        ].join("\n"),
-      });
-
-      sentCount++;
     }
 
-    console.log(`[Engagement Email] Weekly reviews sent to ${sentCount} user(s).`);
-  } catch (err) {
-    console.error("[Engagement Email] Weekly review failed:", err);
-  }
+    return {
+      subject: `Your Growth Plan for Today — ${today}`,
+      text: [
+        `Good morning, ${r.name || "Doctor"}!`,
+        ``,
+        `Here's your growth plan for today:`,
+        ``,
+        actionsText,
+        ``,
+        `Focus: New Patients & Referrals`,
+        ``,
+        `Open Synapse to view details, scripts, and mark actions complete:`,
+        `https://synapse-production-daae.up.railway.app/today`,
+        ``,
+        `— Synapse`,
+        ``,
+        `To stop these emails, update your preferences in Synapse > Profile.`,
+      ].join("\n"),
+    };
+  });
+}
+
+async function sendWeeklyReview(now: Date = new Date()) {
+  if (!isEngagementEnabled("weeklyReview")) return; // flag off (checked every tick; stay quiet)
+  await runReminderTick("weekly", WEEKLY_REVIEW, now, async (db, r, localDate) => {
+    // This week = Monday–Sunday on the doctor's own calendar (was Sunday–Saturday before Oct 2026).
+    const weekStartStr = mondayDateKey(localDate);
+    const [completedRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(growthActions)
+      .where(and(eq(growthActions.userId, r.userId), eq(growthActions.status, "completed"), sql`${growthActions.actionDate} >= ${weekStartStr}`));
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(growthActions)
+      .where(and(eq(growthActions.userId, r.userId), sql`${growthActions.actionDate} >= ${weekStartStr}`));
+    const completed = Number(completedRow?.count ?? 0);
+    const total = Number(totalRow?.count ?? 0);
+    return {
+      subject: `Your Weekly Growth Review — Week of ${weekStartStr}`,
+      text: [
+        `Hi ${r.name || "Doctor"},`,
+        ``,
+        `Here's your weekly growth summary:`,
+        ``,
+        `Actions completed: ${completed} of ${total}`,
+        `Completion rate: ${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
+        ``,
+        completed >= total && total > 0
+          ? `Outstanding week! You completed every growth action. Keep this momentum going.`
+          : completed > 0
+          ? `Good progress this week. Every action you take builds your practice.`
+          : `This week was quiet. Even one small action next week moves the needle.`,
+        ``,
+        `Open Synapse for next week's plan:`,
+        `https://synapse-production-daae.up.railway.app/today`,
+        ``,
+        `— Synapse`,
+      ].join("\n"),
+    };
+  });
 }
 
 /**
  * Schedule engagement email jobs.
  * Call once from server startup.
  *
- * Daily reminder: every weekday at 7:30 AM server time
- * Weekly review: every Friday at 5:00 PM server time
+ * One job every 15 minutes (UTC). Each run picks the doctors whose OWN local time is
+ * 7:30 AM on a weekday (daily reminder) or 5:00 PM Friday (weekly review).
  */
 export function scheduleEngagementEmails() {
   if (!ENV.isProduction) {
@@ -252,21 +244,17 @@ export function scheduleEngagementEmails() {
     return;
   }
 
-  // Daily reminder — weekdays at 7:30 AM
-  cron.schedule("30 7 * * 1-5", () => {
-    sendDailyReminders().catch((err) =>
+  cron.schedule(`*/${REMINDER_TICK_MINUTES} * * * *`, () => {
+    const now = new Date();
+    sendDailyReminders(now).catch((err) =>
       console.error("[Engagement Email] Unhandled error in daily reminder:", err)
     );
-  }, { timezone: APP_TIME_ZONE }); // 7:30 AM New York time, same clock as "today"
-
-  // Weekly review — Friday at 5:00 PM
-  cron.schedule("0 17 * * 5", () => {
-    sendWeeklyReview().catch((err) =>
+    sendWeeklyReview(now).catch((err) =>
       console.error("[Engagement Email] Unhandled error in weekly review:", err)
     );
-  }, { timezone: APP_TIME_ZONE });
+  }, { timezone: "UTC" });
 
-  console.log("[Engagement Email] Scheduled — daily 7:30 AM weekdays, weekly review Friday 5:00 PM (America/New_York)");
+  console.log("[Engagement Email] Scheduled — every 15 min; daily 7:30 AM weekdays and weekly review Friday 5:00 PM in each doctor's own time zone");
 }
 
 export { sendDailyReminders, sendWeeklyReview };

@@ -1,4 +1,4 @@
-import { APP_TIME_ZONE } from "../shared/appTime";
+import { APP_TIME_ZONE, appDateKey } from "../shared/appTime";
 /**
  * WWLD Weekly Data Backup
  *
@@ -135,7 +135,7 @@ async function runBackup() {
     const goalRows = await fetchDoctorGoalsBackupRows(db);
     const goalsCsv = toCSV(goalRows as Record<string, unknown>[]);
     const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
+    const dateStr = appDateKey(now); // fixed New York date, matches the Sunday 11 PM NY schedule
     const filename = `wwld-backup-${dateStr}.csv`;
     const goalsFilename = `doctor-goals-backup-${dateStr}.csv`;
 

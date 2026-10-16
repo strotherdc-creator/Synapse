@@ -1,10 +1,11 @@
-import { appDateKey } from "@shared/appTime";
+import { detectBrowserTimeZone, serverMatchingTimeZone, setClientTimeZone, userDateKey } from "@/lib/userTime";
+import { isValidTimeZone } from "@shared/appTime";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import ErrorBoundary from "./components/ErrorBoundary";
 import DashboardLayout from "./components/DashboardLayout";
@@ -34,8 +35,8 @@ import ProfileCompletion from "./components/ProfileCompletion";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
 function getTodayDate(): string {
-  // Synapse's calendar (America/New_York), same "today" as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same "today" as the server.
+  return userDateKey();
 }
 
 /**
@@ -98,7 +99,7 @@ function DailyActionPopup() {
 
   useEffect(() => {
     // A streak represents an authenticated daily check-in. The server uses the
-    // New York calendar date and makes repeated visits on the same day idempotent.
+    // doctor's own calendar date and makes repeated visits on the same day idempotent.
     recordDailyCheckIn();
   }, [recordDailyCheckIn]);
 
@@ -189,10 +190,41 @@ function AuthenticatedRouter() {
   );
 }
 
+/**
+ * Keeps the browser on the doctor's own calendar: uses the saved profile zone, and if none is
+ * saved yet, saves the browser's detected zone once (it never overwrites a hand-picked zone).
+ */
+function useDoctorTimeZone(user: { timezone?: string | null } | null | undefined): boolean {
+  const saved = user?.timezone ?? null;
+  // Same zone as the server: saved zone, or New York until the detected zone is SAVED.
+  const zone = serverMatchingTimeZone(saved);
+  const [appliedZone, setAppliedZone] = useState<string | null>(null);
+  // Apply in a layout effect (not during render), before the pages below mount and read it.
+  useLayoutEffect(() => {
+    setClientTimeZone(zone);
+    setAppliedZone(zone);
+  }, [zone]);
+
+  const utils = trpc.useUtils();
+  const { mutate: saveZone } = trpc.profile.setTimeZone.useMutation({
+    // Only after the server has the zone do we refetch the profile and switch the browser to it.
+    onSuccess: () => utils.auth.me.invalidate(),
+  });
+  const needsSave = Boolean(user) && !isValidTimeZone(saved);
+  useEffect(() => {
+    if (!needsSave) return;
+    const detected = detectBrowserTimeZone();
+    if (detected) saveZone({ timezone: detected, source: "detected" });
+  }, [needsSave, saveZone]);
+
+  return appliedZone === zone;
+}
+
 function AppRouter() {
   const { user, loading } = useAuth();
+  const zoneReady = useDoctorTimeZone(user as { timezone?: string | null } | null);
 
-  if (loading) {
+  if (loading || (user && !zoneReady)) {
     return <DashboardLayoutSkeleton />;
   }
 

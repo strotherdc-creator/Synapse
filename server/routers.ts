@@ -8,6 +8,7 @@ import { assertRateLimit } from "./_core/rateLimit";
 import { engagementRouter } from "./engagement/router";
 import * as statSettings from "./wwld/statSettings";
 import * as goals from "./goals/goals";
+import { isValidTimeZone, resolveTimeZone } from "../shared/appTime";
 import {
   DEFAULT_WORK_DAYS,
   MAX_GOAL_NEW_PATIENTS,
@@ -176,6 +177,21 @@ const profileRouter = router({
     .mutation(async ({ ctx, input }) => {
       await db.updateUserProfile(ctx.user.id, input);
       return { success: true };
+    }),
+  /**
+   * Doctor's own time zone. source "detected" = browser auto-detect on load (only fills an
+   * unset zone); "manual" = the Profile picker (always wins). Invalid names are rejected.
+   */
+  setTimeZone: protectedProcedure
+    .input(
+      z.object({
+        timezone: z.string().min(1).max(64).refine(isValidTimeZone, "Unknown time zone"),
+        source: z.enum(["detected", "manual"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const updated = await db.setUserTimeZone(ctx.user.id, input.timezone, input.source === "detected");
+      return { success: true, updated, timezone: updated ? input.timezone : resolveTimeZone(ctx.user.timezone) };
     }),
   updatePractice: protectedProcedure
     .input(
@@ -646,7 +662,7 @@ const routineRouter = router({
   // Opening the authenticated app counts as one daily check-in. This is
   // intentionally separate from the number of actions completed that day.
   recordDailyCheckIn: protectedProcedure.mutation(async ({ ctx }) => {
-    const serverDate = db.getAppDateKey();
+    const serverDate = db.getAppDateKey(new Date(), ctx.user.timezone);
     await db.updateStreak(ctx.user.id, serverDate);
     return { success: true, date: serverDate };
   }),
@@ -666,7 +682,7 @@ const routineRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const serverDate = db.getAppDateKey();
+      const serverDate = db.getAppDateKey(new Date(), ctx.user.timezone);
       if (input.date !== serverDate) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -697,9 +713,8 @@ const routineRouter = router({
     if (dbInstance) {
       const { growthActions } = await import("../shared/schema");
       const { eq, and, sql } = await import("drizzle-orm");
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
+      // 30 calendar days back from today in the doctor's own zone.
+      const thirtyDaysAgoStr = db.shiftDateKey(db.getAppDateKey(new Date(), ctx.user.timezone), -30);
       const result = await dbInstance
         .select({
           totalCompleted: sql<number>`count(*)`,
@@ -1146,7 +1161,7 @@ const wwldRouter = router({
     }),
   getAnalytics: protectedProcedure
     .query(async ({ ctx }) => {
-      return db.getWwldAnalytics(ctx.user.id, (ctx.user as any).workDays);
+      return db.getWwldAnalytics(ctx.user.id, (ctx.user as any).workDays, ctx.user.timezone);
     }),
 
   getDailyAction: protectedProcedure
@@ -1154,7 +1169,7 @@ const wwldRouter = router({
       const userId = ctx.user.id;
 
       // ── 1. Fetch last 4 weeks of sessions ──────────────────────────
-      const endStr = db.getAppDateKey();
+      const endStr = db.getAppDateKey(new Date(), ctx.user.timezone);
       const startStr = db.shiftDateKey(endStr, -28);
       const { dailyBreakdown } = await db.getWwldTotalsForRange(userId, startStr, endStr, true);
 
@@ -1260,9 +1275,9 @@ const wwldRouter = router({
       }
 
       // ── 6. One shared, stable daily quote ─────────────────────────
-      // Today’s Plan and the WWLD card use the same New York calendar daily record.
+      // Today’s Plan and the WWLD card use the same daily record on the doctor's own calendar.
       // This prevents query refreshes from changing the quote mid-day.
-      const dailyContent = await db.getOrCreateDailyLyleQuote(userId, endStr);
+      const dailyContent = await db.getOrCreateDailyLyleQuote(userId, endStr, ctx.user.timezone);
 
       return {
         hasEnoughData,
@@ -1326,7 +1341,7 @@ const goalsRouter = router({
     .input(z.object({ goalYear: goalYearSchema.optional() }).optional())
     .query(async ({ ctx, input }) => {
       const workDays = (ctx.user as { workDays?: string | null }).workDays || DEFAULT_WORK_DAYS;
-      return goals.getGoalsComparison(ctx.user.id, workDays, input?.goalYear);
+      return goals.getGoalsComparison(ctx.user.id, workDays, input?.goalYear, ctx.user.timezone);
     }),
 });
 

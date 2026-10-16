@@ -91,15 +91,17 @@ export async function saveGoals(userId: number, input: SaveGoalsInput): Promise<
 
 /**
  * Goals vs Log Stats: logged numbers compared with the goals for today, this week, this month
- * and this year (New York calendar). Read-only. Straight comparison only (no pace / projection);
+ * and this year (the doctor's own calendar). Read-only. Straight comparison only (no pace / projection);
  * see shared/goalsComparison.ts for the rules.
  */
 export async function getGoalsComparison(
   userId: number,
   workDays: string | null | undefined,
   goalYear?: number,
+  zone?: string | null,
 ): Promise<GoalsComparison> {
-  const today = getAppDateKey();
+  // "Today", this week, month and year are the doctor's own calendar (users.timezone).
+  const today = getAppDateKey(new Date(), zone);
   const year = goalYear ?? Number(today.slice(0, 4));
   const db = await requireDb();
   const [saved, settings] = await Promise.all([getGoals(userId, year), getStatSettings(userId)]);

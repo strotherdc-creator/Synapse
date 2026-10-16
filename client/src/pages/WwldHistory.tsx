@@ -1,4 +1,4 @@
-import { appDateKey } from "@shared/appTime";
+import { userDateKey } from "@/lib/userTime";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -24,8 +24,8 @@ function dateKey(year: number, month: number, day: number) {
 }
 
 function getTodayDate(): string {
-  // Synapse's calendar (America/New_York), same "today" as the server.
-  return appDateKey();
+  // the doctor's own calendar (profile time zone), same "today" as the server.
+  return userDateKey();
 }
 
 function formatLongDate(key: string) {

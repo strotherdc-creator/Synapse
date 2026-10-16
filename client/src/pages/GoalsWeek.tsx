@@ -1,5 +1,5 @@
 /**
- * This week vs your goals — the week so far (Mon–Sun, New York calendar) compared with the full
+ * This week vs your goals — the week so far (Mon–Sun, your own calendar) compared with the full
  * week's goal, then each day's logged numbers. Weekly/monthly "Log Past Stats" totals count in the
  * week total but never in a single day.
  */
