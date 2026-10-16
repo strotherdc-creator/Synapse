@@ -2,6 +2,8 @@ import { appDateKey } from "@shared/appTime";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { TodayGoalsCard } from "@/components/goals/GoalsComparison";
+import { ContinueCurriculumButton } from "@/components/curriculum/ContinueCurriculumButton";
+import { moduleCardStates, nextCurriculumStep } from "@shared/curriculumProgress";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { CheckCircle2, Flame, Trophy, Copy, ArrowLeft, RefreshCw, BarChart2, BookOpen } from "lucide-react";
@@ -24,6 +26,8 @@ export default function TodaysGrowthPlan() {
   const categoriesQuery = trpc.engagement.getActionCategories.useQuery();
   const topicsQuery = trpc.engagement.getTopics.useQuery();
   const curriculumQuery = trpc.engagement.getCurriculumReminder.useQuery();
+  // Same module list (and legacy credit) as Home/Curriculum, for "Continue: Module X, Step Y".
+  const modulesQuery = trpc.modules.list.useQuery();
   const streakQuery = trpc.routine.getStreak.useQuery();
   const todayKey = getTodayDateKey();
   const wwldTodayQuery = trpc.wwld.getToday.useQuery({ date: todayKey }, { staleTime: 60_000 });
@@ -124,6 +128,8 @@ export default function TodaysGrowthPlan() {
   const streak = streakQuery.data;
   const categories = categoriesQuery.data?.categories ?? [];
   const curriculum = curriculumQuery.data;
+  const nextStep = nextCurriculumStep(modulesQuery.data);
+  const moduleCards = moduleCardStates(modulesQuery.data).filter((m) => !m.card.complete);
 
   // Copy script to clipboard
   const handleCopy = async (text: string, actionId: number) => {
@@ -145,7 +151,7 @@ export default function TodaysGrowthPlan() {
       return;
     }
     if (key === "curriculum_lesson") {
-      setLocation("/curriculum");
+      setLocation(nextStep?.href ?? "/curriculum");
       return;
     }
     // Send just the one action — server accepts 1+
@@ -194,11 +200,11 @@ export default function TodaysGrowthPlan() {
   let primaryCtaLabel = "Pick today's first action";
   if (currentAction) {
     if (currentAction.sourceRef === "ai_coach") primaryCtaLabel = "Open AI Coach";
-    else if (currentAction.sourceRef === "curriculum_lesson") primaryCtaLabel = "Continue Curriculum";
+    else if (currentAction.sourceRef === "curriculum_lesson") primaryCtaLabel = nextStep?.label ?? "Continue Curriculum";
     else if (currentAction.script) primaryCtaLabel = "Do this action";
     else primaryCtaLabel = "Continue today's action";
   } else if (curriculum && !curriculum.allComplete) {
-    primaryCtaLabel = "Continue Curriculum";
+    primaryCtaLabel = nextStep?.label ?? "Continue Curriculum";
   } else if (sessionsLogged < 3) {
     primaryCtaLabel = "Log WWLD Stats";
   }
@@ -210,7 +216,7 @@ export default function TodaysGrowthPlan() {
         return;
       }
       if (currentAction.sourceRef === "curriculum_lesson") {
-        setLocation("/curriculum");
+        setLocation(nextStep?.href ?? "/curriculum");
         return;
       }
       document.getElementById("todays-current-action")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -218,9 +224,7 @@ export default function TodaysGrowthPlan() {
     }
     // No action picked — curriculum / WWLD / pick an existing plan step (never Comm Coach).
     if (curriculum && !curriculum.allComplete) {
-      const nextId = curriculum.nextModuleId ?? curriculum.incompleteModules?.[0]?.id;
-      if (nextId) setLocation(`/curriculum/${nextId}`);
-      else setLocation("/curriculum");
+      setLocation(nextStep?.href ?? "/curriculum");
       return;
     }
     if (sessionsLogged < 3) {
@@ -245,40 +249,48 @@ export default function TodaysGrowthPlan() {
         <div className="flex items-center gap-2">
           <Flame className="h-7 w-7 text-orange-400" />
           <span className="text-2xl font-bold text-gold">{streak?.currentStreak ?? 0}</span>
-          <span className="text-base text-gray-400">check-in streak</span>
+          <span className="text-base font-medium text-gray-100">check-in streak</span>
         </div>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-emerald-400" />
           <span className="text-2xl font-bold text-gold">{completedActions.length}</span>
-          <span className="text-base text-gray-400">done today</span>
+          <span className="text-base font-medium text-gray-100">done today</span>
         </div>
       </div>
 
       {/* ─── PRIMARY NEXT ACTION (front door CTA) ─── */}
-      <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/30 p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <BookOpen className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Your next action</p>
-            <p className="text-xl font-bold text-white mt-1 leading-snug">
-              {currentAction?.title
-                ?? data?.lyleRecommendation?.actionText
-                ?? (curriculum && !curriculum.allComplete
-                  ? "Continue your curriculum"
-                  : sessionsLogged < 3
-                    ? "Log today's WWLD stats"
-                    : "Pick one action for today")}
-            </p>
-          </div>
+      {nextStep && (currentAction ? currentAction.sourceRef === "curriculum_lesson" : !!curriculum && !curriculum.allComplete) ? (
+        // Curriculum is next: the same full-width blue Continue button as Home and Curriculum.
+        <div className="space-y-2">
+          <p className="text-base font-bold text-emerald-200">Your next action</p>
+          <ContinueCurriculumButton />
         </div>
-        <button
-          type="button"
-          onClick={handlePrimaryCta}
-          className="w-full py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-2"
-        >
-          {primaryCtaLabel}
-        </button>
-      </div>
+      ) : (
+        <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-950/30 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <BookOpen className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold text-emerald-200">Your next action</p>
+              <p className="text-xl font-bold text-white mt-1 leading-snug">
+                {currentAction?.title
+                  ?? data?.lyleRecommendation?.actionText
+                  ?? (curriculum && !curriculum.allComplete
+                    ? "Continue your curriculum"
+                    : sessionsLogged < 3
+                      ? "Log today's WWLD stats"
+                      : "Pick one action for today")}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handlePrimaryCta}
+            className="w-full min-h-[56px] py-4 px-6 rounded-xl bg-emerald-600 text-white text-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg flex items-center justify-center gap-2"
+          >
+            {primaryCtaLabel}
+          </button>
+        </div>
+      )}
 
       {/* ─── WWLD / Log Stats (nearby, one click) ─── */}
       <button
@@ -290,26 +302,26 @@ export default function TodaysGrowthPlan() {
           <div className="flex items-center gap-2">
             <BarChart2 className="h-5 w-5 text-[var(--gold)]" />
             <div>
-              <p className="text-sm font-bold text-foreground">WWLD · Log Stats</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-lg font-bold text-foreground">WWLD · Log Stats</p>
+              <p className="text-base text-gray-100">
                 {sessionsLogged}/3 sessions logged today
               </p>
             </div>
           </div>
-          <span className="text-sm font-semibold text-[var(--gold)]">Open →</span>
+          <span className="inline-flex items-center min-h-[44px] px-2 whitespace-nowrap text-base font-bold text-[var(--gold)]">Open →</span>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-3">
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.officeVisits ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Visits</p>
+            <p className="text-base font-medium text-gray-100">Visits</p>
           </div>
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.newPatients ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">New Pts</p>
+            <p className="text-base font-medium text-gray-100">New Pts</p>
           </div>
           <div className="rounded-xl bg-muted/40 px-3 py-2 text-center">
             <p className="text-xl font-bold text-foreground tabular-nums">{wwldTotals?.carePlansSigned ?? 0}</p>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Care Plans</p>
+            <p className="text-base font-medium text-gray-100">Care Plans</p>
           </div>
         </div>
       </button>
@@ -320,7 +332,7 @@ export default function TodaysGrowthPlan() {
       {/* Lyle Recommendation */}
       {data?.lyleRecommendation && (
         <div className="bg-amber-900/30 border border-amber-500/40 rounded-xl px-4 py-3">
-          <p className="text-xs font-bold text-amber-300 uppercase tracking-wide">💡 Lyle says</p>
+          <p className="text-base font-bold text-amber-200">💡 Lyle says</p>
           <p className="text-base font-semibold text-white mt-1 leading-relaxed break-words">
             {data.lyleRecommendation.actionText}
           </p>
@@ -334,7 +346,8 @@ export default function TodaysGrowthPlan() {
         </span>
         <button
           onClick={() => setShowTopicPicker(!showTopicPicker)}
-          className="text-lg text-gray-400 hover:text-white underline"
+          type="button"
+          className="min-h-[44px] px-3 text-lg font-semibold text-gray-100 hover:text-white underline"
         >
           Change
         </button>
@@ -363,7 +376,7 @@ export default function TodaysGrowthPlan() {
                 }`}
               >
                 <p className="text-xl font-bold text-white">{t.label}</p>
-                <p className="text-lg text-gray-300 mt-1">{t.description}</p>
+                <p className="text-lg text-gray-100 mt-1">{t.description}</p>
               </button>
             ))}
           </div>
@@ -380,7 +393,8 @@ export default function TodaysGrowthPlan() {
             </span>
             <button
               onClick={() => setShowTopicPicker(!showTopicPicker)}
-              className="text-sm text-gray-400 hover:text-white underline"
+              type="button"
+              className="min-h-[44px] px-3 text-base font-semibold text-gray-100 hover:text-white underline"
             >
               Change
             </button>
@@ -492,7 +506,7 @@ export default function TodaysGrowthPlan() {
                   <span className="text-3xl">{cat.icon}</span>
                   <div className="flex-1">
                     <p className="text-xl font-bold text-white">{cat.label}</p>
-                    <p className="text-base text-gray-400 mt-1">{cat.description}</p>
+                    <p className="text-base text-gray-100 mt-1">{cat.description}</p>
                   </div>
                   {completedActions.some((a: any) => a.sourceRef === cat.key) && (
                     <CheckCircle2 className="h-7 w-7 text-emerald-400 shrink-0" />
@@ -539,39 +553,30 @@ export default function TodaysGrowthPlan() {
       {/* ─── CURRICULUM REMINDER ─── */}
       {curriculum && !curriculum.allComplete && (
         <div className="bg-gray-800 border border-gray-600 rounded-2xl p-6 space-y-4">
-          <button
-            type="button"
-            onClick={() => {
-              const nextId = curriculum.nextModuleId ?? curriculum.incompleteModules[0]?.id;
-              if (nextId) setLocation(`/curriculum/${nextId}`);
-              else setLocation("/curriculum");
-            }}
-            className="flex items-center justify-center w-full py-4 px-6 rounded-xl bg-blue-600 text-white font-bold text-lg hover:bg-blue-700 transition-colors"
-          >
-            📚 Continue Curriculum
-          </button>
-          <p className="text-base text-gray-400">
+          <p className="text-base text-gray-300">
             Complete your modules to unlock fully customized scripts and positioning.
           </p>
           <div className="space-y-2">
-            {curriculum.incompleteModules.map((mod: any) => (
+            {moduleCards.map((mod) => (
               <button
                 type="button"
                 key={mod.id}
-                onClick={() => setLocation(mod.unlocked ? `/curriculum/${mod.id}` : "/curriculum")}
-                className="flex items-center gap-3 p-4 rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors w-full text-left"
+                onClick={() => setLocation(mod.card.unlocked ? `/curriculum/${mod.id}` : "/curriculum")}
+                className="flex items-center gap-3 p-4 min-h-[56px] rounded-xl border border-gray-600 hover:border-blue-500/50 transition-colors w-full text-left"
               >
                 <div className="flex-1">
-                  <p className="text-base font-semibold text-white">{mod.title}</p>
-                  <p className="text-sm text-gray-400">
-                    {mod.unlocked
-                      ? `${mod.completedSteps}/${mod.totalSteps} steps`
-                      : "Locked — finish the previous module first"}
+                  <p className="text-base text-gray-300">Module {mod.card.moduleNumber}</p>
+                  <p className="text-lg font-semibold text-white">{mod.title}</p>
+                  <p className="text-base text-gray-200">
+                    {!mod.card.unlocked && <span className="sr-only">Locked. </span>}
+                    {mod.card.label}
                   </p>
                 </div>
-                <div className="w-20 bg-gray-700 rounded-full h-2.5">
-                  <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${mod.percentComplete}%` }} />
-                </div>
+                {mod.card.unlocked && (
+                  <div className="w-20 bg-gray-700 rounded-full h-2.5" aria-hidden="true">
+                    <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${mod.card.percent}%` }} />
+                  </div>
+                )}
               </button>
             ))}
           </div>

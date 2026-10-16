@@ -323,7 +323,7 @@ export default function ModuleCoaching() {
 
   if (stepsLoading) {
     return (
-      <div className="space-y-6">
+      <div className="readable space-y-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/3" />
           <div className="h-4 bg-muted rounded w-2/3" />
@@ -335,12 +335,11 @@ export default function ModuleCoaching() {
 
   if (!steps || steps.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="readable space-y-6">
         <Button
           variant="ghost"
-          size="sm"
           onClick={() => setLocation("/curriculum")}
-          className="text-muted-foreground hover:text-foreground -ml-2"
+          className="min-h-[44px] text-base text-muted-foreground hover:text-foreground -ml-2"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Curriculum
@@ -369,7 +368,7 @@ export default function ModuleCoaching() {
   return (
     <div
       ref={outerRef}
-      className="flex flex-col overflow-hidden"
+      className="readable flex flex-col overflow-hidden"
       style={{
         ...heightStyle,
         // Prevent body scroll when keyboard is open
@@ -380,10 +379,11 @@ export default function ModuleCoaching() {
       <div className="shrink-0 pb-2">
         <div className="flex items-center justify-between mb-1">
           <button
+            type="button"
             onClick={() => setLocation("/curriculum")}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground text-sm py-1"
+            className="flex items-center gap-1 min-h-[44px] pr-3 text-muted-foreground hover:text-foreground text-base"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
             <span>Curriculum</span>
           </button>
           {allComplete && (
@@ -397,29 +397,36 @@ export default function ModuleCoaching() {
           )}
         </div>
 
-        <h1 className="text-lg font-bold tracking-tight text-foreground leading-tight">
+        <h1 className="text-xl font-bold tracking-tight text-foreground leading-tight">
           {mod?.title || "Module"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Step {activeStepIndex + 1} of {totalSteps} &middot; {completedSteps}{" "}
-          completed
+        <p className="text-lg font-semibold text-foreground mt-0.5">
+          Step {activeStepIndex + 1} of {totalSteps}
+          <span className="font-normal text-muted-foreground"> &middot; {completedSteps} done</span>
         </p>
 
         {/* Step progress pills */}
-        <div className="flex gap-1.5 mt-2">
+        <div className="flex gap-1.5">
           {steps.map((step, idx) => (
             <button
+              type="button"
               key={step.id}
               onClick={() => setActiveStepId(step.id)}
-              className={`flex-1 h-2 rounded-full transition-all ${
-                step.completed
-                  ? "bg-primary"
-                  : step.id === activeStepId
-                    ? "bg-primary/50"
-                    : "bg-muted"
-              }`}
+              className="flex-1 h-11 flex items-center"
               title={`Step ${idx + 1}: ${step.title}`}
-            />
+              aria-label={`Step ${idx + 1}: ${step.title}${step.completed ? " (done)" : ""}`}
+              aria-current={step.id === activeStepId ? "step" : undefined}
+            >
+              <span
+                className={`block w-full h-2.5 rounded-full transition-all ${
+                  step.completed
+                    ? "bg-primary"
+                    : step.id === activeStepId
+                      ? "bg-primary/60"
+                      : "bg-muted-foreground/40"
+                }`}
+              />
+            </button>
           ))}
         </div>
       </div>
@@ -435,12 +442,12 @@ export default function ModuleCoaching() {
               <Sparkles className="h-4.5 w-4.5" style={{ color: "var(--gold)" }} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-foreground leading-snug" style={{ fontSize: "17px" }}>
+              <p className="font-semibold text-foreground leading-snug" style={{ fontSize: "18px" }}>
                 {activeStep?.title || "Step"}
               </p>
               <p
                 className="text-muted-foreground mt-1 leading-relaxed"
-                style={{ fontSize: "14px" }}
+                style={{ fontSize: "16px" }}
               >
                 {activeStep?.description}
               </p>
@@ -449,9 +456,8 @@ export default function ModuleCoaching() {
           <div className="flex items-center gap-1.5 shrink-0">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setShowLessonGuide(true)}
-              className="h-8 gap-1 px-2 text-xs border-brand-gold/30"
+              className="h-11 gap-1 px-3 text-base border-brand-gold/30"
               title="Review this lesson and your saved answers"
             >
               <BookOpen className="h-3.5 w-3.5" />
@@ -466,8 +472,9 @@ export default function ModuleCoaching() {
                     clearChatMutation.mutate({ stepId: activeStepId });
                 }}
                 disabled={clearChatMutation.isPending}
-                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+                className="text-muted-foreground hover:text-foreground h-11 w-11 p-0"
                 title="Restart this conversation"
+                aria-label="Restart this conversation"
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
@@ -490,7 +497,7 @@ export default function ModuleCoaching() {
         {messages.length === 0 && !chatMutation.isPending ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40" />
-            <p className="text-muted-foreground" style={{ fontSize: "15px" }}>
+            <p className="text-muted-foreground" style={{ fontSize: "17px" }}>
               Starting your coaching session...
             </p>
           </div>
@@ -524,11 +531,11 @@ export default function ModuleCoaching() {
                   }`}
                 >
                   {message.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_p]:mb-2 last:[&_p]:mb-0 [&_li]:leading-relaxed" style={{ fontSize: "15px" }}>
+                    <div className="prose dark:prose-invert max-w-none [&_p]:leading-relaxed [&_p]:mb-2 last:[&_p]:mb-0 [&_li]:leading-relaxed" style={{ fontSize: "17px" }}>
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap leading-relaxed" style={{ fontSize: "15px" }}>
+                    <p className="whitespace-pre-wrap leading-relaxed" style={{ fontSize: "17px" }}>
                       {message.content}
                     </p>
                   )}
@@ -607,7 +614,7 @@ export default function ModuleCoaching() {
             )}
             <button
               onClick={() => setLocation("/curriculum")}
-              className="w-full text-center text-sm text-muted-foreground underline hover:text-foreground py-1"
+              className="w-full min-h-[44px] text-center text-base text-muted-foreground underline hover:text-foreground"
             >
               Return to Curriculum
             </button>
@@ -719,7 +726,7 @@ export default function ModuleCoaching() {
             <section className="rounded-xl border border-brand-gold/20 bg-background/40 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-[var(--gold)]">What this lesson is asking</p>
               {lessonGuideMessage ? (
-                <div className="prose prose-sm dark:prose-invert mt-3 max-w-none [&_p]:leading-relaxed [&_li]:leading-relaxed">
+                <div className="prose dark:prose-invert mt-3 max-w-none [&_p]:leading-relaxed [&_li]:leading-relaxed">
                   <ReactMarkdown>{lessonGuideMessage.content}</ReactMarkdown>
                 </div>
               ) : (

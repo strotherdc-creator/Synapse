@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { safeLinkText, safeReturnPath } from "@shared/safeLinkParams";
 import { Copy, MessageSquare, Loader2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { toast } from "sonner";
@@ -37,15 +38,17 @@ export default function CommunicationCoach() {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get("coach") !== "1") return;
-      const outcome = params.get("outcome");
+      // Settings from the link stay supported; every value is validated first.
+      const outcome = safeLinkText(params.get("outcome"));
       const ch = params.get("channel");
       const dir = params.get("direction");
-      const tone = params.get("tone");
-      const stage = params.get("stage");
-      const obstacles = params.get("obstacles");
-      const urg = params.get("urgency");
-      const convo = params.get("conversation");
-      const ret = params.get("returnUrl");
+      const tone = safeLinkText(params.get("tone"), 100);
+      const stage = safeLinkText(params.get("stage"), 100);
+      const obstacles = safeLinkText(params.get("obstacles"));
+      const urg = safeLinkText(params.get("urgency"), 100);
+      const convo = safeLinkText(params.get("conversation"), 4000);
+      // Same-origin paths only (no other sites, no javascript: links).
+      const ret = safeReturnPath(params.get("returnUrl"));
       if (outcome) setDesiredOutcome(outcome);
       if (ch === "verbal" || ch === "text" || ch === "email") setChannel(ch);
       if (dir === "incoming" || dir === "outgoing" || dir === "both") setDirection(dir);
@@ -128,7 +131,7 @@ export default function CommunicationCoach() {
     <div className="max-w-3xl mx-auto space-y-6">
       {returnUrl && (
         <a
-          href={returnUrl}
+          href={safeReturnPath(returnUrl) ?? "/today"}
           className="text-sm text-emerald-400 hover:text-emerald-300 underline"
         >
           ← Back to Today's Plan
