@@ -32,8 +32,9 @@ export const ENV = {
   // SMTP_USER: Gmail address used to send (e.g., yourapp@gmail.com)
   // SMTP_PASS: Gmail App Password (not your regular password)
   // BACKUP_EMAIL: where to send the backup (defaults to ADMIN_EMAIL)
-  smtpUser: process.env.SMTP_USER ?? "",
-  smtpPass: process.env.SMTP_PASS ?? "",
+  // Prod has these as Smtp_user / Smtp_pass; accept either spelling so no variable change is needed.
+  smtpUser: process.env.SMTP_USER || process.env.Smtp_user || "",
+  smtpPass: process.env.SMTP_PASS || process.env.Smtp_pass || "",
   backupEmail: process.env.BACKUP_EMAIL ?? process.env.ADMIN_EMAIL ?? "",
 
   // Runtime

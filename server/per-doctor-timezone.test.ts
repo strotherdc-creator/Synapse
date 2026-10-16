@@ -209,7 +209,7 @@ describe("wiring: every server date uses the requesting doctor's zone", () => {
     expect(src("server/wwld-coach/router.ts")).toContain("buildWwldContext(user.id, user.timezone)");
     expect(src("server/db.ts")).not.toContain("AT TIME ZONE 'America/New_York'");
     const reminders = src("server/engagement/email-reminders.ts");
-    expect(reminders).toContain("const weekStartStr = mondayDateKey(localDate);");
+    expect(reminders).toContain("getGoalsComparison(r.userId, r.workDays, undefined, r.timezone)");
     expect(reminders).toContain("const localDate = zonedClock(now, zone).dateKey;");
     // Claim in the send-log before sending; one query joins users; per-recipient try/catch.
     expect(reminders.indexOf("claimReminderSend(db, r.userId, kind, localDate)")).toBeLessThan(reminders.indexOf("getTransporter().sendMail"));

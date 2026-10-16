@@ -2,7 +2,7 @@
  * Engagement Email Reminders
  *
  * Sends a daily morning email with today's growth plan actions
- * and a Friday weekly review summary.
+ * and a Friday weekly stat report (this week vs the doctor's goals).
  *
  * Uses the same SMTP configuration as the WWLD backup system.
  * Only sends to users who have:
@@ -19,7 +19,9 @@ import { userEngagementPreferences, dailyGrowthPlans, growthActions, users } fro
 import { eq, and, sql } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { isEngagementEnabled } from "./flags";
-import { mondayDateKey, resolveTimeZone, weekdayShort, zonedClock } from "../../shared/appTime";
+import { getGoalsComparison } from "../goals/goals";
+import { buildWeeklyStatEmail } from "./weekly-stat-email";
+import { resolveTimeZone, weekdayShort, zonedClock } from "../../shared/appTime";
 
 /** How often the reminder job wakes up. Every zone offset in use is a multiple of 15 minutes. */
 export const REMINDER_TICK_MINUTES = 15;
@@ -70,6 +72,7 @@ async function loadReminderRecipients(db: Db) {
       quietDays: userEngagementPreferences.quietDays,
       name: users.name,
       clerkId: users.clerkId,
+      workDays: users.workDays,
       timezone: users.timezone,
     })
     .from(userEngagementPreferences)
@@ -100,7 +103,7 @@ async function runReminderTick(
   kind: ReminderKind,
   rule: { minutes: number; weekdays: readonly number[] },
   now: Date,
-  buildMail: (db: Db, r: Recipient, localDate: string) => Promise<{ subject: string; text: string } | null>,
+  buildMail: (db: Db, r: Recipient, localDate: string) => Promise<{ subject: string; text: string; html?: string } | null>,
 ) {
   if (!ENV.smtpUser || !ENV.smtpPass) {
     console.warn(`[Engagement Email] SMTP not configured — skipping ${kind}.`);
@@ -193,41 +196,10 @@ async function sendDailyReminders(now: Date = new Date()) {
 
 async function sendWeeklyReview(now: Date = new Date()) {
   if (!isEngagementEnabled("weeklyReview")) return; // flag off (checked every tick; stay quiet)
-  await runReminderTick("weekly", WEEKLY_REVIEW, now, async (db, r, localDate) => {
-    // This week = Monday–Sunday on the doctor's own calendar (was Sunday–Saturday before Oct 2026).
-    const weekStartStr = mondayDateKey(localDate);
-    const [completedRow] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(growthActions)
-      .where(and(eq(growthActions.userId, r.userId), eq(growthActions.status, "completed"), sql`${growthActions.actionDate} >= ${weekStartStr}`));
-    const [totalRow] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(growthActions)
-      .where(and(eq(growthActions.userId, r.userId), sql`${growthActions.actionDate} >= ${weekStartStr}`));
-    const completed = Number(completedRow?.count ?? 0);
-    const total = Number(totalRow?.count ?? 0);
-    return {
-      subject: `Your Weekly Growth Review — Week of ${weekStartStr}`,
-      text: [
-        `Hi ${r.name || "Doctor"},`,
-        ``,
-        `Here's your weekly growth summary:`,
-        ``,
-        `Actions completed: ${completed} of ${total}`,
-        `Completion rate: ${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
-        ``,
-        completed >= total && total > 0
-          ? `Outstanding week! You completed every growth action. Keep this momentum going.`
-          : completed > 0
-          ? `Good progress this week. Every action you take builds your practice.`
-          : `This week was quiet. Even one small action next week moves the needle.`,
-        ``,
-        `Open Synapse for next week's plan:`,
-        `https://synapse-production-daae.up.railway.app/today`,
-        ``,
-        `— Synapse`,
-      ].join("\n"),
-    };
+  await runReminderTick("weekly", WEEKLY_REVIEW, now, async (_db, r) => {
+    // Same numbers as the Goals page: this week (Mon–Sun, doctor's own calendar) vs the week's goal.
+    const comparison = await getGoalsComparison(r.userId, r.workDays, undefined, r.timezone);
+    return buildWeeklyStatEmail({ name: r.name, comparison });
   });
 }
 
