@@ -5,7 +5,8 @@ import { trpc } from "@/lib/trpc";
 import { BookOpen, CheckCircle2, MessageSquare, Zap, Trophy, Target, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import { SessionPrompt } from "@/components/wwld/SessionPrompt";
-import { getModuleUnlockState, sortModulesForUnlock } from "@shared/curriculumUnlock";
+import { moduleCardStates } from "@shared/curriculumProgress";
+import { ContinueCurriculumButton } from "@/components/curriculum/ContinueCurriculumButton";
 
 export default function Home() {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function Home() {
   const totalModules = modules?.length ?? 0;
 
   return (
-    <div className="space-y-8">
+    <div className="readable space-y-8">
       {/* WWLD daily stats prompt */}
       <SessionPrompt />
 
@@ -34,12 +35,15 @@ export default function Home() {
         onClick={() => setLocation("/today")}
         className="w-full text-left rounded-2xl border-2 border-emerald-500/40 bg-emerald-950/20 hover:border-emerald-500/70 p-5 transition-colors"
       >
-        <p className="text-xs font-bold text-emerald-300 uppercase tracking-wide">Daily start</p>
+        <p className="text-sm font-bold text-emerald-200 uppercase tracking-wide">Daily start</p>
         <p className="text-xl font-bold text-foreground mt-1">Start Today's Plan</p>
         <p className="text-sm text-muted-foreground mt-1">
           One next action and WWLD stats — without menu hunting.
         </p>
       </button>
+
+      {/* Straight to the next curriculum step */}
+      <ContinueCurriculumButton />
 
       {/* Welcome header */}
       <div>
@@ -129,8 +133,9 @@ export default function Home() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Your Modules</h2>
           <button
+            type="button"
             onClick={() => setLocation("/curriculum")}
-            className="text-sm text-gold hover:underline"
+            className="min-h-[44px] px-2 text-base font-semibold text-gold hover:underline"
           >
             View all
           </button>
@@ -150,60 +155,45 @@ export default function Home() {
           </div>
         ) : modules && modules.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {sortModulesForUnlock(modules).map((mod) => {
-              const usesCoachingSteps = mod.stepCount > 0;
-              const completedItems = usesCoachingSteps ? mod.completedStepCount : mod.completedCount;
-              const totalItems = usesCoachingSteps ? mod.stepCount : mod.lessonCount;
-              const progressLabel = usesCoachingSteps ? "steps" : "lessons";
-              const modProgress =
-                totalItems > 0
-                  ? Math.round((completedItems / totalItems) * 100)
-                  : 0;
-              const unlocked =
-                typeof mod.unlocked === "boolean"
-                  ? mod.unlocked
-                  : getModuleUnlockState(modules, mod.id).unlocked;
-              const showComplete = unlocked && mod.moduleComplete;
-              return (
-                <Card
-                  key={mod.id}
-                  className={`bg-card border-brand-gold/15 transition-colors group ${
-                    unlocked
-                      ? "cursor-pointer hover:border-primary/50"
-                      : "opacity-60 cursor-not-allowed"
-                  }`}
-                  onClick={() => {
-                    if (unlocked) setLocation(`/curriculum/${mod.id}`);
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-3 mb-3">
-                      <span className="text-2xl">{mod.iconEmoji || "📘"}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-foreground truncate group-hover:text-gold transition-colors">
-                            {mod.title}
-                          </h3>
-                          {!unlocked ? (
-                            <Lock className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
-                          ) : showComplete ? (
-                            <CheckCircle2 className="h-4 w-4 text-gold flex-shrink-0" />
-                          ) : null}
-                        </div>
-                        {mod.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                            {mod.description}
-                          </p>
-                        )}
+            {moduleCardStates(modules).map((mod) => {
+              const { card } = mod;
+              const body = (
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="text-2xl" aria-hidden="true">{mod.iconEmoji || "📘"}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold text-muted-foreground">Module {card.moduleNumber}</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-foreground">{mod.title}</h3>
+                        {!card.unlocked ? (
+                          <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                        ) : card.complete ? (
+                          <CheckCircle2 className="h-5 w-5 text-gold flex-shrink-0" aria-hidden="true" />
+                        ) : null}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Progress value={modProgress} className="h-1.5 flex-1" />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {completedItems}/{totalItems} {progressLabel}
-                      </span>
-                    </div>
-                  </CardContent>
+                  </div>
+                  {card.unlocked && card.total > 0 && (
+                    <Progress value={card.percent} className="h-2.5" aria-hidden="true" />
+                  )}
+                  <p className={`mt-2 text-lg font-semibold ${!card.unlocked ? "text-muted-foreground" : card.complete ? "text-gold" : "text-foreground"}`}>
+                    {!card.unlocked && <span className="sr-only">Locked. </span>}
+                    {card.label}
+                  </p>
+                </CardContent>
+              );
+              return card.unlocked ? (
+                <button
+                  type="button"
+                  key={mod.id}
+                  onClick={() => setLocation(`/curriculum/${mod.id}`)}
+                  className="block w-full text-left rounded-xl"
+                >
+                  <Card className="bg-card border-brand-gold/30 hover:border-primary transition-colors">{body}</Card>
+                </button>
+              ) : (
+                <Card key={mod.id} className="bg-card/60 border-2 border-dashed border-gray-400/70" aria-disabled="true">
+                  {body}
                 </Card>
               );
             })}

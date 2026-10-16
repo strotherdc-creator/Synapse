@@ -38,19 +38,21 @@ describe("Synapse curriculum completion badge", () => {
     expect(router).toContain("const moduleComplete = steps.length > 0 ? coachingComplete : curriculumComplete;");
     expect(router).toContain("unlocked: isModuleUnlockedAtIndex(ordered, index)");
     expect(router).toContain("sortModulesForUnlock");
-    expect(curriculum).toContain("const usesCoachingSteps = mod.stepCount > 0;");
-    expect(curriculum).toContain("const showComplete = unlocked && mod.moduleComplete");
-    expect(curriculum).toContain("{completedItems}/{totalItems} {progressLabel}");
-    expect(curriculum).toContain("isModuleUnlockedAtIndex");
+    // Oct 15 2026: cards use shared plain-words progress ("Step N of M", "Finish Module 1 to open").
+    const progress = source("shared/curriculumProgress.ts");
+    expect(curriculum).toContain("moduleCardStates(modules)");
+    expect(progress).toContain("const steps = mod.stepCount > 0;");
+    expect(progress).toContain("const complete = unlocked && mod.moduleComplete;");
+    expect(progress).toContain("isModuleUnlockedAtIndex(ordered, index)");
     // Lock and Complete are mutually exclusive (no locked+Complete contradiction)
-    expect(curriculum).toContain("!unlocked ? (");
-    expect(curriculum).toContain(") : showComplete ? (");
+    expect(curriculum).toContain("{!card.unlocked ? (");
+    expect(curriculum).toContain(") : card.complete ? (");
 
     // Detail / coaching / home must use the same unlock/complete metric as Curriculum
     expect(moduleDetail).toContain("getModuleUnlockState(allModules, moduleId)");
     expect(moduleCoaching).toContain("getModuleUnlockState(allModules, moduleId)");
     expect(home).toContain("modules?.filter((m) => m.moduleComplete)");
-    expect(home).toContain("const showComplete = unlocked && mod.moduleComplete");
+    expect(home).toContain("moduleCardStates(modules)");
     expect(moduleDetail).not.toContain("if (!prevModule?.coachingComplete)");
     expect(moduleCoaching).not.toContain("if (!prevModule?.coachingComplete)");
     expect(unlock).toContain("every((m) => m.moduleComplete === true)");
@@ -71,7 +73,8 @@ describe("Synapse curriculum completion badge", () => {
     expect(adminModules).toContain("trpc.modules.adminList.useQuery()");
     expect(adminModules).toContain("utils.modules.adminList.invalidate()");
     // Client defense-in-depth on Curriculum / Home
-    expect(curriculum).toContain('m.status === "published"');
+    expect(source("shared/curriculumProgress.ts")).toContain('m.status === "published"');
+    expect(curriculum).toContain("moduleCardStates(modules)");
     expect(curriculum).not.toContain("Draft");
     expect(home).toContain('m.status === "published"');
   });
@@ -148,8 +151,8 @@ describe("Synapse daily action popup", () => {
 
   it("uses SPA navigation from Today\'s Plan to curriculum (no full reload hrefs)", () => {
     const plan = source("client/src/pages/TodaysGrowthPlan.tsx");
-    expect(plan).toContain('setLocation("/curriculum")');
-    expect(plan).toContain("setLocation(`/curriculum/${nextId}`)");
+    expect(plan).toContain('setLocation(nextStep?.href ?? "/curriculum")');
+    expect(plan).toContain("setLocation(mod.card.unlocked ? `/curriculum/${mod.id}` : \"/curriculum\")");
     expect(plan).not.toContain('href={`/curriculum/${curriculum.incompleteModules[0]?.id}/coaching`}');
     expect(plan).not.toContain('href="/curriculum"');
   });

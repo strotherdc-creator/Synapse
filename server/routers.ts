@@ -97,6 +97,30 @@ async function assertModuleUnlocked(userId: number, moduleId: number, isAdmin: b
   }
 }
 
+/**
+ * A learner may only open, complete or answer a lesson that is published, sits in a published
+ * module, and whose module is unlocked (admins bypass). Draft lessons, lessons in draft modules
+ * and lesson/module mismatches return NOT_FOUND; lessons in a published but still-locked module
+ * return FORBIDDEN ("Complete previous modules…", from assertModuleUnlocked). Neither leaks
+ * lesson content. Returns the lesson.
+ */
+async function assertLessonAccessible(
+  user: { id: number; role: string },
+  lessonId: number,
+  expectedModuleId?: number,
+) {
+  const isAdmin = user.role === "admin";
+  const lesson = await db.getLessonById(lessonId);
+  if (!lesson || (!isAdmin && lesson.status !== "published")) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+  }
+  if (expectedModuleId !== undefined && lesson.moduleId !== expectedModuleId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
+  }
+  await assertModuleUnlocked(user.id, lesson.moduleId, isAdmin);
+  return lesson;
+}
+
 async function assertPreviousStepsComplete(
   userId: number,
   moduleId: number,
@@ -327,6 +351,8 @@ const lessonsRouter = router({
     .input(z.object({ moduleId: z.number() }))
     .query(async ({ ctx, input }) => {
       const isAdmin = ctx.user.role === "admin";
+      // Hidden (draft) or still-locked modules can't be listed by ID.
+      await assertModuleUnlocked(ctx.user.id, input.moduleId, isAdmin);
       const allLessons = await db.listLessons(input.moduleId, !isAdmin);
       const progress = await db.getUserModuleProgress(ctx.user.id, input.moduleId);
       return allLessons.map((lesson) => ({
@@ -338,14 +364,7 @@ const lessonsRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ ctx, input }) => {
-      const lesson = await db.getLessonById(input.id);
-      if (!lesson) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
-      }
-      if (lesson.status !== "published" && ctx.user.role !== "admin") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Lesson not found" });
-      }
-      return lesson;
+      return assertLessonAccessible(ctx.user, input.id);
     }),
 
   create: adminProcedure
@@ -410,6 +429,7 @@ const progressRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertLessonAccessible(ctx.user, input.lessonId, input.moduleId);
       await db.toggleLessonComplete(
         ctx.user.id,
         input.lessonId,
@@ -443,6 +463,7 @@ const answersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      await assertLessonAccessible(ctx.user, input.lessonId, input.moduleId);
       await db.saveUserAnswer({
         userId: ctx.user.id,
         ...input,
@@ -482,8 +503,9 @@ const aiRouter = router({
       // Get lesson context if available (published only for non-admins)
       let lessonContext = "";
       if (input.lessonId) {
-        const lesson = await db.getLessonById(input.lessonId);
-        if (lesson && (lesson.status === "published" || ctx.user.role === "admin")) {
+        // Same gate as lessons.getById: no context from hidden or locked lessons.
+        const lesson = await assertLessonAccessible(ctx.user, input.lessonId).catch(() => null);
+        if (lesson) {
           lessonContext = `\n\nCurrent lesson: "${lesson.title}"\nLesson summary: ${lesson.summary || "No summary available."}\nLesson content excerpt: ${(lesson.content || "").slice(0, 1500)}`;
         }
       }
